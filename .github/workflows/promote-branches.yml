@@ -1,0 +1,58 @@
+name: Promote Branches
+
+on:
+  workflow_call:
+    inputs:
+      source_branch:
+        required: true
+        type: string
+      target_branch:
+        required: true
+        type: string
+      tested_sha:
+        required: true
+        type: string
+    secrets:
+      promotion_token:
+        required: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Require promotion token
+        env:
+          PROMOTION_TOKEN: ${{ secrets.promotion_token }}
+        run: |
+          if [ -z "${PROMOTION_TOKEN}" ]; then
+            echo "::error::promotion_token is required for branch promotion." >&2
+            exit 1
+          fi
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.promotion_token }}
+      - name: Verify branch promotion contract
+        env:
+          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          TESTED_SHA: ${{ inputs.tested_sha }}
+        run: |
+          git fetch origin "${SOURCE_BRANCH}" "${TARGET_BRANCH}"
+          if ! git merge-base --is-ancestor "origin/${TARGET_BRANCH}" "${TESTED_SHA}"; then
+            echo "::error::${TARGET_BRANCH} contains commits outside ${TESTED_SHA}." >&2
+            exit 1
+          fi
+      - name: Promote exact tested commit
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          TESTED_SHA: ${{ inputs.tested_sha }}
+        run: |
+          REMOTE_REF="refs/remotes/origin/${TARGET_BRANCH}"
+          EXPECTED_TARGET="$(git rev-parse "${REMOTE_REF}")"
+          git push \
+            --force-with-lease="refs/heads/${TARGET_BRANCH}:${EXPECTED_TARGET}" \
+            origin \
+            "${TESTED_SHA}:refs/heads/${TARGET_BRANCH}"

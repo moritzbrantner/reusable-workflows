@@ -1,0 +1,103 @@
+name: Validate Repo
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        required: false
+        type: string
+        default: "."
+      node_version:
+        required: false
+        type: string
+        default: "24"
+      bun_version:
+        required: false
+        type: string
+        default: "1.3.12"
+      install_command:
+        required: false
+        type: string
+        default: "bun install --frozen-lockfile"
+      pre_validate_command:
+        required: false
+        type: string
+        default: ""
+      lint_command:
+        required: false
+        type: string
+        default: ""
+      typecheck_command:
+        required: false
+        type: string
+        default: ""
+      test_command:
+        required: false
+        type: string
+        default: ""
+      build_command:
+        required: false
+        type: string
+        default: ""
+      e2e_command:
+        required: false
+        type: string
+        default: ""
+      post_validate_command:
+        required: false
+        type: string
+        default: ""
+      install_playwright:
+        required: false
+        type: boolean
+        default: false
+      install_xvfb:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      node_auth_token:
+        required: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    defaults:
+      run:
+        working-directory: ${{ inputs.working_directory }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token }}
+      GH_PACKAGES_TOKEN: ${{ secrets.node_auth_token }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ inputs.bun_version }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node_version }}
+      - if: ${{ inputs.install_xvfb }}
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - if: ${{ inputs.install_command != '' }}
+        run: ${{ inputs.install_command }}
+      - if: ${{ inputs.pre_validate_command != '' }}
+        run: ${{ inputs.pre_validate_command }}
+      - if: ${{ inputs.lint_command != '' }}
+        run: ${{ inputs.lint_command }}
+      - if: ${{ inputs.typecheck_command != '' }}
+        run: ${{ inputs.typecheck_command }}
+      - if: ${{ inputs.test_command != '' }}
+        run: ${{ inputs.test_command }}
+      - if: ${{ inputs.build_command != '' }}
+        run: ${{ inputs.build_command }}
+      - if: ${{ inputs.install_playwright }}
+        run: bunx playwright install --with-deps
+      - if: ${{ inputs.e2e_command != '' && inputs.install_xvfb }}
+        run: xvfb-run -a ${{ inputs.e2e_command }}
+      - if: ${{ inputs.e2e_command != '' && !inputs.install_xvfb }}
+        run: ${{ inputs.e2e_command }}
+      - if: ${{ always() && inputs.post_validate_command != '' }}
+        run: ${{ inputs.post_validate_command }}
