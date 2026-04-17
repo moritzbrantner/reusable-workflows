@@ -16,3 +16,5 @@ This folder is a documentation-only reference pack for a dedicated private repos
 3. Tag the first release as `scaffold-v2-initial`.
 4. Consume the workflows from downstream repos with pinned `uses:` references.
 5. Let Dependabot update workflow refs instead of copying YAML bodies around.
+
+See `SCAFFOLD_ALIGNMENT.md` for the maintained repo-family contract for this repository.
