@@ -1,0 +1,41 @@
+# SCAFFOLD_ALIGNMENT.md
+
+## Canonical source
+
+The normative scaffold contract lives in `monorepo/SCAFFOLD_V2.md`.
+
+## Repo role
+
+`reusable-workflows` owns the shared GitHub Actions workflow contracts consumed by the maintained scaffold-family repos.
+
+## What is local vs shared
+
+Local:
+- reusable workflow YAML implementations
+- workflow validation for this repository
+- release tags such as `scaffold-v2-initial`
+
+Shared:
+- the workflow contract expectations documented in `monorepo/REUSABLE_WORKFLOWS.md`
+- consumer-facing pinned refs used by maintained repos
+
+## Update path
+
+1. Land workflow contract changes in `monorepo`.
+2. Implement them here and validate with `actionlint`.
+3. Tag a new reusable-workflows release.
+4. Adopt the new tag in consumer repos through normal PRs.
+
+## What must not drift
+
+- workflow input/output contract for `validate-repo.yml`
+- workflow input/output contract for `promote-branches.yml`
+- workflow input/output contract for `release-template.yml`
+- pinned tag history referenced by maintained repos
+
+## Config references
+
+- `.platform-upgrader.json`: not applicable yet for this non-app repo
+- `.github/workflows/*.yml`
+- `README.md`
+
