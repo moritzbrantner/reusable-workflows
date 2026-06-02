@@ -12,6 +12,18 @@ on:
       tested_sha:
         required: true
         type: string
+      timeout_minutes:
+        required: false
+        type: number
+        default: 10
+      concurrency_group:
+        required: false
+        type: string
+        default: ""
+      cancel_in_progress:
+        required: false
+        type: boolean
+        default: false
     secrets:
       promotion_token:
         required: true
@@ -19,8 +31,12 @@ on:
 jobs:
   promote:
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
       contents: write
+    concurrency:
+      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-{2}-promotion', github.workflow, inputs.source_branch, inputs.target_branch) }}
+      cancel-in-progress: ${{ inputs.cancel_in_progress }}
     steps:
       - name: Require promotion token
         env:

@@ -32,10 +32,10 @@ Shared:
 - workflow input/output contract for `promote-branches.yml`
 - workflow input/output contract for `release-template.yml`
 - pinned tag history referenced by maintained repos
+- staged workflow contract for `workflow-standard-v1`
 
 ## Config references
 
 - `.platform-upgrader.json`: not applicable yet for this non-app repo
 - `.github/workflows/*.yml`
 - `README.md`
-

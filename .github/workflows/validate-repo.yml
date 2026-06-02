@@ -23,6 +23,10 @@ on:
         required: false
         type: string
         default: ""
+      format_command:
+        required: false
+        type: string
+        default: ""
       lint_command:
         required: false
         type: string
@@ -55,49 +59,157 @@ on:
         required: false
         type: boolean
         default: false
+      artifact_paths:
+        required: false
+        type: string
+        default: |
+          playwright-report
+          test-results
+      timeout_minutes:
+        required: false
+        type: number
+        default: 45
+      cache_bun:
+        required: false
+        type: boolean
+        default: true
+      cache_node:
+        required: false
+        type: boolean
+        default: false
+      cache_cargo:
+        required: false
+        type: boolean
+        default: false
+      concurrency_group:
+        required: false
+        type: string
+        default: ""
+      cancel_in_progress:
+        required: false
+        type: boolean
+        default: true
     secrets:
       node_auth_token:
+        required: false
+      GH_PACKAGES_TOKEN:
         required: false
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
       contents: read
       packages: read
+    concurrency:
+      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-validate-repo', github.workflow, github.ref) }}
+      cancel-in-progress: ${{ inputs.cancel_in_progress }}
     defaults:
       run:
+        shell: bash
         working-directory: ${{ inputs.working_directory }}
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token }}
-      GH_PACKAGES_TOKEN: ${{ secrets.node_auth_token }}
+      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     steps:
       - uses: actions/checkout@v6
-      - uses: oven-sh/setup-bun@v2
+
+      - name: Set up Bun
+        if: ${{ inputs.bun_version != '' }}
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ inputs.bun_version }}
-      - uses: actions/setup-node@v6
+
+      - name: Set up Node.js
+        if: ${{ inputs.node_version != '' }}
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ inputs.node_version }}
-      - if: ${{ inputs.install_xvfb }}
+
+      - name: Cache Bun
+        if: ${{ inputs.cache_bun }}
+        uses: actions/cache@v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Cache npm
+        if: ${{ inputs.cache_node }}
+        uses: actions/cache@v5
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Cache Cargo
+        if: ${{ inputs.cache_cargo }}
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install Xvfb
+        if: ${{ inputs.install_xvfb }}
         run: sudo apt-get update && sudo apt-get install -y xvfb
-      - if: ${{ inputs.install_command != '' }}
+        working-directory: .
+
+      - name: Install dependencies
+        if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
-      - if: ${{ inputs.pre_validate_command != '' }}
+
+      - name: Run pre-validation command
+        if: ${{ inputs.pre_validate_command != '' }}
         run: ${{ inputs.pre_validate_command }}
-      - if: ${{ inputs.lint_command != '' }}
+
+      - name: Check formatting
+        if: ${{ inputs.format_command != '' }}
+        run: ${{ inputs.format_command }}
+
+      - name: Lint
+        if: ${{ inputs.lint_command != '' }}
         run: ${{ inputs.lint_command }}
-      - if: ${{ inputs.typecheck_command != '' }}
+
+      - name: Typecheck
+        if: ${{ inputs.typecheck_command != '' }}
         run: ${{ inputs.typecheck_command }}
-      - if: ${{ inputs.test_command != '' }}
+
+      - name: Test
+        if: ${{ inputs.test_command != '' }}
         run: ${{ inputs.test_command }}
-      - if: ${{ inputs.build_command != '' }}
+
+      - name: Build
+        if: ${{ inputs.build_command != '' }}
         run: ${{ inputs.build_command }}
-      - if: ${{ inputs.install_playwright }}
+
+      - name: Install Playwright browsers
+        if: ${{ inputs.install_playwright }}
         run: bunx playwright install --with-deps
-      - if: ${{ inputs.e2e_command != '' && inputs.install_xvfb }}
+
+      - name: Run e2e tests with Xvfb
+        if: ${{ inputs.e2e_command != '' && inputs.install_xvfb }}
         run: xvfb-run -a ${{ inputs.e2e_command }}
-      - if: ${{ inputs.e2e_command != '' && !inputs.install_xvfb }}
+
+      - name: Run e2e tests
+        if: ${{ inputs.e2e_command != '' && !inputs.install_xvfb }}
         run: ${{ inputs.e2e_command }}
-      - if: ${{ always() && inputs.post_validate_command != '' }}
+
+      - name: Upload failure artifacts
+        if: ${{ failure() && inputs.artifact_paths != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: validate-repo-artifacts
+          path: ${{ inputs.artifact_paths }}
+          if-no-files-found: ignore
+
+      - name: Run post-validation command
+        if: ${{ always() && inputs.post_validate_command != '' }}
         run: ${{ inputs.post_validate_command }}

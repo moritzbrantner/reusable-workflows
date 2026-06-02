@@ -1,11 +1,8 @@
-name: Release Template
+name: Storybook Validation
 
 on:
   workflow_call:
     inputs:
-      release_type:
-        required: true
-        type: string
       working_directory:
         required: false
         type: string
@@ -22,34 +19,34 @@ on:
         required: false
         type: string
         default: "bun install --frozen-lockfile"
-      pre_release_command:
+      pre_command:
         required: false
         type: string
         default: ""
-      validate_command:
+      storybook_build_command:
+        required: false
+        type: string
+        default: "bun run build-storybook"
+      storybook_test_command:
         required: false
         type: string
         default: ""
-      build_command:
+      accessibility_command:
         required: false
         type: string
         default: ""
-      release_command:
+      visual_command:
         required: false
         type: string
         default: ""
-      post_release_command:
-        required: false
-        type: string
-        default: ""
-      artifact_paths:
+      post_command:
         required: false
         type: string
         default: ""
       timeout_minutes:
         required: false
         type: number
-        default: 45
+        default: 30
       cache_bun:
         required: false
         type: boolean
@@ -62,6 +59,17 @@ on:
         required: false
         type: boolean
         default: false
+      install_playwright:
+        required: false
+        type: boolean
+        default: false
+      artifact_paths:
+        required: false
+        type: string
+        default: |
+          storybook-static
+          playwright-report
+          test-results
       concurrency_group:
         required: false
         type: string
@@ -69,37 +77,31 @@ on:
       cancel_in_progress:
         required: false
         type: boolean
-        default: false
+        default: true
     secrets:
       node_auth_token:
         required: false
       GH_PACKAGES_TOKEN:
         required: false
-      NPM_TOKEN:
-        required: false
-      release_token:
-        required: false
 
 jobs:
-  release:
+  storybook-validation:
+    name: Storybook Validation
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
-      contents: write
-      packages: write
-      id-token: write
+      contents: read
+      packages: read
     concurrency:
-      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-{2}-release', github.workflow, github.ref, inputs.release_type) }}
+      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-storybook-validation', github.workflow, github.ref) }}
       cancel-in-progress: ${{ inputs.cancel_in_progress }}
     defaults:
       run:
         shell: bash
         working-directory: ${{ inputs.working_directory }}
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
-      GITHUB_TOKEN: ${{ secrets.release_token || github.token }}
     steps:
       - uses: actions/checkout@v6
 
@@ -149,30 +151,38 @@ jobs:
         if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
 
-      - name: Run pre-release command
-        if: ${{ inputs.pre_release_command != '' }}
-        run: ${{ inputs.pre_release_command }}
+      - name: Install Playwright browsers
+        if: ${{ inputs.install_playwright }}
+        run: bunx playwright install --with-deps
 
-      - name: Validate release
-        if: ${{ inputs.validate_command != '' }}
-        run: ${{ inputs.validate_command }}
+      - name: Run pre-command
+        if: ${{ inputs.pre_command != '' }}
+        run: ${{ inputs.pre_command }}
 
-      - name: Build release artifacts
-        if: ${{ inputs.build_command != '' }}
-        run: ${{ inputs.build_command }}
+      - name: Build Storybook
+        if: ${{ inputs.storybook_build_command != '' }}
+        run: ${{ inputs.storybook_build_command }}
 
-      - name: Run release command
-        if: ${{ inputs.release_command != '' }}
-        run: ${{ inputs.release_command }}
+      - name: Run Storybook interaction tests
+        if: ${{ inputs.storybook_test_command != '' }}
+        run: ${{ inputs.storybook_test_command }}
 
-      - name: Upload release artifacts on failure
+      - name: Run accessibility checks
+        if: ${{ inputs.accessibility_command != '' }}
+        run: ${{ inputs.accessibility_command }}
+
+      - name: Run visual checks
+        if: ${{ inputs.visual_command != '' }}
+        run: ${{ inputs.visual_command }}
+
+      - name: Upload failure artifacts
         if: ${{ failure() && inputs.artifact_paths != '' }}
         uses: actions/upload-artifact@v7
         with:
-          name: release-${{ inputs.release_type }}-artifacts
+          name: storybook-validation-artifacts
           path: ${{ inputs.artifact_paths }}
           if-no-files-found: ignore
 
-      - name: Run post-release command
-        if: ${{ always() && inputs.post_release_command != '' }}
-        run: ${{ inputs.post_release_command }}
+      - name: Run post-command
+        if: ${{ always() && inputs.post_command != '' }}
+        run: ${{ inputs.post_command }}

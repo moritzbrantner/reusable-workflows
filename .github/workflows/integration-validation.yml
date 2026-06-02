@@ -1,11 +1,8 @@
-name: Release Template
+name: Integration Validation
 
 on:
   workflow_call:
     inputs:
-      release_type:
-        required: true
-        type: string
       working_directory:
         required: false
         type: string
@@ -22,34 +19,30 @@ on:
         required: false
         type: string
         default: "bun install --frozen-lockfile"
-      pre_release_command:
+      pre_command:
         required: false
         type: string
         default: ""
-      validate_command:
+      integration_command:
         required: false
         type: string
         default: ""
-      build_command:
+      migration_command:
         required: false
         type: string
         default: ""
-      release_command:
+      package_check_command:
         required: false
         type: string
         default: ""
-      post_release_command:
-        required: false
-        type: string
-        default: ""
-      artifact_paths:
+      post_command:
         required: false
         type: string
         default: ""
       timeout_minutes:
         required: false
         type: number
-        default: 45
+        default: 30
       cache_bun:
         required: false
         type: boolean
@@ -62,6 +55,10 @@ on:
         required: false
         type: boolean
         default: false
+      artifact_paths:
+        required: false
+        type: string
+        default: ""
       concurrency_group:
         required: false
         type: string
@@ -69,37 +66,31 @@ on:
       cancel_in_progress:
         required: false
         type: boolean
-        default: false
+        default: true
     secrets:
       node_auth_token:
         required: false
       GH_PACKAGES_TOKEN:
         required: false
-      NPM_TOKEN:
-        required: false
-      release_token:
-        required: false
 
 jobs:
-  release:
+  integration-validation:
+    name: Integration Validation
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
-      contents: write
-      packages: write
-      id-token: write
+      contents: read
+      packages: read
     concurrency:
-      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-{2}-release', github.workflow, github.ref, inputs.release_type) }}
+      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-integration-validation', github.workflow, github.ref) }}
       cancel-in-progress: ${{ inputs.cancel_in_progress }}
     defaults:
       run:
         shell: bash
         working-directory: ${{ inputs.working_directory }}
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
-      GITHUB_TOKEN: ${{ secrets.release_token || github.token }}
     steps:
       - uses: actions/checkout@v6
 
@@ -149,30 +140,30 @@ jobs:
         if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
 
-      - name: Run pre-release command
-        if: ${{ inputs.pre_release_command != '' }}
-        run: ${{ inputs.pre_release_command }}
+      - name: Run pre-command
+        if: ${{ inputs.pre_command != '' }}
+        run: ${{ inputs.pre_command }}
 
-      - name: Validate release
-        if: ${{ inputs.validate_command != '' }}
-        run: ${{ inputs.validate_command }}
+      - name: Run integration tests
+        if: ${{ inputs.integration_command != '' }}
+        run: ${{ inputs.integration_command }}
 
-      - name: Build release artifacts
-        if: ${{ inputs.build_command != '' }}
-        run: ${{ inputs.build_command }}
+      - name: Check migrations
+        if: ${{ inputs.migration_command != '' }}
+        run: ${{ inputs.migration_command }}
 
-      - name: Run release command
-        if: ${{ inputs.release_command != '' }}
-        run: ${{ inputs.release_command }}
+      - name: Check packages
+        if: ${{ inputs.package_check_command != '' }}
+        run: ${{ inputs.package_check_command }}
 
-      - name: Upload release artifacts on failure
+      - name: Upload failure artifacts
         if: ${{ failure() && inputs.artifact_paths != '' }}
         uses: actions/upload-artifact@v7
         with:
-          name: release-${{ inputs.release_type }}-artifacts
+          name: integration-validation-artifacts
           path: ${{ inputs.artifact_paths }}
           if-no-files-found: ignore
 
-      - name: Run post-release command
-        if: ${{ always() && inputs.post_release_command != '' }}
-        run: ${{ inputs.post_release_command }}
+      - name: Run post-command
+        if: ${{ always() && inputs.post_command != '' }}
+        run: ${{ inputs.post_command }}
