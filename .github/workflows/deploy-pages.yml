@@ -143,7 +143,7 @@ jobs:
         run: ${{ inputs.build_command }}
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ inputs.working_directory }}/${{ inputs.artifact_path }}
 
