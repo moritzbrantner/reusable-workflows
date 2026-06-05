@@ -1,0 +1,8 @@
+dist/
+node_modules/
+benchmark-results/
+storybook-static/
+test-results/
+playwright-report/
+.unlighthouse/
+unlighthouse-reports/

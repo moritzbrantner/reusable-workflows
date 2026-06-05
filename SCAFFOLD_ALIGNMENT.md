@@ -11,12 +11,14 @@ The normative scaffold contract lives in `monorepo/SCAFFOLD_V2.md`.
 ## What is local vs shared
 
 Local:
+
 - reusable workflow YAML implementations
 - workflow validation for this repository
 - release tags such as `scaffold-v2-initial`
 - machine-readable workflow contracts in `contracts/workflows.json`
 
 Shared:
+
 - the workflow contract expectations documented in `monorepo/REUSABLE_WORKFLOWS.md`
 - consumer-facing pinned refs used by maintained repos
 
@@ -25,7 +27,7 @@ Shared:
 1. Land workflow contract changes in `monorepo`.
 2. Implement them here and validate with `actionlint`.
 3. Update `contracts/workflows.json`.
-4. Run `ruby scripts/validate-workflow-contracts.rb`.
+4. Run `bun run validate:contracts`.
 5. Tag a new reusable-workflows release.
 6. Adopt the new tag in consumer repos through normal PRs.
 
@@ -50,5 +52,5 @@ Shared:
 - `.platform-upgrader.json`: not applicable yet for this non-app repo
 - `.github/workflows/*.yml`
 - `contracts/workflows.json`
-- `scripts/validate-workflow-contracts.rb`
+- `scripts/validate-workflow-contracts.ts`
 - `README.md`

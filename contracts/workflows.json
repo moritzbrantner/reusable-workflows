@@ -349,8 +349,7 @@
           "required": false
         }
       },
-      "outputs": {
-      },
+      "outputs": {},
       "permissions": {
         "contents": "read",
         "packages": "read"
@@ -665,8 +664,7 @@
           "required": true
         }
       },
-      "outputs": {
-      },
+      "outputs": {},
       "permissions": {
         "contents": "write"
       }

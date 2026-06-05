@@ -2,6 +2,9 @@
 
 This repository owns shared GitHub Actions workflow contracts for maintained `moritzbrantner/*` repositories.
 
+The repository also publishes a small React GitHub Pages reference app from `src/`.
+That deployment intentionally calls the local `deploy-pages.yml` reusable workflow. CI also runs the app through the staged validation workflows, Storybook, Playwright, Unlighthouse, benchmark, bundle-size, stage, and compatibility paths so this repository dogfoods most of the workflow contract surface.
+
 Target release tag: `workflow-standard-v1`.
 
 ## Workflow Standard
@@ -30,16 +33,16 @@ Release checklist:
 1. Update workflow YAML.
 2. Update `contracts/workflows.json`.
 3. Update `README.md`, `SCAFFOLD_ALIGNMENT.md`, and the canonical `monorepo/REUSABLE_WORKFLOWS.md` reference.
-4. Run `ruby scripts/validate-workflow-contracts.rb`.
+4. Run `bun run validate:contracts`.
 5. Run `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color .github/workflows/*.yml`.
-6. Confirm `Smoke Reusable Workflows` passes.
+6. Confirm `Smoke Reusable Workflows` and `Deploy Docs Pages` pass.
 7. Create a new tag and roll it out to consumers through normal PRs.
 
 ## Contract Validation
 
 The machine-readable workflow contract lives in `contracts/workflows.json`.
 
-CI runs `scripts/validate-workflow-contracts.rb` to verify:
+CI runs `scripts/validate-workflow-contracts.ts` to verify:
 
 - reusable workflow inputs, secrets, outputs, and job permissions match the contract file
 - `README.md` and `SCAFFOLD_ALIGNMENT.md` document every reusable workflow

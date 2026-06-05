@@ -12,15 +12,115 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  workflow-contracts:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  app-validation:
+    uses: ./.github/workflows/fast-validation.yml
     permissions:
       contents: read
-    steps:
-      - uses: actions/checkout@v6
-      - name: Check reusable workflow contracts
-        run: ruby scripts/validate-workflow-contracts.rb
+      packages: read
+    with:
+      bun_version: "1.3.14"
+      install_command: "bun install --frozen-lockfile"
+      format_command: "bun run format:check"
+      lint_command: "bun run lint"
+      typecheck_command: "bun run check-types"
+      build_command: "bun run build"
+      unit_test_command: "bun run test:unit && bun run validate:contracts"
+
+  integration-validation:
+    uses: ./.github/workflows/integration-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      bun_version: "1.3.14"
+      install_command: "bun install --frozen-lockfile"
+      integration_command: "bun run test:integration"
+      migration_command: "bun run validate:contracts"
+      package_check_command: "bun run size:check"
+      artifact_paths: ""
+
+  e2e-validation:
+    uses: ./.github/workflows/e2e-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      bun_version: "1.3.14"
+      install_command: "bun install --frozen-lockfile"
+      build_command: "bun run build"
+      install_playwright: true
+      e2e_command: "playwright test"
+      artifact_paths: |
+        playwright-report
+        test-results
+
+  storybook-validation:
+    uses: ./.github/workflows/storybook-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      bun_version: "1.3.14"
+      install_command: "bun install --frozen-lockfile"
+      storybook_build_command: "bun run storybook:build"
+      storybook_test_command: "bun run test:storybook"
+      accessibility_command: "bun run test:a11y"
+      visual_command: "bun run test:visual"
+      install_playwright: true
+      artifact_paths: |
+        storybook-static
+        playwright-report
+        test-results
+
+  performance-validation:
+    uses: ./.github/workflows/performance-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      bun_version: "1.3.14"
+      install_command: "bun install --frozen-lockfile"
+      build_command: "bun run build"
+      unlighthouse_command: "bun scripts/run-unlighthouse.mjs"
+      benchmark_command: "bun run bench"
+      bundle_size_command: "bun scripts/check-bundle-size.ts"
+      api_report_command: "bun run api:check"
+      artifact_paths: |
+        .unlighthouse
+        unlighthouse-reports
+        benchmark-results
+        performance-results
+
+  stage-validation:
+    uses: ./.github/workflows/stage-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      stage: develop
+      bun_version: "1.3.14"
+      install_command: "bun install --frozen-lockfile"
+      develop_command: "bun run validate:contracts"
+      artifact_paths: ""
+
+  validate-repo-compatibility:
+    uses: ./.github/workflows/validate-repo.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      bun_version: "1.3.14"
+      install_command: "bun install --frozen-lockfile"
+      format_command: "bun run format:check"
+      lint_command: "bun run lint"
+      typecheck_command: "bun run check-types"
+      test_command: "bun run validate:contracts"
+      build_command: "bun run build"
+      e2e_command: "playwright test tests/e2e/reference-page.spec.ts --project=chromium"
+      install_playwright: true
+      artifact_paths: |
+        playwright-report
+        test-results
 
   actionlint:
     runs-on: ubuntu-latest
