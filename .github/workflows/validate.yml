@@ -49,7 +49,7 @@ jobs:
       install_command: "bun install --frozen-lockfile"
       build_command: "bun run build"
       install_playwright: true
-      e2e_command: "playwright test"
+      e2e_command: "bunx playwright test"
       artifact_paths: |
         playwright-report
         test-results
@@ -116,7 +116,7 @@ jobs:
       typecheck_command: "bun run check-types"
       test_command: "bun run validate:contracts"
       build_command: "bun run build"
-      e2e_command: "playwright test tests/e2e/reference-page.spec.ts --project=chromium"
+      e2e_command: "bunx playwright test tests/e2e/reference-page.spec.ts --project=chromium"
       install_playwright: true
       artifact_paths: |
         playwright-report
