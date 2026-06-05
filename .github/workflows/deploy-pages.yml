@@ -58,7 +58,7 @@ on:
       concurrency_group:
         required: false
         type: string
-        default: "pages"
+        default: ""
       cancel_in_progress:
         required: false
         type: boolean
@@ -82,7 +82,7 @@ jobs:
       id-token: write
       packages: read
     concurrency:
-      group: ${{ inputs.concurrency_group }}
+      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-deploy-pages', github.workflow, github.ref) }}
       cancel-in-progress: ${{ inputs.cancel_in_progress }}
     environment:
       name: github-pages

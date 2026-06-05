@@ -76,6 +76,7 @@ Most validation workflows accept:
 - `cancel_in_progress`
 
 `upload_artifacts_on` accepts `failure`, `always`, or `never`. Use `artifact_name_suffix` with a leading separator, for example `-pr-${{ github.run_number }}`.
+Leave `concurrency_group` empty for reusable Pages deployments unless you need a custom group that is different from the caller workflow's top-level concurrency group.
 
 ## Common Secrets
 
@@ -206,7 +207,6 @@ jobs:
     with:
       build_command: bun run build
       artifact_path: dist
-      concurrency_group: pages
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```

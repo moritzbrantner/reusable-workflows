@@ -42,7 +42,7 @@
         "concurrency_group": {
           "required": false,
           "type": "string",
-          "default": "pages"
+          "default": ""
         },
         "install_command": {
           "required": false,
