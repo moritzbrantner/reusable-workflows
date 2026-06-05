@@ -56,9 +56,36 @@ jobs:
           TARGET_BRANCH: ${{ inputs.target_branch }}
           TESTED_SHA: ${{ inputs.tested_sha }}
         run: |
-          git fetch origin "${SOURCE_BRANCH}" "${TARGET_BRANCH}"
-          if ! git merge-base --is-ancestor "origin/${TARGET_BRANCH}" "${TESTED_SHA}"; then
-            echo "::error::${TARGET_BRANCH} contains commits outside ${TESTED_SHA}." >&2
+          for branch in "${SOURCE_BRANCH}" "${TARGET_BRANCH}"; do
+            if [[ "${branch}" == refs/* ]]; then
+              echo "::error::Use branch names without refs/* prefixes: ${branch}" >&2
+              exit 1
+            fi
+
+            if ! git check-ref-format --branch "${branch}" >/dev/null; then
+              echo "::error::Invalid branch name: ${branch}" >&2
+              exit 1
+            fi
+          done
+
+          if [ "${SOURCE_BRANCH}" = "${TARGET_BRANCH}" ]; then
+            echo "::error::source_branch and target_branch must differ." >&2
+            exit 1
+          fi
+
+          git fetch --no-tags origin \
+            "+refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}" \
+            "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+
+          tested_commit="$(git rev-parse --verify "${TESTED_SHA}^{commit}")"
+
+          if ! git merge-base --is-ancestor "${tested_commit}" "origin/${SOURCE_BRANCH}"; then
+            echo "::error::tested_sha must be reachable from origin/${SOURCE_BRANCH}." >&2
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "origin/${TARGET_BRANCH}" "${tested_commit}"; then
+            echo "::error::${TARGET_BRANCH} contains commits outside ${tested_commit}." >&2
             exit 1
           fi
       - name: Promote exact tested commit

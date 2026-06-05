@@ -14,6 +14,7 @@ Local:
 - reusable workflow YAML implementations
 - workflow validation for this repository
 - release tags such as `scaffold-v2-initial`
+- machine-readable workflow contracts in `contracts/workflows.json`
 
 Shared:
 - the workflow contract expectations documented in `monorepo/REUSABLE_WORKFLOWS.md`
@@ -23,8 +24,10 @@ Shared:
 
 1. Land workflow contract changes in `monorepo`.
 2. Implement them here and validate with `actionlint`.
-3. Tag a new reusable-workflows release.
-4. Adopt the new tag in consumer repos through normal PRs.
+3. Update `contracts/workflows.json`.
+4. Run `ruby scripts/validate-workflow-contracts.rb`.
+5. Tag a new reusable-workflows release.
+6. Adopt the new tag in consumer repos through normal PRs.
 
 ## What must not drift
 
@@ -33,9 +36,19 @@ Shared:
 - workflow input/output contract for `release-template.yml`
 - pinned tag history referenced by maintained repos
 - staged workflow contract for `workflow-standard-v1`
+- `fast-validation.yml`
+- `integration-validation.yml`
+- `e2e-validation.yml`
+- `storybook-validation.yml`
+- `performance-validation.yml`
+- `deploy-pages.yml`
+- `stage-validation.yml`
+- `validate-repo.yml`
 
 ## Config references
 
 - `.platform-upgrader.json`: not applicable yet for this non-app repo
 - `.github/workflows/*.yml`
+- `contracts/workflows.json`
+- `scripts/validate-workflow-contracts.rb`
 - `README.md`

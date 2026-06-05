@@ -2,6 +2,10 @@ name: Integration Validation
 
 on:
   workflow_call:
+    outputs:
+      artifact_name:
+        description: "Failure or requested artifact name for this validation job."
+        value: ${{ jobs.integration-validation.outputs.artifact_name }}
     inputs:
       working_directory:
         required: false
@@ -47,15 +51,39 @@ on:
         required: false
         type: boolean
         default: true
+      bun_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/bun.lock"
       cache_node:
         required: false
         type: boolean
         default: false
+      npm_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/package-lock.json"
       cache_cargo:
         required: false
         type: boolean
         default: false
+      cargo_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/Cargo.lock"
       artifact_paths:
+        required: false
+        type: string
+        default: ""
+      upload_artifacts_on:
+        required: false
+        type: string
+        default: "failure"
+      artifact_retention_days:
+        required: false
+        type: number
+        default: 14
+      artifact_name_suffix:
         required: false
         type: string
         default: ""
@@ -78,6 +106,8 @@ jobs:
     name: Integration Validation
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
+    outputs:
+      artifact_name: ${{ steps.artifact-name.outputs.name }}
     permissions:
       contents: read
       packages: read
@@ -93,6 +123,16 @@ jobs:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set artifact name
+        id: artifact-name
+        run: echo "name=integration-validation-artifacts${{ inputs.artifact_name_suffix }}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate artifact upload mode
+        if: ${{ inputs.upload_artifacts_on != 'failure' && inputs.upload_artifacts_on != 'always' && inputs.upload_artifacts_on != 'never' }}
+        run: |
+          echo "::error::upload_artifacts_on must be one of: failure, always, never." >&2
+          exit 1
 
       - name: Set up Bun
         if: ${{ inputs.bun_version != '' }}
@@ -111,7 +151,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -120,7 +160,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -132,7 +172,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles(inputs.cargo_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -156,13 +196,14 @@ jobs:
         if: ${{ inputs.package_check_command != '' }}
         run: ${{ inputs.package_check_command }}
 
-      - name: Upload failure artifacts
-        if: ${{ failure() && inputs.artifact_paths != '' }}
+      - name: Upload artifacts
+        if: ${{ inputs.artifact_paths != '' && (inputs.upload_artifacts_on == 'always' || (failure() && inputs.upload_artifacts_on == 'failure')) }}
         uses: actions/upload-artifact@v7
         with:
-          name: integration-validation-artifacts
+          name: ${{ steps.artifact-name.outputs.name }}
           path: ${{ inputs.artifact_paths }}
           if-no-files-found: ignore
+          retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Run post-command
         if: ${{ always() && inputs.post_command != '' }}

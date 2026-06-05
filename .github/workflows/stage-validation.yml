@@ -2,6 +2,10 @@ name: Stage Validation
 
 on:
   workflow_call:
+    outputs:
+      artifact_name:
+        description: "Failure or requested artifact name for this stage validation job."
+        value: ${{ jobs.stage-validation.outputs.artifact_name }}
     inputs:
       stage:
         required: true
@@ -50,6 +54,10 @@ on:
         required: false
         type: string
         default: ""
+      allow_empty_stage_command:
+        required: false
+        type: boolean
+        default: false
       timeout_minutes:
         required: false
         type: number
@@ -58,14 +66,26 @@ on:
         required: false
         type: boolean
         default: true
+      bun_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/bun.lock"
       cache_node:
         required: false
         type: boolean
         default: false
+      npm_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/package-lock.json"
       cache_cargo:
         required: false
         type: boolean
         default: false
+      cargo_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/Cargo.lock"
       install_playwright:
         required: false
         type: boolean
@@ -82,6 +102,18 @@ on:
           test-results
           .unlighthouse
           benchmark-results
+      upload_artifacts_on:
+        required: false
+        type: string
+        default: "failure"
+      artifact_retention_days:
+        required: false
+        type: number
+        default: 14
+      artifact_name_suffix:
+        required: false
+        type: string
+        default: ""
       concurrency_group:
         required: false
         type: string
@@ -101,6 +133,8 @@ jobs:
     name: Stage Validation (${{ inputs.stage }})
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
+    outputs:
+      artifact_name: ${{ steps.artifact-name.outputs.name }}
     permissions:
       contents: read
       packages: read
@@ -116,6 +150,53 @@ jobs:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     steps:
       - uses: actions/checkout@v6
+
+      - name: Set artifact name
+        id: artifact-name
+        run: echo "name=stage-validation-${{ inputs.stage }}-artifacts${{ inputs.artifact_name_suffix }}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate artifact upload mode
+        if: ${{ inputs.upload_artifacts_on != 'failure' && inputs.upload_artifacts_on != 'always' && inputs.upload_artifacts_on != 'never' }}
+        run: |
+          echo "::error::upload_artifacts_on must be one of: failure, always, never." >&2
+          exit 1
+
+      - name: Validate stage contract
+        env:
+          STAGE: ${{ inputs.stage }}
+          ALLOW_EMPTY_STAGE_COMMAND: ${{ inputs.allow_empty_stage_command }}
+          DEVELOP_COMMAND: ${{ inputs.develop_command }}
+          NIGHTLY_COMMAND: ${{ inputs.nightly_command }}
+          BETA_COMMAND: ${{ inputs.beta_command }}
+          STAGING_COMMAND: ${{ inputs.staging_command }}
+          PRODUCTION_COMMAND: ${{ inputs.production_command }}
+        run: |
+          case "${STAGE}" in
+            develop)
+              selected_command="${DEVELOP_COMMAND}"
+              ;;
+            nightly)
+              selected_command="${NIGHTLY_COMMAND}"
+              ;;
+            beta)
+              selected_command="${BETA_COMMAND}"
+              ;;
+            staging)
+              selected_command="${STAGING_COMMAND}"
+              ;;
+            production)
+              selected_command="${PRODUCTION_COMMAND}"
+              ;;
+            *)
+              echo "::error::stage must be one of: develop, nightly, beta, staging, production." >&2
+              exit 1
+              ;;
+          esac
+
+          if [ -z "${selected_command}" ] && [ "${ALLOW_EMPTY_STAGE_COMMAND}" != "true" ]; then
+            echo "::error::${STAGE}_command is required unless allow_empty_stage_command is true." >&2
+            exit 1
+          fi
 
       - name: Set up Bun
         if: ${{ inputs.bun_version != '' }}
@@ -134,7 +215,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -143,7 +224,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-npm-
 
@@ -155,7 +236,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles(inputs.cargo_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-cargo-
 
@@ -196,13 +277,14 @@ jobs:
         if: ${{ inputs.stage == 'production' && inputs.production_command != '' }}
         run: ${{ inputs.install_xvfb && format('xvfb-run -a {0}', inputs.production_command) || inputs.production_command }}
 
-      - name: Upload failure artifacts
-        if: ${{ failure() && inputs.artifact_paths != '' }}
+      - name: Upload artifacts
+        if: ${{ inputs.artifact_paths != '' && (inputs.upload_artifacts_on == 'always' || (failure() && inputs.upload_artifacts_on == 'failure')) }}
         uses: actions/upload-artifact@v7
         with:
-          name: stage-validation-${{ inputs.stage }}-artifacts
+          name: ${{ steps.artifact-name.outputs.name }}
           path: ${{ inputs.artifact_paths }}
           if-no-files-found: ignore
+          retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Run post-command
         if: ${{ always() && inputs.post_command != '' }}

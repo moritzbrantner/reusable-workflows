@@ -2,6 +2,10 @@ name: Deploy Pages
 
 on:
   workflow_call:
+    outputs:
+      page_url:
+        description: "The deployed GitHub Pages URL."
+        value: ${{ jobs.deploy-pages.outputs.page_url }}
     inputs:
       working_directory:
         required: false
@@ -39,10 +43,18 @@ on:
         required: false
         type: boolean
         default: true
+      bun_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/bun.lock"
       cache_node:
         required: false
         type: boolean
         default: false
+      npm_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/package-lock.json"
       concurrency_group:
         required: false
         type: string
@@ -62,6 +74,8 @@ jobs:
     name: Deploy Pages
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       contents: read
       pages: write
@@ -100,7 +114,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock', '**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-bun-
 
@@ -109,7 +123,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
           restore-keys: |
             ${{ runner.os }}-npm-
 

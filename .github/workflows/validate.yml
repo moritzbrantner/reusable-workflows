@@ -12,6 +12,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check reusable workflow contracts
+        run: ruby scripts/validate-workflow-contracts.rb
+
   actionlint:
     runs-on: ubuntu-latest
     timeout-minutes: 10

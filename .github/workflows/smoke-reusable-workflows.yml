@@ -1,0 +1,109 @@
+name: Smoke Reusable Workflows
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast-validation:
+    uses: ./.github/workflows/fast-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      format_command: "echo smoke format"
+      lint_command: "echo smoke lint"
+      typecheck_command: "echo smoke typecheck"
+      build_command: "echo smoke build"
+      unit_test_command: "echo smoke unit"
+
+  integration-validation:
+    uses: ./.github/workflows/integration-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      integration_command: "echo smoke integration"
+      migration_command: "echo smoke migration"
+      package_check_command: "echo smoke package"
+      artifact_paths: ""
+
+  e2e-validation:
+    uses: ./.github/workflows/e2e-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      install_playwright: false
+      e2e_command: "echo smoke e2e"
+      artifact_paths: ""
+
+  storybook-validation:
+    uses: ./.github/workflows/storybook-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      storybook_build_command: "echo smoke storybook build"
+      storybook_test_command: "echo smoke storybook test"
+      accessibility_command: "echo smoke accessibility"
+      visual_command: "echo smoke visual"
+      artifact_paths: ""
+
+  performance-validation:
+    uses: ./.github/workflows/performance-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      build_command: "echo smoke performance build"
+      unlighthouse_command: "echo smoke unlighthouse"
+      benchmark_command: "echo smoke benchmark"
+      bundle_size_command: "echo smoke bundle"
+      api_report_command: "echo smoke api"
+      artifact_paths: ""
+
+  stage-validation:
+    uses: ./.github/workflows/stage-validation.yml
+    with:
+      stage: develop
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      develop_command: "echo smoke develop"
+      artifact_paths: ""
+
+  validate-repo:
+    uses: ./.github/workflows/validate-repo.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      format_command: "echo smoke format"
+      lint_command: "echo smoke lint"
+      typecheck_command: "echo smoke typecheck"
+      test_command: "echo smoke test"
+      build_command: "echo smoke build"
+      e2e_command: "echo smoke e2e"
+      artifact_paths: ""
+
+  release-template:
+    uses: ./.github/workflows/release-template.yml
+    with:
+      release_type: smoke
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      validate_command: "echo smoke release validate"
+      build_command: "echo smoke release build"
+      release_command: ""
+      artifact_paths: ""
