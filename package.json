@@ -28,6 +28,7 @@
     "verify": "bun run format:check && bun run lint && bun run check-types && bun run test:unit && bun run build && bun run validate:contracts && bun run test:integration && bun run storybook:build && bun run test:storybook && bun run bench && bun run size:check"
   },
   "dependencies": {
+    "@moritzbrantner/ui": "^0.10.0",
     "lucide-react": "^1.17.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"

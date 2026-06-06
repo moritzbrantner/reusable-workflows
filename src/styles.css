@@ -208,7 +208,6 @@ h3 {
 
 .signal-board {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
   width: 100%;
   border: 1px solid var(--line);
@@ -221,6 +220,12 @@ h3 {
   padding: clamp(1.25rem, 3rem, 2rem);
 }
 
+.signal-board__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
 .signal-board__stat {
   min-height: 128px;
   border: 1px solid var(--line);
@@ -229,14 +234,14 @@ h3 {
   padding: 1rem;
 }
 
-.signal-board__stat span {
+.signal-board__stat-value {
   display: block;
   font-size: 2.55rem;
   font-weight: 850;
   line-height: 1;
 }
 
-.signal-board__stat p {
+.signal-board__stat-description {
   margin: 0.55rem 0 0;
   color: var(--muted);
   font-size: 0.9rem;
@@ -245,7 +250,6 @@ h3 {
 
 .pipeline {
   display: grid;
-  grid-column: 1 / -1;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.6rem;
   margin-top: 0.5rem;
@@ -296,12 +300,18 @@ h3 {
   gap: 1rem;
 }
 
-.workflow-list article,
-.dogfood-grid article {
+.workflow-card,
+.dogfood-card {
+  height: 100%;
   min-height: 182px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
+}
+
+.workflow-card__content,
+.dogfood-card__content {
+  height: 100%;
   padding: 1.15rem;
 }
 
@@ -442,7 +452,7 @@ h3 {
 
   .workflow-list,
   .dogfood-grid,
-  .signal-board,
+  .signal-board__stats,
   .pipeline {
     grid-template-columns: 1fr;
   }

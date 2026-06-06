@@ -14,6 +14,14 @@ import {
   ShieldCheck,
   TestTube2,
 } from "lucide-react";
+import { Button } from "@moritzbrantner/ui/components/stable/button";
+import { Card, CardContent } from "@moritzbrantner/ui/components/stable/card";
+import {
+  CodeBlock,
+  CodeBlockCode,
+  CodeBlockContent,
+} from "@moritzbrantner/ui/components/stable/code-block";
+import { Stat, StatDescription, StatValue } from "@moritzbrantner/ui/components/stable/stat";
 
 import workflowContracts from "../contracts/workflows.json";
 
@@ -128,35 +136,41 @@ function App() {
               family.
             </p>
             <div className="hero__actions" aria-label="Repository resources">
-              <a
-                className="button button--primary"
-                href="https://github.com/moritzbrantner/reusable-workflows"
-              >
-                <Boxes aria-hidden="true" />
-                Repository
-              </a>
-              <a
-                className="button button--secondary"
-                href="https://github.com/moritzbrantner/reusable-workflows/tree/main/.github/workflows"
-              >
-                <ArrowUpRight aria-hidden="true" />
-                Workflow files
-              </a>
+              <Button asChild className="button button--primary">
+                <a href="https://github.com/moritzbrantner/reusable-workflows">
+                  <Boxes aria-hidden="true" />
+                  Repository
+                </a>
+              </Button>
+              <Button asChild className="button button--secondary">
+                <a href="https://github.com/moritzbrantner/reusable-workflows/tree/main/.github/workflows">
+                  <ArrowUpRight aria-hidden="true" />
+                  Workflow files
+                </a>
+              </Button>
             </div>
           </div>
 
           <div className="signal-board" aria-label="Contract summary">
-            <div className="signal-board__stat">
-              <span>{workflowCount}</span>
-              <p>Reusable workflows</p>
-            </div>
-            <div className="signal-board__stat">
-              <span>{totalInputs}</span>
-              <p>Documented inputs</p>
-            </div>
-            <div className="signal-board__stat">
-              <span>{outputCount}</span>
-              <p>Workflow outputs</p>
+            <div className="signal-board__stats" role="list" aria-label="Contract metrics">
+              <Stat className="signal-board__stat">
+                <StatValue className="signal-board__stat-value">{workflowCount}</StatValue>
+                <StatDescription className="signal-board__stat-description">
+                  Reusable workflows
+                </StatDescription>
+              </Stat>
+              <Stat className="signal-board__stat">
+                <StatValue className="signal-board__stat-value">{totalInputs}</StatValue>
+                <StatDescription className="signal-board__stat-description">
+                  Documented inputs
+                </StatDescription>
+              </Stat>
+              <Stat className="signal-board__stat">
+                <StatValue className="signal-board__stat-value">{outputCount}</StatValue>
+                <StatDescription className="signal-board__stat-description">
+                  Workflow outputs
+                </StatDescription>
+              </Stat>
             </div>
             <div className="pipeline" aria-hidden="true">
               <span>caller</span>
@@ -197,19 +211,23 @@ function App() {
               const contract = contracts[file];
               return (
                 <article key={file}>
-                  <Icon aria-hidden="true" />
-                  <h3>{title}</h3>
-                  <p>{summary}</p>
-                  <dl>
-                    <div>
-                      <dt>Inputs</dt>
-                      <dd>{Object.keys(contract.inputs).length}</dd>
-                    </div>
-                    <div>
-                      <dt>Permissions</dt>
-                      <dd>{Object.keys(contract.permissions).length}</dd>
-                    </div>
-                  </dl>
+                  <Card className="workflow-card">
+                    <CardContent className="workflow-card__content">
+                      <Icon aria-hidden="true" />
+                      <h3>{title}</h3>
+                      <p>{summary}</p>
+                      <dl>
+                        <div>
+                          <dt>Inputs</dt>
+                          <dd>{Object.keys(contract.inputs).length}</dd>
+                        </div>
+                        <div>
+                          <dt>Permissions</dt>
+                          <dd>{Object.keys(contract.permissions).length}</dd>
+                        </div>
+                      </dl>
+                    </CardContent>
+                  </Card>
                 </article>
               );
             })}
@@ -223,28 +241,40 @@ function App() {
           </div>
           <div className="dogfood-grid">
             <article>
-              <ShieldCheck aria-hidden="true" />
-              <h3>Validate</h3>
-              <p>
-                CI calls <code>fast-validation.yml</code> with real format, lint, typecheck, build,
-                and contract validation commands for this app.
-              </p>
+              <Card className="dogfood-card">
+                <CardContent className="dogfood-card__content">
+                  <ShieldCheck aria-hidden="true" />
+                  <h3>Validate</h3>
+                  <p>
+                    CI calls <code>fast-validation.yml</code> with real format, lint, typecheck,
+                    build, and contract validation commands for this app.
+                  </p>
+                </CardContent>
+              </Card>
             </article>
             <article>
-              <Braces aria-hidden="true" />
-              <h3>Contract checks</h3>
-              <p>
-                A Bun TypeScript script checks workflow inputs, secrets, outputs, permissions, and
-                documentation tokens against the contract JSON.
-              </p>
+              <Card className="dogfood-card">
+                <CardContent className="dogfood-card__content">
+                  <Braces aria-hidden="true" />
+                  <h3>Contract checks</h3>
+                  <p>
+                    A Bun TypeScript script checks workflow inputs, secrets, outputs, permissions,
+                    and documentation tokens against the contract JSON.
+                  </p>
+                </CardContent>
+              </Card>
             </article>
             <article>
-              <Globe2 aria-hidden="true" />
-              <h3>Pages deploy</h3>
-              <p>
-                Default-branch pushes build the React app and publish <code>dist/</code> through the
-                local <code>deploy-pages.yml</code> reusable workflow.
-              </p>
+              <Card className="dogfood-card">
+                <CardContent className="dogfood-card__content">
+                  <Globe2 aria-hidden="true" />
+                  <h3>Pages deploy</h3>
+                  <p>
+                    Default-branch pushes build the React app and publish <code>dist/</code> through
+                    the local <code>deploy-pages.yml</code> reusable workflow.
+                  </p>
+                </CardContent>
+              </Card>
             </article>
           </div>
         </section>
@@ -254,14 +284,14 @@ function App() {
             <p className="eyebrow">Adoption</p>
             <h2 id="adoption-title">Consumers pin a tag and pass explicit commands.</h2>
           </div>
-          <div
+          <CodeBlock
             className="code-panel"
             role="region"
             aria-label="Reusable workflow example"
             tabIndex={0}
           >
-            <pre>
-              <code>{`jobs:
+            <CodeBlockContent>
+              <CodeBlockCode>{`jobs:
   fast-validation:
     permissions:
       contents: read
@@ -273,9 +303,9 @@ function App() {
       build_command: bun run build
       unit_test_command: bun run test:unit
     secrets:
-      GH_PACKAGES_TOKEN: \${{ secrets.GH_PACKAGES_TOKEN }}`}</code>
-            </pre>
-          </div>
+      GH_PACKAGES_TOKEN: \${{ secrets.GH_PACKAGES_TOKEN }}`}</CodeBlockCode>
+            </CodeBlockContent>
+          </CodeBlock>
         </section>
 
         <section className="section release" id="release" aria-labelledby="release-title">
