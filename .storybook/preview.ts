@@ -10,6 +10,16 @@ const preview: Preview = {
         date: /Date$/i,
       },
     },
+    a11y: {
+      test: "error",
+      options: {
+        rules: {
+          "color-contrast": {
+            enabled: true,
+          },
+        },
+      },
+    },
   },
 };
 
