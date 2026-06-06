@@ -78,6 +78,8 @@ Most validation workflows accept:
 `upload_artifacts_on` accepts `failure`, `always`, or `never`. Use `artifact_name_suffix` with a leading separator, for example `-pr-${{ github.run_number }}`.
 Leave `concurrency_group` empty for reusable Pages deployments unless you need a custom group that is different from the caller workflow's top-level concurrency group.
 
+`performance-validation.yml` also accepts `summary_paths`, a newline-separated list of Markdown files or globs to append to the GitHub Actions run summary. Summaries are independent of uploaded artifacts; keep full raw reports in artifacts and concise human-readable benchmark or performance results in Markdown summaries.
+
 ## Common Secrets
 
 Pass explicit secrets from caller workflows:
@@ -188,6 +190,8 @@ jobs:
       benchmark_command: bun run bench
       bundle_size_command: bun run size
       api_report_command: bun run api-report
+      summary_paths: |
+        benchmark-results/*.md
       upload_artifacts_on: always
     secrets:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}

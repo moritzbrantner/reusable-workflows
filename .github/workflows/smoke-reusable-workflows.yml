@@ -67,9 +67,10 @@ jobs:
       install_command: ""
       build_command: "echo smoke performance build"
       unlighthouse_command: "echo smoke unlighthouse"
-      benchmark_command: "echo smoke benchmark"
+      benchmark_command: "mkdir -p benchmark-results && { echo '# Smoke Benchmark Summary'; echo; echo 'smoke benchmark'; } > benchmark-results/smoke.md"
       bundle_size_command: "echo smoke bundle"
       api_report_command: "echo smoke api"
+      summary_paths: benchmark-results/smoke.md
       artifact_paths: ""
 
   stage-validation:

@@ -87,6 +87,10 @@ on:
           unlighthouse-reports
           benchmark-results
           performance-results
+      summary_paths:
+        required: false
+        type: string
+        default: ""
       upload_artifacts_on:
         required: false
         type: string
@@ -215,6 +219,57 @@ jobs:
       - name: Check API report
         if: ${{ inputs.api_report_command != '' }}
         run: ${{ inputs.api_report_command }}
+
+      - name: Publish performance summary
+        if: ${{ always() && inputs.summary_paths != '' }}
+        env:
+          SUMMARY_PATHS: ${{ inputs.summary_paths }}
+        run: |
+          wrote_summary=false
+
+          {
+            echo "## Performance Summary"
+            echo
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          while IFS= read -r summary_path || [ -n "$summary_path" ]; do
+            if [ -z "$summary_path" ]; then
+              continue
+            fi
+
+            matches=()
+            while IFS= read -r match; do
+              matches+=("$match")
+            done < <(compgen -G "$summary_path" || true)
+
+            if [ ${#matches[@]} -eq 0 ] && [ -f "$summary_path" ]; then
+              matches=("$summary_path")
+            fi
+
+            if [ ${#matches[@]} -eq 0 ]; then
+              echo "::warning::No performance summary files matched: ${summary_path}"
+              continue
+            fi
+
+            for summary_file in "${matches[@]}"; do
+              if [ ! -f "$summary_file" ]; then
+                continue
+              fi
+
+              {
+                echo "### ${summary_file}"
+                echo
+                cat "$summary_file"
+                echo
+              } >> "$GITHUB_STEP_SUMMARY"
+
+              wrote_summary=true
+            done
+          done <<< "$SUMMARY_PATHS"
+
+          if [ "$wrote_summary" != "true" ]; then
+            echo "_No configured performance summary files were found._" >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload artifacts
         if: ${{ inputs.artifact_paths != '' && (inputs.upload_artifacts_on == 'always' || (failure() && inputs.upload_artifacts_on == 'failure')) }}

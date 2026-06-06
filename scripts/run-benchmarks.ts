@@ -22,6 +22,18 @@ const result = {
 
 mkdirSync("benchmark-results", { recursive: true });
 writeFileSync("benchmark-results/workflow-contracts.json", `${JSON.stringify(result, null, 2)}\n`);
+writeFileSync(
+  "benchmark-results/workflow-contracts.md",
+  [
+    "# Workflow Contract Benchmark",
+    "",
+    `- Benchmark: ${result.benchmark}`,
+    `- Iterations: ${result.iterations}`,
+    `- Duration: ${result.durationMs.toFixed(2)} ms`,
+    `- Throughput: ${result.operationsPerSecond} ops/s`,
+    "",
+  ].join("\n"),
+);
 
 console.log(
   `${result.benchmark}: ${result.operationsPerSecond} ops/s across ${result.iterations} iterations.`,

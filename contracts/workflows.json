@@ -589,6 +589,11 @@
           "type": "string",
           "default": ""
         },
+        "summary_paths": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
         "timeout_minutes": {
           "required": false,
           "type": "number",
