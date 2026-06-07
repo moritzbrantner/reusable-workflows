@@ -59,6 +59,15 @@ jobs:
       visual_command: "echo smoke visual"
       artifact_paths: ""
 
+  link-validation:
+    uses: ./.github/workflows/link-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      link_check_command: "echo smoke links"
+      artifact_paths: ""
+
   performance-validation:
     uses: ./.github/workflows/performance-validation.yml
     with:

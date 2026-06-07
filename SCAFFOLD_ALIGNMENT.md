@@ -42,6 +42,7 @@ Shared:
 - `integration-validation.yml`
 - `e2e-validation.yml`
 - `storybook-validation.yml`
+- `link-validation.yml`
 - `performance-validation.yml`
 - `deploy-pages.yml`
 - `stage-validation.yml`

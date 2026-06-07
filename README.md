@@ -15,6 +15,7 @@ Use staged reusable workflows instead of one oversized workflow:
 - `integration-validation.yml`: integration tests, service/database checks, migration checks, and package/API checks.
 - `e2e-validation.yml`: Playwright, browser, Electron, Tauri, or mobile e2e tests with artifacts.
 - `storybook-validation.yml`: Storybook build, interaction tests, accessibility checks, and visual checks where present.
+- `link-validation.yml`: local or deployed site crawling for broken links, assets, and fragment anchors.
 - `performance-validation.yml`: Unlighthouse, benchmarks, bundle-size checks, API reports, and heavier performance suites.
 - `deploy-pages.yml`: GitHub Pages build and deployment only.
 - `release-template.yml`: package or app release only.
@@ -79,6 +80,8 @@ Most validation workflows accept:
 Leave `concurrency_group` empty for reusable Pages deployments unless you need a custom group that is different from the caller workflow's top-level concurrency group.
 
 `performance-validation.yml` also accepts `summary_paths`, a newline-separated list of Markdown files or globs to append to the GitHub Actions run summary. Summaries are independent of uploaded artifacts; keep full raw reports in artifacts and concise human-readable benchmark or performance results in Markdown summaries.
+
+`link-validation.yml` accepts `start_command`, `link_check_url`, and `link_check_command`. When `start_command` is set, the workflow starts it in the background, waits for `link_check_url`, exposes `LINK_CHECK_URL` and `LINK_CHECK_BASE_URL` to the link-check command, and stops the background process during cleanup. Callers must pass `link_check_command`; the examples use `linkinator` to crawl the configured URL, check fragments, and skip non-local external URLs.
 
 ## Common Secrets
 
@@ -197,6 +200,27 @@ jobs:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
+### Link Validation
+
+```yaml
+jobs:
+  link-validation:
+    permissions:
+      contents: read
+      packages: read
+    uses: moritzbrantner/reusable-workflows/.github/workflows/link-validation.yml@workflow-standard-v1.1
+    with:
+      build_command: bun run build
+      start_command: bun run preview -- --host 127.0.0.1 --port 4173
+      link_check_url: http://127.0.0.1:4173
+      link_check_command: >
+        bunx linkinator "$LINK_CHECK_URL" --recurse --check-fragments
+        --skip "^mailto:" --skip "^tel:"
+      upload_artifacts_on: failure
+    secrets:
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+```
+
 ### Deploy Pages
 
 ```yaml
@@ -297,7 +321,7 @@ Prefer the staged workflows for new consumers. Keep `validate-repo.yml` for comp
 
 ## Project Defaults
 
-Web apps and templates should use `fast-validation` on PRs, add `integration-validation` where service or database checks matter, run `e2e-validation` on PRs for UI-heavy apps or on default/staging branches for smaller sites, run `performance-validation` through schedules or manual dispatch, and use `deploy-pages` only for Pages deployment.
+Web apps and templates should use `fast-validation` on PRs, add `integration-validation` where service or database checks matter, run `link-validation` on PRs or default-branch pushes for site routes and anchors, run `e2e-validation` on PRs for UI-heavy apps or on default/staging branches for smaller sites, run `performance-validation` through schedules or manual dispatch, and use `deploy-pages` only for Pages deployment.
 
 UI libraries and component packages should use `fast-validation` and `storybook-validation` on PRs, then browser/visual/performance checks on PRs or schedules depending on stability.
 
@@ -313,5 +337,6 @@ Static sites and simple projects should keep PR validation small, usually build-
 - `scaffold-v2-validated`: validation workflow documentation and actionlint coverage.
 - `scaffold-v2-release-auth`: release token fallback update.
 - `workflow-standard-v1`: staged validation, Pages deployment, release, and promotion contract.
+- `workflow-standard-v1.1`: additive link-validation workflow contract.
 
 See `SCAFFOLD_ALIGNMENT.md` for the maintained repo-family contract for this repository.

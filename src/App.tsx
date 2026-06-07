@@ -9,6 +9,7 @@ import {
   Gauge,
   Globe2,
   Layers3,
+  Link as LinkIcon,
   PackageCheck,
   Rocket,
   ShieldCheck,
@@ -55,6 +56,12 @@ const workflowDetails = [
     title: "Storybook Validation",
     summary: "Storybook builds, interaction tests, accessibility checks, and visual validation.",
     icon: BookOpen,
+  },
+  {
+    file: ".github/workflows/link-validation.yml",
+    title: "Link Validation",
+    summary: "Local or deployed site crawling for broken links, assets, and fragment anchors.",
+    icon: LinkIcon,
   },
   {
     file: ".github/workflows/performance-validation.yml",
