@@ -308,9 +308,7 @@ function App() {
       lint_command: bun run lint
       typecheck_command: bun run check-types
       build_command: bun run build
-      unit_test_command: bun run test:unit
-    secrets:
-      GH_PACKAGES_TOKEN: \${{ secrets.GH_PACKAGES_TOKEN }}`}</CodeBlockCode>
+      unit_test_command: bun run test:unit`}</CodeBlockCode>
             </CodeBlockContent>
           </CodeBlock>
         </section>

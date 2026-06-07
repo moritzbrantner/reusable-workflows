@@ -85,7 +85,8 @@ Leave `concurrency_group` empty for reusable Pages deployments unless you need a
 
 ## Common Secrets
 
-Pass explicit secrets from caller workflows:
+Most validation and deploy workflows do not need explicit secrets; they use `github.token` by default.
+Pass explicit package auth only when the caller needs access that `github.token` cannot provide, such as cross-repo private GitHub Packages or a custom package registry:
 
 - `node_auth_token`
 - `GH_PACKAGES_TOKEN`
@@ -117,8 +118,6 @@ jobs:
       build_command: bun run build
       unit_test_command: bun run test:unit
       bun_cache_dependency_path: apps/web/bun.lock
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 ### Integration Validation
@@ -137,8 +136,6 @@ jobs:
       artifact_paths: |
         coverage
         test-results
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 ### E2E Validation
@@ -155,8 +152,6 @@ jobs:
       e2e_command: bun run test:e2e
       install_playwright: true
       upload_artifacts_on: always
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 ### Storybook Validation
@@ -174,8 +169,6 @@ jobs:
       accessibility_command: bun run a11y
       visual_command: bun run visual
       upload_artifacts_on: always
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 ### Performance Validation
@@ -196,8 +189,6 @@ jobs:
       summary_paths: |
         benchmark-results/*.md
       upload_artifacts_on: always
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 ### Link Validation
@@ -217,8 +208,6 @@ jobs:
         bunx linkinator "$LINK_CHECK_URL" --recurse --check-fragments
         --skip "^mailto:" --skip "^tel:"
       upload_artifacts_on: failure
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 ### Deploy Pages
@@ -235,8 +224,6 @@ jobs:
     with:
       build_command: bun run build
       artifact_path: dist
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 ### Stage Validation
@@ -253,8 +240,6 @@ jobs:
       staging_command: bun run test:staging
       install_playwright: true
       upload_artifacts_on: always
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 `stage` must be one of `develop`, `nightly`, `beta`, `staging`, or `production`. The selected stage command is required unless `allow_empty_stage_command` is true.
@@ -313,8 +298,6 @@ jobs:
       typecheck_command: bun run check-types
       test_command: bun run test
       build_command: bun run build
-    secrets:
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
 ```
 
 Prefer the staged workflows for new consumers. Keep `validate-repo.yml` for compatibility with existing scaffold-v2 callers.
