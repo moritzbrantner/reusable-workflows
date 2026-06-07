@@ -80,6 +80,7 @@ Most validation workflows accept:
 Leave `concurrency_group` empty for reusable Pages deployments unless you need a custom group that is different from the caller workflow's top-level concurrency group.
 
 `performance-validation.yml` also accepts `summary_paths`, a newline-separated list of Markdown files or globs to append to the GitHub Actions run summary. Summaries are independent of uploaded artifacts; keep full raw reports in artifacts and concise human-readable benchmark or performance results in Markdown summaries.
+Use `metrics_command` when a performance job should normalize build, bundle, benchmark, or Lighthouse outputs into a durable JSON artifact for dashboards or historical reports.
 
 `link-validation.yml` accepts `start_command`, `link_check_url`, and `link_check_command`. When `start_command` is set, the workflow starts it in the background, waits for `link_check_url`, exposes `LINK_CHECK_URL` and `LINK_CHECK_BASE_URL` to the link-check command, and stops the background process during cleanup. Callers must pass `link_check_command`; the examples use `linkinator` to crawl the configured URL, check fragments, and skip non-local external URLs.
 
@@ -186,6 +187,7 @@ jobs:
       benchmark_command: bun run bench
       bundle_size_command: bun run size
       api_report_command: bun run api-report
+      metrics_command: bun run write-metrics
       summary_paths: |
         benchmark-results/*.md
       upload_artifacts_on: always

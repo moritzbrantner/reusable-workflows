@@ -100,16 +100,21 @@ jobs:
     with:
       bun_version: "1.3.14"
       install_command: "bun install --frozen-lockfile"
-      build_command: "bun run build"
+      build_command: "bun scripts/run-measured-build.ts"
       unlighthouse_command: "bun scripts/run-unlighthouse.mjs"
       benchmark_command: "bun run bench"
       bundle_size_command: "bun scripts/check-bundle-size.ts"
       api_report_command: "bun run api:check"
+      metrics_command: "bun scripts/write-current-build-metrics.ts"
       artifact_paths: |
         .unlighthouse
         unlighthouse-reports
         benchmark-results
         performance-results
+      summary_paths: |
+        benchmark-results/*.md
+        performance-results/current-build.md
+      upload_artifacts_on: always
 
   stage-validation:
     uses: ./.github/workflows/stage-validation.yml

@@ -47,6 +47,10 @@ on:
         required: false
         type: string
         default: ""
+      metrics_command:
+        required: false
+        type: string
+        default: ""
       post_command:
         required: false
         type: string
@@ -219,6 +223,10 @@ jobs:
       - name: Check API report
         if: ${{ inputs.api_report_command != '' }}
         run: ${{ inputs.api_report_command }}
+
+      - name: Write metrics
+        if: ${{ inputs.metrics_command != '' }}
+        run: ${{ inputs.metrics_command }}
 
       - name: Publish performance summary
         if: ${{ always() && inputs.summary_paths != '' }}

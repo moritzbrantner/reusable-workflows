@@ -90,6 +90,7 @@
         }
       },
       "permissions": {
+        "actions": "read",
         "contents": "read",
         "id-token": "write",
         "packages": "read",
@@ -695,6 +696,11 @@
           "required": false,
           "type": "string",
           "default": "bun install --frozen-lockfile"
+        },
+        "metrics_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
         },
         "node_version": {
           "required": false,

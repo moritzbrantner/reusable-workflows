@@ -1,18 +1,21 @@
-@import "tailwindcss";
+@import "@moritzbrantner/ui/studio/styles.css";
+
+@source "./**/*.{ts,tsx}";
+@source "../node_modules/@moritzbrantner/diagrams/dist/**/*.{js,mjs}";
 
 :root {
   color-scheme: light;
-  --bg: #f7f8f5;
-  --ink: #17201b;
-  --muted: #59635e;
-  --line: #dce1d8;
-  --panel: #ffffff;
-  --panel-strong: #edf2eb;
-  --accent: #0f766e;
-  --accent-strong: #155e75;
-  --code: #13231e;
-  --code-bg: #eef3ef;
-  --shadow: 0 18px 48px rgb(23 32 27 / 10%);
+  --bg: var(--background);
+  --ink: var(--foreground);
+  --muted: var(--muted-foreground);
+  --line: var(--border);
+  --panel: var(--card);
+  --panel-strong: color-mix(in oklch, var(--card) 86%, var(--primary) 14%);
+  --accent: var(--primary);
+  --accent-strong: var(--primary);
+  --code: var(--foreground);
+  --code-bg: color-mix(in oklch, var(--card) 82%, var(--primary) 18%);
+  --shadow: var(--glass-shadow);
   font-family:
     Inter,
     ui-sans-serif,
@@ -157,7 +160,8 @@ h2 {
   letter-spacing: 0;
 }
 
-h3 {
+h3,
+h4 {
   margin: 0 0 0.55rem;
   font-size: 1rem;
   line-height: 1.25;
@@ -294,10 +298,119 @@ h3 {
   margin: 0 0 1rem;
 }
 
+.workflow-connections__heading {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  max-width: none;
+}
+
+.connection-copy {
+  align-self: end;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.04rem;
+}
+
+.connection-panel {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.connection-panel__header {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(280px, auto);
+  gap: 1rem;
+  align-items: start;
+}
+
+.connection-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.connection-panel__content {
+  padding-top: 0;
+}
+
+.connection-graph {
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in oklch, var(--primary) 12%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(color-mix(in oklch, var(--primary) 12%, transparent) 1px, transparent 1px),
+    var(--card);
+  background-size: 40px 40px;
+}
+
+.connection-graph [data-slot="dependency-graph-scroll-area"] {
+  max-width: 100%;
+}
+
+.connection-graph [data-slot="dependency-graph-svg"] {
+  min-width: 1180px;
+  min-height: 660px;
+}
+
+.connection-graph [data-slot="dependency-graph-legend"],
+.connection-graph figcaption {
+  background: color-mix(in oklch, var(--card) 92%, var(--primary) 8%);
+}
+
 .workflow-list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.workflow-index-heading {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  gap: clamp(1.5rem, 4vw, 4rem);
+  max-width: none;
+}
+
+.workflow-index-heading p:not(.eyebrow) {
+  align-self: end;
+  margin: 0;
+  color: var(--muted);
+  font-size: 1.04rem;
+}
+
+.workflow-index-group {
+  margin-top: 2rem;
+}
+
+.workflow-index-group > h3 {
+  margin-bottom: 1rem;
+  font-size: 1.18rem;
+}
+
+.workflow-card-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.workflow-card-link:focus-visible {
+  outline: 3px solid color-mix(in oklch, var(--primary) 55%, transparent);
+  outline-offset: 4px;
+}
+
+.workflow-card-link:hover .workflow-card {
+  border-color: var(--accent);
+  transform: translateY(-2px);
 }
 
 .workflow-card,
@@ -309,8 +422,16 @@ h3 {
   background: var(--panel);
 }
 
+.workflow-card {
+  transition:
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
 .workflow-card__content,
 .dogfood-card__content {
+  display: flex;
+  flex-direction: column;
   height: 100%;
   padding: 1.15rem;
 }
@@ -319,8 +440,22 @@ h3 {
 .dogfood-grid svg {
   width: 24px;
   height: 24px;
-  margin-bottom: 1rem;
   color: var(--accent);
+}
+
+.workflow-card__title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.workflow-card__title-row h4 {
+  margin: 0;
+}
+
+.dogfood-grid svg {
+  margin-bottom: 1rem;
 }
 
 .workflow-list p,
@@ -332,7 +467,7 @@ h3 {
 
 .workflow-list dl {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
   gap: 0.6rem;
   margin: 1rem 0 0;
 }
@@ -363,6 +498,137 @@ h3 {
   gap: 1rem;
 }
 
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.metrics-card {
+  min-height: 148px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.metrics-card__content {
+  display: grid;
+  align-content: space-between;
+  gap: 0.65rem;
+  height: 100%;
+  padding: 1rem;
+}
+
+.metrics-card span,
+.metrics-history__header span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metrics-card strong {
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.metrics-card p,
+.metrics-empty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.metrics-history {
+  overflow: hidden;
+  margin-top: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.metrics-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--line);
+  padding: 1rem;
+}
+
+.metrics-history__header h3 {
+  margin: 0;
+}
+
+.metrics-table-wrap {
+  overflow-x: auto;
+}
+
+.metrics-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.metrics-table th,
+.metrics-table td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.82rem 1rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.metrics-table th {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metrics-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.metrics-table a {
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.metrics-trend {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 104px;
+}
+
+.metrics-trend span {
+  font-weight: 750;
+  line-height: 1;
+}
+
+.metrics-trend div {
+  overflow: hidden;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--panel-strong);
+}
+
+.metrics-trend i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.metrics-empty {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.metrics-empty__content {
+  padding: 1rem;
+}
+
 .code-panel {
   overflow: auto;
   border: 1px solid var(--line);
@@ -372,7 +638,9 @@ h3 {
 }
 
 .code-panel pre {
+  max-height: none !important;
   min-width: 640px;
+  overflow: visible !important;
   margin: 0;
   padding: 1.2rem;
   color: #e9f2ed;
@@ -406,6 +674,202 @@ h3 {
   font-weight: 800;
 }
 
+.workflow-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 520px);
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: center;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(3rem, 7vw, 5.5rem) 1.5rem clamp(2.5rem, 5vw, 4rem);
+}
+
+.workflow-hero h1 {
+  max-width: 12ch;
+}
+
+.workflow-hero__body {
+  max-width: 760px;
+}
+
+.workflow-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1.5rem;
+}
+
+.workflow-hero__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in oklch, var(--primary) 13%, transparent), transparent 42%),
+    var(--panel);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 2rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.back-link svg {
+  width: 17px;
+  height: 17px;
+}
+
+.workflow-page-grid {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.75fr) minmax(0, 1.25fr);
+  gap: clamp(2rem, 4rem, 5rem);
+}
+
+.workflow-detail-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.detail-card,
+.job-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.detail-card p,
+.job-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.plain-list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+}
+
+.plain-list li::marker {
+  color: var(--accent);
+}
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.dependency-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.dependency-columns--single {
+  grid-template-columns: 1fr;
+}
+
+.relationship-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.relationship-list a {
+  display: grid;
+  gap: 0.25rem;
+  border-radius: 6px;
+  background: var(--panel-strong);
+  padding: 0.75rem;
+  text-decoration: none;
+}
+
+.relationship-list span {
+  font-weight: 800;
+}
+
+.relationship-list code {
+  width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.job-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.key-values {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.key-values div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.key-values dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.key-values dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 750;
+}
+
+.contract-table {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.contract-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) minmax(0, 1.2fr);
+  gap: 0.8rem;
+  align-items: start;
+  border-radius: 6px;
+  background: var(--panel-strong);
+  padding: 0.75rem;
+}
+
+.contract-row [role="cell"]:first-child {
+  display: grid;
+  gap: 0.35rem;
+  justify-items: start;
+}
+
+.contract-row span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.contract-row [role="cell"]:last-child {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 860px) {
   .site-header__inner {
     align-items: flex-start;
@@ -420,7 +884,12 @@ h3 {
   }
 
   .hero,
-  .section--split {
+  .section--split,
+  .workflow-page-grid,
+  .workflow-hero,
+  .workflow-index-heading,
+  .workflow-connections__heading,
+  .connection-panel__header {
     grid-template-columns: 1fr;
   }
 
@@ -433,14 +902,22 @@ h3 {
   }
 
   .workflow-list,
-  .dogfood-grid {
+  .dogfood-grid,
+  .metrics-grid,
+  .job-list,
+  .dependency-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .connection-badges {
+    justify-content: flex-start;
   }
 }
 
 @media (max-width: 560px) {
   .site-header__inner,
   .hero,
+  .workflow-hero,
   .section {
     padding-right: 1rem;
     padding-left: 1rem;
@@ -452,9 +929,23 @@ h3 {
 
   .workflow-list,
   .dogfood-grid,
+  .metrics-grid,
+  .job-list,
+  .dependency-columns,
   .signal-board__stats,
-  .pipeline {
+  .pipeline,
+  .workflow-hero__stats {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-list dl,
+  .contract-row {
+    grid-template-columns: 1fr;
+  }
+
+  .connection-graph [data-slot="dependency-graph-svg"] {
+    min-width: 960px;
+    min-height: 620px;
   }
 
   .button {

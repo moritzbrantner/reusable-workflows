@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 
-import { readdirSync, statSync } from "node:fs";
+import { mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const distDir = path.resolve("dist");
@@ -17,8 +17,23 @@ const files = collectFiles(distDir);
 const jsBytes = files
   .filter((filePath) => filePath.endsWith(".js"))
   .reduce((total, filePath) => total + statSync(filePath).size, 0);
+const withinBudget = jsBytes <= budgetBytes;
 
-if (jsBytes > budgetBytes) {
+mkdirSync("performance-results", { recursive: true });
+writeFileSync(
+  "performance-results/bundle-size.json",
+  `${JSON.stringify(
+    {
+      jsBytes,
+      budgetBytes,
+      withinBudget,
+    },
+    null,
+    2,
+  )}\n`,
+);
+
+if (!withinBudget) {
   throw new Error(`JavaScript bundle is ${jsBytes} bytes, above the ${budgetBytes} byte budget.`);
 }
 

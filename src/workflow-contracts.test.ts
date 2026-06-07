@@ -14,5 +14,8 @@ describe("workflow contract data", () => {
         ".github/workflows/deploy-pages.yml",
       ]),
     );
+    expect(
+      workflowContracts.workflows[".github/workflows/performance-validation.yml"].inputs,
+    ).toHaveProperty("metrics_command");
   });
 });
