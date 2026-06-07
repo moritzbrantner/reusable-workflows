@@ -42,10 +42,7 @@ export default defineConfig({
     alias: [
       {
         find: /^@moritzbrantner\/ui$/,
-        replacement: path.resolve(
-          import.meta.dirname,
-          "node_modules/@moritzbrantner/ui/dist/index.js",
-        ),
+        replacement: path.resolve(import.meta.dirname, "src/ui-charts-compat.tsx"),
       },
       {
         find: /^react$/,

@@ -18,6 +18,13 @@ import {
   Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+  ChartPanel,
+  ChartSeriesLegend,
+  getRechartsAnimationProps,
+  useChartSeriesVisibility,
+  type ChartLegendItem,
+} from "@moritzbrantner/charts";
 import { DependencyGraph } from "@moritzbrantner/diagrams";
 import { Badge } from "@moritzbrantner/ui/components/stable/badge";
 import { Button } from "@moritzbrantner/ui/components/stable/button";
@@ -34,6 +41,16 @@ import {
   CodeBlockContent,
 } from "@moritzbrantner/ui/components/stable/code-block";
 import { Stat, StatDescription, StatValue } from "@moritzbrantner/ui/components/stable/stat";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+  type TooltipContentProps,
+} from "recharts";
 import { parse } from "yaml";
 
 import type { BuildMetricsHistory } from "./build-metrics";
@@ -85,6 +102,25 @@ type ParsedWorkflow = WorkflowMetadata & {
   contract?: WorkflowContract;
   callers: string[];
 };
+
+type MetricsChartSeriesId = "build" | "bundle" | "benchmark" | "lighthouse";
+
+type MetricsChartDatum = {
+  completedLabel: string;
+  raw: Record<MetricsChartSeriesId, string>;
+  runLabel: string;
+} & Partial<Record<MetricsChartSeriesId, number>>;
+
+const metricsChartSeries: Array<{
+  color: string;
+  id: MetricsChartSeriesId;
+  label: string;
+}> = [
+  { color: "#166534", id: "build", label: "Build duration" },
+  { color: "#2563eb", id: "bundle", label: "JS bundle" },
+  { color: "#c2410c", id: "benchmark", label: "Benchmark ops/s" },
+  { color: "#7c3aed", id: "lighthouse", label: "Lighthouse score" },
+];
 
 declare global {
   interface Window {
@@ -918,6 +954,8 @@ function MetricsSection({ history }: { history: BuildMetricsHistory }) {
             />
           </div>
 
+          <MetricsTrendChart builds={builds} />
+
           <div className="metrics-history">
             <div className="metrics-history__header">
               <h3>Run history</h3>
@@ -950,27 +988,9 @@ function MetricsSection({ history }: { history: BuildMetricsHistory }) {
                         <a href={build.commitUrl}>{build.commitShortSha}</a>
                       </td>
                       <td>{formatDateTime(build.completedAt)}</td>
-                      <td>
-                        <MetricTrend
-                          value={build.durations.buildMs}
-                          label={formatDuration(build.durations.buildMs)}
-                          values={builds.map((item) => item.durations.buildMs)}
-                        />
-                      </td>
-                      <td>
-                        <MetricTrend
-                          value={build.bundle.jsBytes}
-                          label={formatBytes(build.bundle.jsBytes)}
-                          values={builds.map((item) => item.bundle.jsBytes)}
-                        />
-                      </td>
-                      <td>
-                        <MetricTrend
-                          value={build.benchmark.operationsPerSecond}
-                          label={formatOps(build.benchmark.operationsPerSecond)}
-                          values={builds.map((item) => item.benchmark.operationsPerSecond)}
-                        />
-                      </td>
+                      <td>{formatDuration(build.durations.buildMs)}</td>
+                      <td>{formatBytes(build.bundle.jsBytes)}</td>
+                      <td>{formatOps(build.benchmark.operationsPerSecond)}</td>
                       <td>{formatScoreValue(build.lighthouse.score)}</td>
                       <td>{formatDuration(build.lighthouse.metrics.largestContentfulPaintMs)}</td>
                       <td>{formatDecimal(build.lighthouse.metrics.cumulativeLayoutShift)}</td>
@@ -995,6 +1015,110 @@ function MetricsSection({ history }: { history: BuildMetricsHistory }) {
   );
 }
 
+function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["builds"] }) {
+  const rows = createMetricsChartRows(builds);
+  const legendItems: ChartLegendItem[] = metricsChartSeries.map((series) => ({
+    color: series.color,
+    id: series.id,
+    label: series.label,
+  }));
+  const visibility = useChartSeriesVisibility({
+    itemIds: metricsChartSeries.map((series) => series.id),
+  });
+  const animationProps = getRechartsAnimationProps({ enabled: false });
+
+  return (
+    <ChartPanel
+      className="metrics-chart-panel"
+      title="Performance trend"
+      description="Indexed to the latest run at 100 for cross-metric comparison."
+    >
+      <div className="metrics-chart-layout">
+        <div className="metrics-chart" role="img" aria-label="Last 5 build metrics trend chart">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={rows} margin={{ bottom: 8, left: 4, right: 16, top: 12 }}>
+              <CartesianGrid vertical={false} stroke="var(--line)" />
+              <XAxis
+                dataKey="runLabel"
+                minTickGap={24}
+                tick={{ fill: "var(--muted)", fontSize: 12 }}
+                tickLine={false}
+              />
+              <YAxis
+                tickFormatter={(value: number) => `${Math.round(value)}`}
+                tick={{ fill: "var(--muted)", fontSize: 12 }}
+                tickLine={false}
+                width={42}
+              />
+              <Tooltip content={(props) => <MetricsChartTooltip {...props} />} />
+              {metricsChartSeries.map((series) =>
+                visibility.isVisible(series.id) ? (
+                  <Line
+                    key={series.id}
+                    connectNulls
+                    dataKey={series.id}
+                    dot={{ r: 3 }}
+                    name={series.label}
+                    stroke={series.color}
+                    strokeWidth={2}
+                    type="monotone"
+                    animationDuration={animationProps.animationDuration}
+                    isAnimationActive={animationProps.isAnimationActive}
+                  />
+                ) : null,
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <ChartSeriesLegend
+          hiddenIds={visibility.hiddenIds}
+          items={legendItems}
+          onHiddenIdsChange={visibility.setHiddenIds}
+          orientation="vertical"
+          showCounts={false}
+        />
+      </div>
+    </ChartPanel>
+  );
+}
+
+function MetricsChartTooltip({ active, label, payload }: TooltipContentProps) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  const datum = payload[0]?.payload as MetricsChartDatum | undefined;
+
+  return (
+    <div className="metrics-chart-tooltip">
+      <strong>{label}</strong>
+      {datum ? <span>{datum.completedLabel}</span> : null}
+      <dl>
+        {payload.map((item) => {
+          const dataKey = String(item.dataKey ?? "");
+          const series = metricsChartSeries.find((candidate) => candidate.id === dataKey);
+
+          if (!series) {
+            return null;
+          }
+
+          return (
+            <div key={series.id}>
+              <dt>
+                <i style={{ backgroundColor: series.color }} aria-hidden="true" />
+                {series.label}
+              </dt>
+              <dd>
+                {datum?.raw[series.id] ?? "n/a"} <span>{Math.round(Number(item.value ?? 0))}</span>
+              </dd>
+            </div>
+          );
+        })}
+      </dl>
+    </div>
+  );
+}
+
 function MetricCard({ detail, label, value }: { detail: string; label: string; value: string }) {
   return (
     <Card className="metrics-card">
@@ -1004,27 +1128,6 @@ function MetricCard({ detail, label, value }: { detail: string; label: string; v
         <p>{detail}</p>
       </CardContent>
     </Card>
-  );
-}
-
-function MetricTrend({
-  label,
-  value,
-  values,
-}: {
-  label: string;
-  value: number | null;
-  values: Array<number | null>;
-}) {
-  const width = trendWidth(value, values);
-
-  return (
-    <div className="metrics-trend">
-      <span>{label}</span>
-      <div aria-hidden="true">
-        <i style={{ width: `${width}%` }} />
-      </div>
-    </div>
   );
 }
 
@@ -1593,19 +1696,39 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function trendWidth(value: number | null, values: Array<number | null>) {
+function createMetricsChartRows(builds: BuildMetricsHistory["builds"]): MetricsChartDatum[] {
+  const chronologicalBuilds = [...builds].reverse();
+  const latest = builds[0];
+
+  return chronologicalBuilds.map((build) => ({
+    benchmark: normalizeMetric(
+      build.benchmark.operationsPerSecond,
+      latest.benchmark.operationsPerSecond,
+    ),
+    build: normalizeMetric(build.durations.buildMs, latest.durations.buildMs),
+    bundle: normalizeMetric(build.bundle.jsBytes, latest.bundle.jsBytes),
+    completedLabel: formatDateTime(build.completedAt),
+    lighthouse: normalizeMetric(build.lighthouse.score, latest.lighthouse.score),
+    raw: {
+      benchmark: formatOps(build.benchmark.operationsPerSecond),
+      build: formatDuration(build.durations.buildMs),
+      bundle: formatBytes(build.bundle.jsBytes),
+      lighthouse: formatScoreValue(build.lighthouse.score),
+    },
+    runLabel: `#${build.runNumber}`,
+  }));
+}
+
+function normalizeMetric(value: number | null, referenceValue: number | null) {
   if (value === null) {
-    return 0;
+    return undefined;
   }
 
-  const numericValues = values.filter((candidate): candidate is number => candidate !== null);
-  const max = Math.max(...numericValues);
-
-  if (!Number.isFinite(max) || max <= 0) {
-    return 0;
+  if (referenceValue === null || referenceValue === 0) {
+    return undefined;
   }
 
-  return Math.max(8, Math.round((value / max) * 100));
+  return Math.round((value / referenceValue) * 1000) / 10;
 }
 
 function slugFromFile(file: string) {

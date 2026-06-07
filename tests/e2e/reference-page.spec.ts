@@ -125,8 +125,10 @@ test("renders latest build metrics and the last-5 table from a fixture history",
 
   await page.goto("/");
 
-  await expect(page.getByText("Build duration")).toBeVisible();
-  await expect(page.getByText("JS bundle")).toBeVisible();
+  const latestMetrics = page.getByLabel("Latest build metrics");
+  await expect(latestMetrics.getByText("Build duration")).toBeVisible();
+  await expect(latestMetrics.getByText("JS bundle")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Last 5 build metrics trend chart" })).toBeVisible();
   await expect(page.getByRole("table", { name: "Last 5 build metrics" })).toBeVisible();
   await expect(page.getByRole("link", { name: "#105" })).toBeVisible();
   await expect(page.getByRole("link", { name: "#101" })).toBeVisible();
