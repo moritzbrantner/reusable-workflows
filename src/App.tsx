@@ -1,3 +1,4 @@
+import { type HTMLAttributes, type ReactNode, useCallback, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -18,40 +19,6 @@ import {
   Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import {
-  ChartPanel,
-  ChartSeriesLegend,
-  getRechartsAnimationProps,
-  useChartSeriesVisibility,
-  type ChartLegendItem,
-} from "@moritzbrantner/charts";
-import { DependencyGraph } from "@moritzbrantner/diagrams";
-import { Badge } from "@moritzbrantner/ui/components/stable/badge";
-import { Button } from "@moritzbrantner/ui/components/stable/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@moritzbrantner/ui/components/stable/card";
-import {
-  CodeBlock,
-  CodeBlockCode,
-  CodeBlockContent,
-} from "@moritzbrantner/ui/components/stable/code-block";
-import { Stat, StatDescription, StatValue } from "@moritzbrantner/ui/components/stable/stat";
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  type TooltipContentProps,
-} from "recharts";
-import { parse } from "yaml";
 
 import type { BuildMetricsHistory } from "./build-metrics";
 import buildMetricsHistoryJson from "./generated/build-metrics-history.json";
@@ -110,6 +77,15 @@ type MetricsChartDatum = {
   raw: Record<MetricsChartSeriesId, string>;
   runLabel: string;
 } & Partial<Record<MetricsChartSeriesId, number>>;
+
+type ChartLegendItem = {
+  color?: string;
+  description?: ReactNode;
+  disabled?: boolean;
+  id: string;
+  label: ReactNode;
+  meta?: ReactNode;
+};
 
 const metricsChartSeries: Array<{
   color: string;
@@ -664,18 +640,20 @@ function HomePage() {
               family.
             </p>
             <div className="hero__actions" aria-label="Repository resources">
-              <Button asChild className="button button--primary">
-                <a href="https://github.com/moritzbrantner/reusable-workflows">
-                  <Boxes aria-hidden="true" />
-                  Repository
-                </a>
-              </Button>
-              <Button asChild className="button button--secondary">
-                <a href="https://github.com/moritzbrantner/reusable-workflows/tree/main/.github/workflows">
-                  <ArrowUpRight aria-hidden="true" />
-                  Workflow files
-                </a>
-              </Button>
+              <a
+                className="button button--primary"
+                href="https://github.com/moritzbrantner/reusable-workflows"
+              >
+                <Boxes aria-hidden="true" />
+                Repository
+              </a>
+              <a
+                className="button button--secondary"
+                href="https://github.com/moritzbrantner/reusable-workflows/tree/main/.github/workflows"
+              >
+                <ArrowUpRight aria-hidden="true" />
+                Workflow files
+              </a>
             </div>
           </div>
 
@@ -911,6 +889,201 @@ function SiteHeader() {
   );
 }
 
+function Badge({
+  className,
+  variant = "default",
+  ...props
+}: HTMLAttributes<HTMLSpanElement> & { variant?: "default" | "outline" | "secondary" }) {
+  return (
+    <span
+      className={joinClassNames(
+        "badge",
+        variant !== "default" ? `badge--${variant}` : "",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={className} {...props} />;
+}
+
+function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={joinClassNames("card-header", className)} {...props} />;
+}
+
+function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={className} {...props} />;
+}
+
+function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
+  return <h3 className={joinClassNames("card-title", className)} {...props} />;
+}
+
+function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={joinClassNames("card-description", className)} {...props} />;
+}
+
+function CodeBlock({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={className} {...props} />;
+}
+
+function CodeBlockContent({ className, ...props }: HTMLAttributes<HTMLPreElement>) {
+  return <pre className={className} {...props} />;
+}
+
+function CodeBlockCode({ className, ...props }: HTMLAttributes<HTMLElement>) {
+  return <code className={className} {...props} />;
+}
+
+function Stat({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={className} {...props} />;
+}
+
+function StatValue({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={className} {...props} />;
+}
+
+function StatDescription({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
+  return <div className={className} {...props} />;
+}
+
+function joinClassNames(...classNames: Array<string | false | null | undefined>) {
+  return classNames.filter(Boolean).join(" ");
+}
+
+function DependencyGraph({
+  ariaLabel,
+  caption,
+  className,
+  edges = [],
+  nodes,
+  showLegend = false,
+}: {
+  ariaLabel: string;
+  caption?: string;
+  className?: string;
+  edges?: readonly {
+    id: string;
+    kind?: string;
+    label?: string;
+    source: string;
+    target: string;
+  }[];
+  nodes: readonly {
+    description: string;
+    group: string;
+    height: number;
+    id: string;
+    label: string;
+    status: string;
+    tone: string;
+    version?: string;
+    width: number;
+    x: number;
+    y: number;
+  }[];
+  showLegend?: boolean;
+}) {
+  const padding = 56;
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+  const width = Math.max(...nodes.map((node) => node.x + node.width)) + padding * 2;
+  const height = Math.max(...nodes.map((node) => node.y + node.height)) + padding * 2;
+
+  return (
+    <figure className={className}>
+      <div data-slot="dependency-graph-scroll-area">
+        <svg
+          aria-label={ariaLabel}
+          data-slot="dependency-graph-svg"
+          role="img"
+          viewBox={`0 0 ${width} ${height}`}
+        >
+          <defs>
+            <marker
+              id="workflow-graph-arrow"
+              markerHeight="8"
+              markerWidth="8"
+              orient="auto"
+              refX="7"
+              refY="4"
+              viewBox="0 0 8 8"
+            >
+              <path d="M0 0L8 4L0 8Z" />
+            </marker>
+          </defs>
+          <g transform={`translate(${padding} ${padding})`}>
+            {edges.map((edge, edgeIndex) => {
+              const source = nodeById.get(edge.source);
+              const target = nodeById.get(edge.target);
+
+              if (!source || !target) {
+                return null;
+              }
+
+              const sourceX = source.x + source.width;
+              const sourceY = source.y + source.height / 2;
+              const targetX = target.x;
+              const targetY = target.y + target.height / 2;
+              const curve = Math.max(64, Math.abs(targetX - sourceX) * 0.45);
+              const labelX = sourceX + (targetX - sourceX) / 2;
+              const labelY = sourceY + (targetY - sourceY) / 2 - 8 - (edgeIndex % 2) * 8;
+
+              return (
+                <g
+                  className="workflow-graph__edge"
+                  data-kind={edge.kind ?? "runtime"}
+                  key={edge.id}
+                >
+                  <path
+                    d={`M ${sourceX} ${sourceY} C ${sourceX + curve} ${sourceY}, ${targetX - curve} ${targetY}, ${targetX} ${targetY}`}
+                  />
+                  {edge.label ? (
+                    <text x={labelX} y={labelY}>
+                      {edge.label}
+                    </text>
+                  ) : null}
+                </g>
+              );
+            })}
+            {nodes.map((node) => (
+              <g
+                className="workflow-graph__node"
+                data-status={node.status}
+                data-tone={node.tone}
+                key={node.id}
+                transform={`translate(${node.x} ${node.y})`}
+              >
+                <rect height={node.height} rx="8" width={node.width} />
+                <text className="workflow-graph__node-label" x="16" y="28">
+                  {node.label}
+                </text>
+                <text className="workflow-graph__node-group" x="16" y="50">
+                  {node.group}
+                </text>
+                <foreignObject height={node.height - 64} width={node.width - 32} x="16" y="60">
+                  <p>{node.description}</p>
+                </foreignObject>
+              </g>
+            ))}
+          </g>
+        </svg>
+      </div>
+      {showLegend ? (
+        <div data-slot="dependency-graph-legend">
+          <span data-tone="accent">Caller</span>
+          <span data-tone="success">Reusable contract</span>
+          <span data-tone="warning">Compatibility</span>
+          <span data-tone="muted">No local caller</span>
+        </div>
+      ) : null}
+      {caption ? <figcaption>{caption}</figcaption> : null}
+    </figure>
+  );
+}
+
 function MetricsSection({ history }: { history: BuildMetricsHistory }) {
   const builds = history.builds;
   const latest = builds[0];
@@ -1025,7 +1198,35 @@ function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["builds"] }
   const visibility = useChartSeriesVisibility({
     itemIds: metricsChartSeries.map((series) => series.id),
   });
-  const animationProps = getRechartsAnimationProps({ enabled: false });
+  const visibleSeries = metricsChartSeries.filter((series) => visibility.isVisible(series.id));
+  const chartWidth = 720;
+  const chartHeight = 320;
+  const chartPadding = { bottom: 36, left: 48, right: 20, top: 16 };
+  const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
+  const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
+  const chartValues = rows.flatMap((row) =>
+    visibleSeries.flatMap((series) => {
+      const value = row[series.id];
+
+      return typeof value === "number" && Number.isFinite(value) ? [value] : [];
+    }),
+  );
+  const maxY = Math.max(125, Math.ceil((Math.max(...chartValues, 100) + 10) / 25) * 25);
+  const yTicks = Array.from({ length: maxY / 25 + 1 }, (_, index) => index * 25);
+  const getX = (index: number) =>
+    chartPadding.left +
+    (rows.length <= 1 ? plotWidth / 2 : (index / (rows.length - 1)) * plotWidth);
+  const getY = (value: number) => chartPadding.top + plotHeight - (value / maxY) * plotHeight;
+  const getPath = (seriesId: MetricsChartSeriesId) =>
+    rows
+      .flatMap((row, index) => {
+        const value = row[seriesId];
+
+        return typeof value === "number" && Number.isFinite(value)
+          ? [`${index === 0 ? "M" : "L"} ${getX(index).toFixed(1)} ${getY(value).toFixed(1)}`]
+          : [];
+      })
+      .join(" ");
 
   return (
     <ChartPanel
@@ -1035,40 +1236,92 @@ function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["builds"] }
     >
       <div className="metrics-chart-layout">
         <div className="metrics-chart" role="img" aria-label="Last 5 build metrics trend chart">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={rows} margin={{ bottom: 8, left: 4, right: 16, top: 12 }}>
-              <CartesianGrid vertical={false} stroke="var(--line)" />
-              <XAxis
-                dataKey="runLabel"
-                minTickGap={24}
-                tick={{ fill: "var(--muted)", fontSize: 12 }}
-                tickLine={false}
-              />
-              <YAxis
-                tickFormatter={(value: number) => `${Math.round(value)}`}
-                tick={{ fill: "var(--muted)", fontSize: 12 }}
-                tickLine={false}
-                width={42}
-              />
-              <Tooltip content={(props) => <MetricsChartTooltip {...props} />} />
-              {metricsChartSeries.map((series) =>
-                visibility.isVisible(series.id) ? (
-                  <Line
-                    key={series.id}
-                    connectNulls
-                    dataKey={series.id}
-                    dot={{ r: 3 }}
-                    name={series.label}
-                    stroke={series.color}
-                    strokeWidth={2}
-                    type="monotone"
-                    animationDuration={animationProps.animationDuration}
-                    isAnimationActive={animationProps.isAnimationActive}
-                  />
-                ) : null,
-              )}
-            </LineChart>
-          </ResponsiveContainer>
+          <svg
+            aria-hidden="true"
+            className="metrics-chart__svg"
+            preserveAspectRatio="none"
+            viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+          >
+            {yTicks.map((tick) => (
+              <g key={tick}>
+                <line
+                  className="metrics-chart__grid-line"
+                  x1={chartPadding.left}
+                  x2={chartWidth - chartPadding.right}
+                  y1={getY(tick)}
+                  y2={getY(tick)}
+                />
+                <text
+                  className="metrics-chart__axis-label"
+                  x={chartPadding.left - 12}
+                  y={getY(tick)}
+                >
+                  {tick}
+                </text>
+              </g>
+            ))}
+            {rows.map((row, index) => (
+              <text
+                className="metrics-chart__axis-label metrics-chart__axis-label--x"
+                key={row.runLabel}
+                x={getX(index)}
+                y={chartHeight - 10}
+              >
+                {row.runLabel}
+              </text>
+            ))}
+            {visibleSeries.map((series) => (
+              <g key={series.id}>
+                <path
+                  className="metrics-chart__line"
+                  d={getPath(series.id)}
+                  stroke={series.color}
+                />
+                {rows.map((row, index) => {
+                  const value = row[series.id];
+
+                  if (typeof value !== "number" || !Number.isFinite(value)) {
+                    return null;
+                  }
+
+                  return (
+                    <circle
+                      className="metrics-chart__point"
+                      cx={getX(index)}
+                      cy={getY(value)}
+                      fill={series.color}
+                      key={`${series.id}-${row.runLabel}`}
+                      r={3.5}
+                    >
+                      <title>
+                        {series.label}, {row.runLabel}: {row.raw[series.id]} ({Math.round(value)}{" "}
+                        indexed)
+                      </title>
+                    </circle>
+                  );
+                })}
+              </g>
+            ))}
+          </svg>
+          <div className="metrics-chart__tooltip-list" aria-label="Chart values">
+            {rows.map((row) => (
+              <div key={row.runLabel}>
+                <strong>{row.runLabel}</strong>
+                <span>{row.completedLabel}</span>
+                <dl>
+                  {visibleSeries.map((series) => (
+                    <div key={series.id}>
+                      <dt>
+                        <i style={{ backgroundColor: series.color }} aria-hidden="true" />
+                        {series.label}
+                      </dt>
+                      <dd>{row.raw[series.id]}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </div>
         </div>
         <ChartSeriesLegend
           hiddenIds={visibility.hiddenIds}
@@ -1082,41 +1335,162 @@ function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["builds"] }
   );
 }
 
-function MetricsChartTooltip({ active, label, payload }: TooltipContentProps) {
-  if (!active || !payload?.length) {
-    return null;
-  }
-
-  const datum = payload[0]?.payload as MetricsChartDatum | undefined;
-
+function ChartPanel({
+  children,
+  className,
+  description,
+  title,
+}: {
+  children: ReactNode;
+  className?: string;
+  description?: ReactNode;
+  title: ReactNode;
+}) {
   return (
-    <div className="metrics-chart-tooltip">
-      <strong>{label}</strong>
-      {datum ? <span>{datum.completedLabel}</span> : null}
-      <dl>
-        {payload.map((item) => {
-          const dataKey = String(item.dataKey ?? "");
-          const series = metricsChartSeries.find((candidate) => candidate.id === dataKey);
-
-          if (!series) {
-            return null;
-          }
-
-          return (
-            <div key={series.id}>
-              <dt>
-                <i style={{ backgroundColor: series.color }} aria-hidden="true" />
-                {series.label}
-              </dt>
-              <dd>
-                {datum?.raw[series.id] ?? "n/a"} <span>{Math.round(Number(item.value ?? 0))}</span>
-              </dd>
-            </div>
-          );
-        })}
-      </dl>
+    <div className={className}>
+      <div>
+        <h3>{title}</h3>
+        {description ? <p>{description}</p> : null}
+      </div>
+      <div>{children}</div>
     </div>
   );
+}
+
+function ChartSeriesLegend({
+  "aria-label": ariaLabel = "Chart series legend",
+  className,
+  hiddenIds,
+  items,
+  onHiddenIdsChange,
+  orientation = "vertical",
+  showCounts = true,
+}: {
+  "aria-label"?: string;
+  className?: string;
+  hiddenIds: string[];
+  items: ChartLegendItem[];
+  onHiddenIdsChange: (hiddenIds: string[]) => void;
+  orientation?: "horizontal" | "vertical";
+  showCounts?: boolean;
+}) {
+  const itemIds = useMemo(() => items.map((item) => item.id), [items]);
+  const visibility = useChartSeriesVisibility({
+    hiddenIds,
+    itemIds,
+    onHiddenIdsChange,
+  });
+
+  return (
+    <div
+      aria-label={ariaLabel}
+      className={["chart-series-legend", `chart-series-legend--${orientation}`, className]
+        .filter(Boolean)
+        .join(" ")}
+      role="group"
+    >
+      {items.map((item) => {
+        const visible = visibility.isVisible(item.id);
+
+        return (
+          <label className="chart-series-legend__item" key={item.id}>
+            <input
+              aria-label={typeof item.label === "string" ? item.label : undefined}
+              checked={visible}
+              disabled={item.disabled}
+              onChange={() => visibility.toggle(item.id)}
+              type="checkbox"
+            />
+            <span
+              aria-hidden="true"
+              className="chart-series-legend__swatch"
+              style={{ backgroundColor: item.color ?? "var(--muted)" }}
+            />
+            <span className="chart-series-legend__content">
+              <span className="chart-series-legend__label-row">
+                <span className="chart-series-legend__label">{item.label}</span>
+                {showCounts && item.meta ? (
+                  <span className="chart-series-legend__meta">{item.meta}</span>
+                ) : null}
+              </span>
+              {item.description ? (
+                <span className="chart-series-legend__description">{item.description}</span>
+              ) : null}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function useChartSeriesVisibility({
+  hiddenIds,
+  itemIds,
+  minVisible = 1,
+  onHiddenIdsChange,
+}: {
+  hiddenIds?: string[];
+  itemIds: string[];
+  minVisible?: number;
+  onHiddenIdsChange?: (hiddenIds: string[]) => void;
+}) {
+  const [uncontrolledHiddenIds, setUncontrolledHiddenIds] = useState<string[]>([]);
+  const resolvedHiddenIds = useMemo(
+    () => normalizeHiddenChartSeriesIds(hiddenIds ?? uncontrolledHiddenIds, itemIds, minVisible),
+    [hiddenIds, itemIds, minVisible, uncontrolledHiddenIds],
+  );
+  const visibleIds = useMemo(
+    () => itemIds.filter((id) => !resolvedHiddenIds.includes(id)),
+    [itemIds, resolvedHiddenIds],
+  );
+  const setHiddenIds = useCallback(
+    (nextHiddenIds: string[]) => {
+      const normalized = normalizeHiddenChartSeriesIds(nextHiddenIds, itemIds, minVisible);
+
+      if (hiddenIds === undefined) {
+        setUncontrolledHiddenIds(normalized);
+      }
+
+      onHiddenIdsChange?.(normalized);
+    },
+    [hiddenIds, itemIds, minVisible, onHiddenIdsChange],
+  );
+  const toggle = useCallback(
+    (id: string) => {
+      if (!itemIds.includes(id)) {
+        return;
+      }
+
+      if (resolvedHiddenIds.includes(id)) {
+        setHiddenIds(resolvedHiddenIds.filter((hiddenId) => hiddenId !== id));
+        return;
+      }
+
+      if (visibleIds.length <= minVisible) {
+        return;
+      }
+
+      setHiddenIds([...resolvedHiddenIds, id]);
+    },
+    [itemIds, minVisible, resolvedHiddenIds, setHiddenIds, visibleIds.length],
+  );
+  const isVisible = useCallback((id: string) => visibleIds.includes(id), [visibleIds]);
+
+  return {
+    hiddenIds: resolvedHiddenIds,
+    isVisible,
+    setHiddenIds,
+    toggle,
+    visibleIds,
+  };
+}
+
+function normalizeHiddenChartSeriesIds(hiddenIds: string[], itemIds: string[], minVisible: number) {
+  const hiddenIdSet = new Set(hiddenIds);
+  const maxHiddenCount = Math.max(0, itemIds.length - Math.max(0, minVisible));
+
+  return itemIds.filter((id) => hiddenIdSet.has(id)).slice(0, maxHiddenCount);
 }
 
 function MetricCard({ detail, label, value }: { detail: string; label: string; value: string }) {
@@ -1515,41 +1889,18 @@ function buildParsedWorkflows() {
 
 function parseWorkflow(file: string, source: string): Omit<ParsedWorkflow, "callers"> {
   const metadata = workflowMetadataByFile.get(file) ?? fallbackWorkflowMetadata(file);
-  const parsed = parse(source) as Record<string, unknown>;
-  const jobsRecord = isRecord(parsed.jobs) ? parsed.jobs : {};
+  const jobs = parseWorkflowJobs(source);
 
   return {
     ...metadata,
     slug: slugFromFile(file),
     source,
-    yamlName: typeof parsed.name === "string" ? parsed.name : metadata.title,
-    triggers: parseTriggers(parsed.on),
-    jobs: parseJobs(jobsRecord),
-    dependencies: Array.from(
-      new Set(parseJobs(jobsRecord).flatMap((job) => job.usesWorkflow ?? [])),
-    ),
+    yamlName: parseWorkflowName(source) ?? metadata.title,
+    triggers: parseWorkflowTriggers(source),
+    jobs,
+    dependencies: Array.from(new Set(jobs.flatMap((job) => job.usesWorkflow ?? []))),
     contract: contracts[file],
   };
-}
-
-function parseJobs(jobsRecord: Record<string, unknown>) {
-  return Object.entries(jobsRecord).map(([id, job]) => {
-    const jobRecord = isRecord(job) ? job : {};
-    const uses = typeof jobRecord.uses === "string" ? jobRecord.uses : undefined;
-    const steps = Array.isArray(jobRecord.steps) ? jobRecord.steps : [];
-
-    return {
-      id,
-      name: typeof jobRecord.name === "string" ? jobRecord.name : titleFromSlug(id),
-      uses,
-      usesWorkflow: uses ? normalizeWorkflowRef(uses) : undefined,
-      needs: parseStringList(jobRecord.needs),
-      runsOn: parseRunsOn(jobRecord["runs-on"]),
-      timeoutMinutes:
-        typeof jobRecord["timeout-minutes"] === "number" ? jobRecord["timeout-minutes"] : undefined,
-      stepCount: steps.length,
-    };
-  });
 }
 
 function fallbackWorkflowMetadata(file: string): WorkflowMetadata {
@@ -1566,51 +1917,168 @@ function fallbackWorkflowMetadata(file: string): WorkflowMetadata {
   };
 }
 
-function parseTriggers(onValue: unknown) {
-  if (typeof onValue === "string") {
-    return [onValue];
-  }
-
-  if (Array.isArray(onValue)) {
-    return onValue.map(String);
-  }
-
-  if (isRecord(onValue)) {
-    return Object.keys(onValue);
-  }
-
-  return ["workflow_call"];
-}
-
-function parseStringList(value: unknown) {
-  if (typeof value === "string") {
-    return [value];
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(String);
-  }
-
-  return [];
-}
-
-function parseRunsOn(value: unknown) {
-  if (typeof value === "string") {
-    return value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map(String).join(", ");
-  }
-
-  return undefined;
-}
-
 function normalizeWorkflowRef(ref: string) {
   const refWithoutVersion = ref.split("@")[0];
   const workflowIndex = refWithoutVersion.indexOf(".github/workflows/");
 
   return workflowIndex >= 0 ? refWithoutVersion.slice(workflowIndex) : undefined;
+}
+
+function parseWorkflowName(source: string) {
+  const name = source.match(/^name:\s*(.+)$/m)?.[1];
+
+  return name ? unquoteYamlScalar(name) : undefined;
+}
+
+function parseWorkflowTriggers(source: string) {
+  const onBlock = getTopLevelBlock(source, "on");
+
+  if (!onBlock) {
+    return ["workflow_call"];
+  }
+
+  if (onBlock.headerValue) {
+    return parseYamlStringList(onBlock.headerValue);
+  }
+
+  const triggers = onBlock.lines.flatMap((line) => {
+    const match = line.match(/^  ([\w-]+):/);
+
+    return match ? [match[1]] : [];
+  });
+
+  return triggers.length > 0 ? triggers : ["workflow_call"];
+}
+
+function parseWorkflowJobs(source: string): ParsedJob[] {
+  const jobsBlock = getTopLevelBlock(source, "jobs");
+
+  if (!jobsBlock) {
+    return [];
+  }
+
+  const jobs: ParsedJob[] = [];
+  const lines = jobsBlock.lines;
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const jobMatch = lines[lineIndex].match(/^  ([\w-]+):\s*$/);
+
+    if (!jobMatch) {
+      continue;
+    }
+
+    const id = jobMatch[1];
+    const jobLines: string[] = [];
+
+    lineIndex += 1;
+    while (lineIndex < lines.length && !/^  [\w-]+:\s*$/.test(lines[lineIndex])) {
+      jobLines.push(lines[lineIndex]);
+      lineIndex += 1;
+    }
+    lineIndex -= 1;
+
+    const uses = findYamlProperty(jobLines, "uses");
+    const timeoutMinutes = Number(findYamlProperty(jobLines, "timeout-minutes"));
+
+    jobs.push({
+      id,
+      name: findYamlProperty(jobLines, "name") ?? titleFromSlug(id),
+      uses,
+      usesWorkflow: uses ? normalizeWorkflowRef(uses) : undefined,
+      needs: parseYamlStringList(findYamlProperty(jobLines, "needs") ?? ""),
+      runsOn: findYamlProperty(jobLines, "runs-on"),
+      timeoutMinutes: Number.isFinite(timeoutMinutes) ? timeoutMinutes : undefined,
+      stepCount: countWorkflowSteps(jobLines),
+    });
+  }
+
+  return jobs;
+}
+
+function getTopLevelBlock(source: string, key: string) {
+  const lines = source.split("\n");
+  const blockStart = lines.findIndex((line) => line.startsWith(`${key}:`));
+
+  if (blockStart < 0) {
+    return undefined;
+  }
+
+  const headerValue = lines[blockStart].slice(key.length + 1).trim();
+  const blockLines: string[] = [];
+
+  for (let lineIndex = blockStart + 1; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+
+    if (/^\S/.test(line)) {
+      break;
+    }
+
+    blockLines.push(line);
+  }
+
+  return { headerValue, lines: blockLines };
+}
+
+function findYamlProperty(lines: string[], key: string) {
+  const propertyLine = lines.find((line) => line.startsWith(`    ${key}:`));
+  const value = propertyLine?.slice(key.length + 5).trim();
+
+  return value ? unquoteYamlScalar(value) : undefined;
+}
+
+function countWorkflowSteps(lines: string[]) {
+  const stepsIndex = lines.findIndex((line) => line === "    steps:");
+
+  if (stepsIndex < 0) {
+    return 0;
+  }
+
+  let stepCount = 0;
+
+  for (let lineIndex = stepsIndex + 1; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+
+    if (/^    \S/.test(line)) {
+      break;
+    }
+
+    if (line.startsWith("      - ")) {
+      stepCount += 1;
+    }
+  }
+
+  return stepCount;
+}
+
+function parseYamlStringList(value: string) {
+  const normalized = unquoteYamlScalar(value);
+
+  if (!normalized) {
+    return [];
+  }
+
+  if (normalized.startsWith("[") && normalized.endsWith("]")) {
+    return normalized
+      .slice(1, -1)
+      .split(",")
+      .map((item) => unquoteYamlScalar(item.trim()))
+      .filter(Boolean);
+  }
+
+  return [normalized];
+}
+
+function unquoteYamlScalar(value: string) {
+  const trimmed = value.trim();
+
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+
+  return trimmed;
 }
 
 function buildUsageSnippet(workflow: ParsedWorkflow) {
@@ -1761,10 +2229,6 @@ function titleFromSlug(slug: string) {
     .split("-")
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 export { App, parsedWorkflows };

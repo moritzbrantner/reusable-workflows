@@ -1,8 +1,6 @@
 @import "@moritzbrantner/ui/studio/styles.css";
 
 @source "./**/*.{ts,tsx}";
-@source "../node_modules/@moritzbrantner/charts/dist/**/*.{js,mjs}";
-@source "../node_modules/@moritzbrantner/diagrams/dist/**/*.{js,mjs}";
 
 :root {
   color-scheme: light;
@@ -211,6 +209,51 @@ h4 {
   background: transparent;
 }
 
+.badge {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--primary-foreground);
+  padding: 0.3rem 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.badge--secondary {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+.badge--outline {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+}
+
+.card-header {
+  display: grid;
+  gap: 0.4rem;
+  padding: 1rem 1rem 0;
+}
+
+.card-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.card-description {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .signal-board {
   display: grid;
   gap: 0.85rem;
@@ -363,9 +406,99 @@ h4 {
   min-height: 660px;
 }
 
+.workflow-graph__edge path {
+  fill: none;
+  stroke: color-mix(in oklch, var(--muted) 70%, var(--foreground) 30%);
+  stroke-width: 2;
+  marker-end: url("#workflow-graph-arrow");
+}
+
+.workflow-graph__edge path[data-kind="optional"],
+.workflow-graph__edge[data-kind="optional"] path {
+  stroke-dasharray: 7 6;
+}
+
+.workflow-graph__edge text {
+  fill: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+.workflow-graph__node rect {
+  fill: var(--panel);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.workflow-graph__node[data-tone="accent"] rect {
+  fill: color-mix(in oklch, var(--primary) 13%, var(--panel) 87%);
+  stroke: color-mix(in oklch, var(--primary) 56%, var(--line) 44%);
+}
+
+.workflow-graph__node[data-tone="success"] rect {
+  fill: color-mix(in oklch, #166534 10%, var(--panel) 90%);
+  stroke: color-mix(in oklch, #166534 48%, var(--line) 52%);
+}
+
+.workflow-graph__node[data-tone="warning"] rect {
+  fill: color-mix(in oklch, #c2410c 10%, var(--panel) 90%);
+  stroke: color-mix(in oklch, #c2410c 48%, var(--line) 52%);
+}
+
+.workflow-graph__node[data-tone="muted"] rect {
+  fill: color-mix(in oklch, var(--muted) 18%, var(--panel) 82%);
+  stroke-dasharray: 6 5;
+}
+
+.workflow-graph__node-label {
+  fill: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 850;
+}
+
+.workflow-graph__node-group {
+  fill: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.workflow-graph__node p {
+  overflow: hidden;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.28;
+}
+
 .connection-graph [data-slot="dependency-graph-legend"],
 .connection-graph figcaption {
   background: color-mix(in oklch, var(--card) 92%, var(--primary) 8%);
+}
+
+.connection-graph [data-slot="dependency-graph-legend"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+}
+
+.connection-graph [data-slot="dependency-graph-legend"] span {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.connection-graph figcaption {
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 1rem;
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .workflow-list {
@@ -630,8 +763,121 @@ h4 {
 }
 
 .metrics-chart {
+  position: relative;
   height: 320px;
   min-width: 0;
+}
+
+.metrics-chart__svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.metrics-chart__grid-line {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.metrics-chart__axis-label {
+  fill: var(--muted);
+  font-size: 0.74rem;
+  text-anchor: end;
+  dominant-baseline: middle;
+}
+
+.metrics-chart__axis-label--x {
+  text-anchor: middle;
+}
+
+.metrics-chart__line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.metrics-chart__point {
+  stroke: var(--panel);
+  stroke-width: 2;
+}
+
+.metrics-chart__tooltip-list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.chart-series-legend {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.chart-series-legend--horizontal {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.chart-series-legend__item {
+  display: flex;
+  cursor: pointer;
+  gap: 0.7rem;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  background: color-mix(in oklch, var(--panel) 82%, var(--bg) 18%);
+  padding: 0.72rem 0.8rem;
+  font-size: 0.88rem;
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.chart-series-legend__item:hover {
+  border-color: color-mix(in oklch, var(--accent) 45%, var(--line) 55%);
+  background: var(--panel);
+}
+
+.chart-series-legend__item input {
+  margin: 0.12rem 0 0;
+  accent-color: var(--accent);
+}
+
+.chart-series-legend__swatch {
+  width: 0.74rem;
+  height: 0.74rem;
+  flex: 0 0 auto;
+  margin-top: 0.28rem;
+  border: 1px solid var(--line);
+}
+
+.chart-series-legend__content {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.2rem;
+}
+
+.chart-series-legend__label-row {
+  display: flex;
+  min-width: 0;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.chart-series-legend__label {
+  min-width: 0;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.chart-series-legend__meta,
+.chart-series-legend__description {
+  color: var(--muted);
+  font-size: 0.76rem;
 }
 
 .metrics-chart-tooltip {
