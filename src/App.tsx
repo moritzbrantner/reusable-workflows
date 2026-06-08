@@ -870,19 +870,19 @@ function SiteHeader() {
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <a className="brand" href="/" aria-label="Reusable Workflows home">
+        <a className="brand" href={homeHref()} aria-label="Reusable Workflows home">
           <span className="brand__mark" aria-hidden="true">
             RW
           </span>
           <span>Reusable Workflows</span>
         </a>
         <nav className="nav" aria-label="Primary navigation">
-          <a href="/#standard">Standard</a>
-          <a href="/#connections">Connections</a>
-          <a href="/#workflows">Workflows</a>
-          <a href="/#dogfood">Dogfood</a>
-          <a href="/#metrics">Metrics</a>
-          <a href="/#release">Release</a>
+          <a href={homeHref("standard")}>Standard</a>
+          <a href={homeHref("connections")}>Connections</a>
+          <a href={homeHref("workflows")}>Workflows</a>
+          <a href={homeHref("dogfood")}>Dogfood</a>
+          <a href={homeHref("metrics")}>Metrics</a>
+          <a href={homeHref("release")}>Release</a>
         </nav>
       </div>
     </header>
@@ -1562,7 +1562,7 @@ function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
       <main id="top">
         <section className="workflow-hero" aria-labelledby="workflow-title">
           <div className="workflow-hero__body">
-            <a className="back-link" href="/#workflows">
+            <a className="back-link" href={homeHref("workflows")}>
               <ArrowLeft aria-hidden="true" />
               All workflows
             </a>
@@ -2220,8 +2220,25 @@ function slugFromPath(pathname: string) {
   return candidate && parsedWorkflowsBySlug.has(candidate) ? candidate : "";
 }
 
-function workflowHref(slug: string) {
-  return `/${slug}`;
+function appBasePath(pathname = typeof window === "undefined" ? "/" : window.location.pathname) {
+  const parts = pathname
+    .replace(/\/index\.html$/, "/")
+    .split("/")
+    .filter(Boolean);
+  const lastPart = parts.at(-1);
+  const baseParts = lastPart && parsedWorkflowsBySlug.has(lastPart) ? parts.slice(0, -1) : parts;
+
+  return baseParts.length > 0 ? `/${baseParts.join("/")}/` : "/";
+}
+
+function homeHref(hash?: string, pathname?: string) {
+  const basePath = appBasePath(pathname);
+
+  return hash ? `${basePath}#${hash}` : basePath;
+}
+
+function workflowHref(slug: string, pathname?: string) {
+  return `${appBasePath(pathname)}${slug}`;
 }
 
 function titleFromSlug(slug: string) {
@@ -2231,4 +2248,4 @@ function titleFromSlug(slug: string) {
     .join(" ");
 }
 
-export { App, parsedWorkflows };
+export { App, appBasePath, homeHref, parsedWorkflows, workflowHref };
