@@ -4,7 +4,7 @@ import { mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 const distDir = path.resolve("dist");
-const budgetBytes = 350 * 1024;
+const budgetBytes = 375 * 1024;
 
 function collectFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {

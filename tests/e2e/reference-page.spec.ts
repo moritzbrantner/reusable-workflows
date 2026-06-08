@@ -7,6 +7,7 @@ const workflowSlugs = [
   "fast-validation",
   "integration-validation",
   "link-validation",
+  "package-publish",
   "performance-validation",
   "promote-branches",
   "release-template",
