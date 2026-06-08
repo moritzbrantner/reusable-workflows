@@ -16,16 +16,19 @@ import {
 
 import workflowContracts from "../../contracts/workflows.json";
 import type { ParsedJob, ParsedWorkflow, WorkflowContract, WorkflowMetadata } from "./types";
+import workflowCatalogData from "virtual:workflow-catalog-data";
 
-const workflowSources = Object.fromEntries(
-  Object.entries(
-    import.meta.glob<string>("../../.github/workflows/*.yml", {
-      eager: true,
-      import: "default",
-      query: "?raw",
-    }),
-  ).map(([file, source]) => [file.replace("../../", ""), source]),
-) as Record<string, string>;
+type WorkflowCatalogData = Record<
+  string,
+  {
+    jobs: ParsedJob[];
+    source: string;
+    triggers: string[];
+    yamlName: string;
+  }
+>;
+
+const workflowsByFile = workflowCatalogData as WorkflowCatalogData;
 
 const workflowDetails = [
   {
@@ -547,8 +550,8 @@ export const parsedWorkflowsBySlug = new Map(
 export { workflowGraphEdges, workflowGraphNodes };
 
 function buildParsedWorkflows() {
-  const workflowsWithoutCallers = Object.entries(workflowSources)
-    .map(([file, source]) => parseWorkflow(file, source))
+  const workflowsWithoutCallers = Object.entries(workflowsByFile)
+    .map(([file, workflow]) => parseWorkflow(file, workflow))
     .sort((first, second) => {
       if (first.role !== second.role) {
         return first.role === "Reusable contract" ? -1 : 1;
@@ -571,18 +574,20 @@ function buildParsedWorkflows() {
   );
 }
 
-function parseWorkflow(file: string, source: string): Omit<ParsedWorkflow, "callers"> {
+function parseWorkflow(
+  file: string,
+  workflow: WorkflowCatalogData[string],
+): Omit<ParsedWorkflow, "callers"> {
   const metadata = workflowMetadataByFile.get(file) ?? fallbackWorkflowMetadata(file);
-  const jobs = parseWorkflowJobs(source);
 
   return {
     ...metadata,
     slug: slugFromFile(file),
-    source,
-    yamlName: parseWorkflowName(source) ?? metadata.title,
-    triggers: parseWorkflowTriggers(source),
-    jobs,
-    dependencies: Array.from(new Set(jobs.flatMap((job) => job.usesWorkflow ?? []))),
+    source: workflow.source,
+    yamlName: workflow.yamlName || metadata.title,
+    triggers: workflow.triggers,
+    jobs: workflow.jobs,
+    dependencies: Array.from(new Set(workflow.jobs.flatMap((job) => job.usesWorkflow ?? []))),
     contract: contracts[file],
   };
 }
@@ -599,170 +604,6 @@ function fallbackWorkflowMetadata(file: string): WorkflowMetadata {
     responsibilities: ["Review the workflow source for repository-specific responsibilities."],
     icon: Workflow,
   };
-}
-
-function normalizeWorkflowRef(ref: string) {
-  const refWithoutVersion = ref.split("@")[0];
-  const workflowIndex = refWithoutVersion.indexOf(".github/workflows/");
-
-  return workflowIndex >= 0 ? refWithoutVersion.slice(workflowIndex) : undefined;
-}
-
-function parseWorkflowName(source: string) {
-  const name = source.match(/^name:\s*(.+)$/m)?.[1];
-
-  return name ? unquoteYamlScalar(name) : undefined;
-}
-
-function parseWorkflowTriggers(source: string) {
-  const onBlock = getTopLevelBlock(source, "on");
-
-  if (!onBlock) {
-    return ["workflow_call"];
-  }
-
-  if (onBlock.headerValue) {
-    return parseYamlStringList(onBlock.headerValue);
-  }
-
-  const triggers = onBlock.lines.flatMap((line) => {
-    const match = line.match(/^  ([\w-]+):/);
-
-    return match ? [match[1]] : [];
-  });
-
-  return triggers.length > 0 ? triggers : ["workflow_call"];
-}
-
-function parseWorkflowJobs(source: string): ParsedJob[] {
-  const jobsBlock = getTopLevelBlock(source, "jobs");
-
-  if (!jobsBlock) {
-    return [];
-  }
-
-  const jobs: ParsedJob[] = [];
-  const lines = jobsBlock.lines;
-
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
-    const jobMatch = lines[lineIndex].match(/^  ([\w-]+):\s*$/);
-
-    if (!jobMatch) {
-      continue;
-    }
-
-    const id = jobMatch[1];
-    const jobLines: string[] = [];
-
-    lineIndex += 1;
-    while (lineIndex < lines.length && !/^  [\w-]+:\s*$/.test(lines[lineIndex])) {
-      jobLines.push(lines[lineIndex]);
-      lineIndex += 1;
-    }
-    lineIndex -= 1;
-
-    const uses = findYamlProperty(jobLines, "uses");
-    const timeoutMinutes = Number(findYamlProperty(jobLines, "timeout-minutes"));
-
-    jobs.push({
-      id,
-      name: findYamlProperty(jobLines, "name") ?? titleFromSlug(id),
-      uses,
-      usesWorkflow: uses ? normalizeWorkflowRef(uses) : undefined,
-      needs: parseYamlStringList(findYamlProperty(jobLines, "needs") ?? ""),
-      runsOn: findYamlProperty(jobLines, "runs-on"),
-      timeoutMinutes: Number.isFinite(timeoutMinutes) ? timeoutMinutes : undefined,
-      stepCount: countWorkflowSteps(jobLines),
-    });
-  }
-
-  return jobs;
-}
-
-function getTopLevelBlock(source: string, key: string) {
-  const lines = source.split("\n");
-  const blockStart = lines.findIndex((line) => line.startsWith(`${key}:`));
-
-  if (blockStart < 0) {
-    return undefined;
-  }
-
-  const headerValue = lines[blockStart].slice(key.length + 1).trim();
-  const blockLines: string[] = [];
-
-  for (let lineIndex = blockStart + 1; lineIndex < lines.length; lineIndex += 1) {
-    const line = lines[lineIndex];
-
-    if (/^\S/.test(line)) {
-      break;
-    }
-
-    blockLines.push(line);
-  }
-
-  return { headerValue, lines: blockLines };
-}
-
-function findYamlProperty(lines: string[], key: string) {
-  const propertyLine = lines.find((line) => line.startsWith(`    ${key}:`));
-  const value = propertyLine?.slice(key.length + 5).trim();
-
-  return value ? unquoteYamlScalar(value) : undefined;
-}
-
-function countWorkflowSteps(lines: string[]) {
-  const stepsIndex = lines.findIndex((line) => line === "    steps:");
-
-  if (stepsIndex < 0) {
-    return 0;
-  }
-
-  let stepCount = 0;
-
-  for (let lineIndex = stepsIndex + 1; lineIndex < lines.length; lineIndex += 1) {
-    const line = lines[lineIndex];
-
-    if (/^    \S/.test(line)) {
-      break;
-    }
-
-    if (line.startsWith("      - ")) {
-      stepCount += 1;
-    }
-  }
-
-  return stepCount;
-}
-
-function parseYamlStringList(value: string) {
-  const normalized = unquoteYamlScalar(value);
-
-  if (!normalized) {
-    return [];
-  }
-
-  if (normalized.startsWith("[") && normalized.endsWith("]")) {
-    return normalized
-      .slice(1, -1)
-      .split(",")
-      .map((item) => unquoteYamlScalar(item.trim()))
-      .filter(Boolean);
-  }
-
-  return [normalized];
-}
-
-function unquoteYamlScalar(value: string) {
-  const trimmed = value.trim();
-
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-
-  return trimmed;
 }
 
 export function buildUsageSnippet(workflow: ParsedWorkflow) {

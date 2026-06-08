@@ -34,6 +34,15 @@ type WorkflowFile = {
   jobs?: Record<string, { permissions?: Record<string, unknown> }>;
 };
 
+type ValidationState = {
+  docs: Record<string, string>;
+  optionalDocs?: Record<string, string | undefined>;
+  repoWorkflowPaths: string[];
+  workflowStandard?: string;
+  workflows: Record<string, WorkflowContract>;
+  workflowSources: Record<string, string | undefined>;
+};
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const contractPath = path.join(root, "contracts", "workflows.json");
 const optionalUpstreamDoc = path.resolve(root, "..", "monorepo", "REUSABLE_WORKFLOWS.md");
@@ -42,24 +51,20 @@ function readJson<T>(filePath: string): T {
   return JSON.parse(readFileSync(filePath, "utf8")) as T;
 }
 
-function readWorkflow(filePath: string): WorkflowFile {
-  return parse(readFileSync(filePath, "utf8")) as WorkflowFile;
+function readWorkflow(source: string): WorkflowFile {
+  const parsed = parse(source) as unknown;
+
+  return isRecord(parsed) ? (parsed as WorkflowFile) : {};
 }
 
-function workflowCallFor(filePath: string): WorkflowCall {
-  const workflow = readWorkflow(filePath);
+function workflowCallFor(workflow: WorkflowFile): WorkflowCall {
   return workflow.on?.workflow_call ?? workflow.true?.workflow_call ?? {};
 }
 
-function workflowCallDefined(filePath: string): boolean {
-  const workflow = readWorkflow(filePath);
-  return Boolean(workflow.on?.workflow_call ?? workflow.true?.workflow_call);
-}
+export function workflowCallDefined(source: string): boolean {
+  const workflow = readWorkflow(source);
 
-function firstJobFor(filePath: string): { permissions?: Record<string, unknown> } {
-  const workflow = readWorkflow(filePath);
-  const firstJob = Object.values(workflow.jobs ?? {})[0];
-  return firstJob ?? {};
+  return Boolean(workflow.on?.workflow_call ?? workflow.true?.workflow_call);
 }
 
 function compactContractMap(map: Record<string, unknown> | undefined): Record<string, unknown> {
@@ -72,93 +77,173 @@ function stableJson(value: unknown): string {
   return JSON.stringify(value);
 }
 
-const contract = readJson<ContractFile>(contractPath);
-const errors: string[] = [];
+export function validateWorkflowContractsState(state: ValidationState): string[] {
+  const errors: string[] = [];
 
-if (contract.workflow_standard !== "workflow-standard-v1.2") {
-  errors.push("contracts/workflows.json must declare workflow_standard workflow-standard-v1.2");
-}
-
-const workflowContracts = contract.workflows;
-
-for (const [relativePath, expected] of Object.entries(workflowContracts)) {
-  const filePath = path.join(root, relativePath);
-  if (!existsSync(filePath)) {
-    errors.push(`Missing workflow file: ${relativePath}`);
-    continue;
+  if (state.workflowStandard !== "workflow-standard-v1.2") {
+    errors.push("contracts/workflows.json must declare workflow_standard workflow-standard-v1.2");
   }
 
-  const workflowCall = workflowCallFor(filePath);
-  const firstJob = firstJobFor(filePath);
+  for (const [relativePath, expected] of Object.entries(state.workflows)) {
+    const source = state.workflowSources[relativePath];
 
-  const comparisons = [
-    ["Input", compactContractMap(workflowCall.inputs), compactContractMap(expected.inputs)],
-    ["Secret", compactContractMap(workflowCall.secrets), compactContractMap(expected.secrets)],
-    ["Output", compactContractMap(workflowCall.outputs), compactContractMap(expected.outputs)],
-    [
-      "Permission",
-      compactContractMap(firstJob.permissions),
-      compactContractMap(expected.permissions),
-    ],
-  ] as const;
+    if (!source) {
+      errors.push(`Missing workflow file: ${relativePath}`);
+      continue;
+    }
 
-  for (const [label, actual, wanted] of comparisons) {
+    const workflow = readWorkflow(source);
+    const workflowCall = workflowCallFor(workflow);
+
+    const comparisons = [
+      ["Input", compactContractMap(workflowCall.inputs), compactContractMap(expected.inputs)],
+      ["Secret", compactContractMap(workflowCall.secrets), compactContractMap(expected.secrets)],
+      ["Output", compactContractMap(workflowCall.outputs), compactContractMap(expected.outputs)],
+    ] as const;
+
+    for (const [label, actual, wanted] of comparisons) {
+      if (stableJson(actual) !== stableJson(wanted)) {
+        errors.push(`${label} contract drift in ${relativePath}`);
+      }
+    }
+
+    for (const error of permissionContractErrors(relativePath, workflow, expected.permissions)) {
+      errors.push(error);
+    }
+  }
+
+  const contractWorkflowPaths = Object.keys(state.workflows).sort();
+  const missingContracts = state.repoWorkflowPaths.filter(
+    (workflowPath) => !contractWorkflowPaths.includes(workflowPath),
+  );
+  const extraContracts = contractWorkflowPaths.filter(
+    (workflowPath) => !state.repoWorkflowPaths.includes(workflowPath),
+  );
+
+  if (missingContracts.length > 0) {
+    errors.push(`Missing contract entries: ${missingContracts.join(", ")}`);
+  }
+
+  if (extraContracts.length > 0) {
+    errors.push(`Contract entries for missing workflows: ${extraContracts.join(", ")}`);
+  }
+
+  const requiredDocTokens = [
+    "workflow-standard-v1.2",
+    ...contractWorkflowPaths.map((workflowPath) => path.basename(workflowPath)),
+  ];
+
+  for (const [docPath, content] of Object.entries(state.docs)) {
+    for (const token of requiredDocTokens) {
+      if (!content.includes(token)) {
+        errors.push(`${docPath} does not document ${token}`);
+      }
+    }
+  }
+
+  for (const [docPath, content] of Object.entries(state.optionalDocs ?? {})) {
+    if (content === undefined) {
+      continue;
+    }
+
+    for (const token of requiredDocTokens) {
+      if (!content.includes(token)) {
+        errors.push(`${docPath} does not document ${token}`);
+      }
+    }
+  }
+
+  return errors;
+}
+
+function permissionContractErrors(
+  relativePath: string,
+  workflow: WorkflowFile,
+  expectedPermissions: Record<string, unknown> | undefined,
+) {
+  const errors: string[] = [];
+  const wanted = compactContractMap(expectedPermissions);
+  const jobs = Object.entries(workflow.jobs ?? {});
+
+  if (jobs.length === 0) {
+    if (stableJson(wanted) !== stableJson({})) {
+      errors.push(`Permission contract drift in ${relativePath}: no jobs declare permissions`);
+    }
+
+    return errors;
+  }
+
+  for (const [jobId, job] of jobs) {
+    const actual = compactContractMap(job.permissions);
+
     if (stableJson(actual) !== stableJson(wanted)) {
-      errors.push(`${label} contract drift in ${relativePath}`);
+      errors.push(`Permission contract drift in ${relativePath} job ${jobId}`);
     }
   }
+
+  return errors;
 }
 
-const repoWorkflows = readdirSync(path.join(root, ".github", "workflows"))
-  .filter((fileName) => fileName.endsWith(".yml"))
-  .map((fileName) => path.join(".github", "workflows", fileName))
-  .filter((relativePath) => workflowCallDefined(path.join(root, relativePath)))
-  .sort();
+function readValidationState(): ValidationState {
+  const contract = readJson<ContractFile>(contractPath);
+  const workflowsDir = path.join(root, ".github", "workflows");
+  const workflowSources = Object.fromEntries(
+    readdirSync(workflowsDir)
+      .filter((fileName) => fileName.endsWith(".yml"))
+      .map((fileName) => {
+        const relativePath = path.join(".github", "workflows", fileName);
 
-const contractWorkflowPaths = Object.keys(workflowContracts).sort();
-const missingContracts = repoWorkflows.filter(
-  (workflowPath) => !contractWorkflowPaths.includes(workflowPath),
-);
-const extraContracts = contractWorkflowPaths.filter(
-  (workflowPath) => !repoWorkflows.includes(workflowPath),
-);
+        return [relativePath, readFileSync(path.join(root, relativePath), "utf8")];
+      }),
+  );
+  const repoWorkflowPaths = Object.entries(workflowSources)
+    .filter(([, source]) => workflowCallDefined(source))
+    .map(([relativePath]) => relativePath)
+    .sort();
+  const docs = Object.fromEntries(
+    ["README.md", "SCAFFOLD_ALIGNMENT.md"].map((docPath) => [
+      docPath,
+      readFileSync(path.join(root, docPath), "utf8"),
+    ]),
+  );
+  const optionalDocs = {
+    [optionalUpstreamDoc]: existsSync(optionalUpstreamDoc)
+      ? readFileSync(optionalUpstreamDoc, "utf8")
+      : undefined,
+  };
 
-if (missingContracts.length > 0) {
-  errors.push(`Missing contract entries: ${missingContracts.join(", ")}`);
+  return {
+    docs,
+    optionalDocs,
+    repoWorkflowPaths,
+    workflowStandard: contract.workflow_standard,
+    workflows: contract.workflows,
+    workflowSources,
+  };
 }
 
-if (extraContracts.length > 0) {
-  errors.push(`Contract entries for missing workflows: ${extraContracts.join(", ")}`);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-const requiredDocTokens = [
-  "workflow-standard-v1.2",
-  ...contractWorkflowPaths.map((workflowPath) => path.basename(workflowPath)),
-];
+export function main() {
+  const state = readValidationState();
+  const errors = validateWorkflowContractsState(state);
 
-for (const docPath of ["README.md", "SCAFFOLD_ALIGNMENT.md"]) {
-  const content = readFileSync(path.join(root, docPath), "utf8");
-  for (const token of requiredDocTokens) {
-    if (!content.includes(token)) {
-      errors.push(`${docPath} does not document ${token}`);
+  for (const [docPath, content] of Object.entries(state.optionalDocs ?? {})) {
+    if (content === undefined) {
+      console.warn(`Skipping optional upstream doc check; ${docPath} is not present.`);
     }
   }
-}
 
-if (existsSync(optionalUpstreamDoc)) {
-  const upstreamContent = readFileSync(optionalUpstreamDoc, "utf8");
-  for (const token of requiredDocTokens) {
-    if (!upstreamContent.includes(token)) {
-      errors.push(`${optionalUpstreamDoc} does not document ${token}`);
-    }
+  if (errors.length > 0) {
+    console.error(errors.join("\n"));
+    process.exit(1);
   }
-} else {
-  console.warn(`Skipping optional upstream doc check; ${optionalUpstreamDoc} is not present.`);
+
+  console.log("Workflow contracts are in sync.");
 }
 
-if (errors.length > 0) {
-  console.error(errors.join("\n"));
-  process.exit(1);
+if (import.meta.main) {
+  main();
 }
-
-console.log("Workflow contracts are in sync.");

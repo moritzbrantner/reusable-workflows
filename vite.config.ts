@@ -4,6 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { defineConfig } from "vite";
 
+import { workflowCatalogDataPlugin } from "./scripts/workflow-catalog-plugin";
+
 function workflowRoutePages() {
   return {
     name: "workflow-route-pages",
@@ -38,7 +40,12 @@ function workflowRoutePages() {
 
 export default defineConfig({
   base: "./",
-  plugins: [react(), tailwindcss(), workflowRoutePages()],
+  plugins: [
+    workflowCatalogDataPlugin(import.meta.dirname),
+    react(),
+    tailwindcss(),
+    workflowRoutePages(),
+  ],
   resolve: {
     alias: [
       {

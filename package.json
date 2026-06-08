@@ -17,15 +17,18 @@
     "test:unit": "vitest run",
     "test:e2e": "bun run build && playwright test",
     "test:a11y": "bun run build && playwright test tests/e2e/accessibility.spec.ts --project=chromium",
+    "test:a11y:dist": "playwright test tests/e2e/accessibility.spec.ts --project=chromium",
     "test:visual": "bun run build && playwright test tests/e2e/visual.spec.ts --project=chromium",
+    "test:visual:dist": "playwright test tests/e2e/visual.spec.ts --project=chromium",
     "test:integration": "bun run validate:contracts && bun run size:check",
     "test:storybook": "bun scripts/check-storybook-static.ts",
     "test:unlighthouse": "bun run build && bun scripts/run-unlighthouse.mjs",
     "bench": "bun scripts/run-benchmarks.ts",
-    "size:check": "bun run build && bun scripts/check-bundle-size.ts",
+    "size:check": "bun run build && bun run size:check:dist",
+    "size:check:dist": "bun scripts/check-bundle-size.ts",
     "api:check": "bun run validate:contracts",
     "validate:contracts": "bun scripts/validate-workflow-contracts.ts",
-    "verify": "bun run format:check && bun run lint && bun run check-types && bun run test:unit && bun run build && bun run validate:contracts && bun run test:integration && bun run storybook:build && bun run test:storybook && bun run bench && bun run size:check"
+    "verify": "bun run format:check && bun run lint && bun run check-types && bun run test:unit && bun run build && bun run validate:contracts && bun run size:check:dist && bun run storybook:build && bun run test:storybook && bun run bench"
   },
   "dependencies": {
     "@moritzbrantner/ui": "^0.10.0",

@@ -84,6 +84,28 @@ describe("build metrics", () => {
     expect(entry.lighthouse.metrics.cumulativeLayoutShift).toBeNull();
   });
 
+  test("fails when an optional numeric run attempt is invalid", () => {
+    expect(() =>
+      buildMetricsEntryFromReports({
+        benchmarkReport,
+        buildReport: { durationMs: 1200 },
+        bundleReport: { jsBytes: 123456, budgetBytes: 358400, withinBudget: true },
+        completedAt: "2026-06-07T12:00:00.000Z",
+        env: { ...env, GITHUB_RUN_ATTEMPT: "not-a-number" },
+        lighthouseReport,
+      }),
+    ).toThrow("GITHUB_RUN_ATTEMPT must be numeric.");
+  });
+
+  test("filters previous history entries with invalid completion dates", () => {
+    const validBuild = makeBuild({ runId: 2, runNumber: 2 });
+    const history = normalizeBuildMetricsHistory({
+      builds: [makeBuild({ completedAt: "not-a-date", runId: 1, runNumber: 1 }), validBuild],
+    });
+
+    expect(history.builds).toEqual([validBuild]);
+  });
+
   test("dedupes run attempts and keeps the newest five builds", () => {
     const builds = Array.from({ length: 6 }, (_, index) =>
       makeBuild({
@@ -108,6 +130,46 @@ describe("build metrics", () => {
 
     expect(nextHistory.builds).toHaveLength(5);
     expect(nextHistory.builds.map((build) => build.runId)).toEqual([7, 6, 5, 4, 3]);
+  });
+
+  test("replaces a previous history entry for the same run attempt with the current build", () => {
+    const previousHistory = normalizeBuildMetricsHistory({
+      builds: [
+        makeBuild({
+          completedAt: "2026-06-07T12:00:00.000Z",
+          durations: { buildMs: 3000 },
+          runId: 10,
+          runNumber: 10,
+        }),
+      ],
+    });
+    const currentBuild = makeBuild({
+      completedAt: "2026-06-07T12:10:00.000Z",
+      durations: { buildMs: 1200 },
+      runId: 10,
+      runNumber: 10,
+    });
+
+    const nextHistory = mergeBuildMetricsHistory(
+      previousHistory,
+      currentBuild,
+      "2026-06-07T12:11:00.000Z",
+    );
+
+    expect(nextHistory.builds).toHaveLength(1);
+    expect(nextHistory.builds[0].durations.buildMs).toBe(1200);
+  });
+
+  test("rejects an invalid current build completion date", () => {
+    const previousHistory = emptyBuildMetricsHistory("2026-06-07T12:00:00.000Z");
+
+    expect(() =>
+      mergeBuildMetricsHistory(
+        previousHistory,
+        makeBuild({ completedAt: "not-a-date" }),
+        "2026-06-07T12:11:00.000Z",
+      ),
+    ).toThrow("Current build completedAt must be a valid date.");
   });
 
   test("preserves previous history when no current build is available", () => {

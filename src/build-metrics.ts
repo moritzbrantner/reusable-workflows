@@ -86,7 +86,10 @@ export function normalizeBuildMetricsHistory(
   }
 
   const builds = Array.isArray(value.builds)
-    ? value.builds.map(normalizeBuildMetricsEntry).filter(isBuildMetricsEntry)
+    ? value.builds
+        .map(normalizeBuildMetricsEntry)
+        .filter(isBuildMetricsEntry)
+        .filter((build) => isValidDateString(build.completedAt))
     : [];
 
   return {
@@ -103,10 +106,18 @@ export function mergeBuildMetricsHistory(
   currentBuild: BuildMetricsEntry | null,
   generatedAt: string,
 ): BuildMetricsHistory {
+  if (currentBuild && !isValidDateString(currentBuild.completedAt)) {
+    throw new Error("Current build completedAt must be a valid date.");
+  }
+
   const builds = currentBuild ? [currentBuild, ...previousHistory.builds] : previousHistory.builds;
   const deduped = new Map<string, BuildMetricsEntry>();
 
   for (const build of builds) {
+    if (!isValidDateString(build.completedAt)) {
+      continue;
+    }
+
     const key = `${build.runId}-${build.runAttempt}`;
 
     if (!deduped.has(key)) {
@@ -144,7 +155,7 @@ export function buildMetricsEntryFromReports({
   const serverUrl = env.GITHUB_SERVER_URL ?? "https://github.com";
   const runId = requiredNumberEnv(env, "GITHUB_RUN_ID");
   const runNumber = requiredNumberEnv(env, "GITHUB_RUN_NUMBER");
-  const runAttempt = Number(env.GITHUB_RUN_ATTEMPT ?? "1");
+  const runAttempt = optionalNumberEnv(env, "GITHUB_RUN_ATTEMPT", 1);
   const commitSha = requiredEnv(env, "GITHUB_SHA");
   const branch = normalizeBranch(env.GITHUB_REF_NAME ?? env.GITHUB_REF ?? "");
   const startedAt = env.BUILD_METRICS_STARTED_AT ?? completedAt;
@@ -373,6 +384,26 @@ function requiredNumberEnv(env: Record<string, string | undefined>, key: string)
   return value;
 }
 
+function optionalNumberEnv(
+  env: Record<string, string | undefined>,
+  key: string,
+  defaultValue: number,
+): number {
+  const rawValue = env[key];
+
+  if (rawValue === undefined || rawValue === "") {
+    return defaultValue;
+  }
+
+  const value = Number(rawValue);
+
+  if (!Number.isFinite(value)) {
+    throw new Error(`${key} must be numeric.`);
+  }
+
+  return value;
+}
+
 function normalizeBranch(ref: string): string {
   return ref.replace(/^refs\/heads\//, "") || "main";
 }
@@ -387,4 +418,8 @@ function formatScore(value: number | null): string {
 
 function isRecord(value: unknown): value is JsonRecord {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isValidDateString(value: string): boolean {
+  return Number.isFinite(Date.parse(value));
 }
