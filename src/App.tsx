@@ -822,7 +822,11 @@ function HomePage() {
           </div>
 
           <WorkflowIndex title="Reusable contracts" workflows={reusableWorkflows} />
-          <WorkflowIndex title="Local callers" workflows={callerWorkflows} />
+          <WorkflowIndex
+            showContractMetrics={false}
+            title="Local callers"
+            workflows={callerWorkflows}
+          />
         </section>
 
         <section className="section section--split" id="dogfood" aria-labelledby="dogfood-title">
@@ -1723,7 +1727,15 @@ function MetricCard({ detail, label, value }: { detail: string; label: string; v
   );
 }
 
-function WorkflowIndex({ title, workflows }: { title: string; workflows: ParsedWorkflow[] }) {
+function WorkflowIndex({
+  showContractMetrics = true,
+  title,
+  workflows,
+}: {
+  showContractMetrics?: boolean;
+  title: string;
+  workflows: ParsedWorkflow[];
+}) {
   return (
     <div className="workflow-index-group">
       <h3>{title}</h3>
@@ -1739,20 +1751,24 @@ function WorkflowIndex({ title, workflows }: { title: string; workflows: ParsedW
                   </div>
                   <p>{workflow.summary}</p>
                   <dl>
-                    <div>
-                      <dt>Inputs</dt>
-                      <dd>{Object.keys(workflow.contract?.inputs ?? {}).length}</dd>
-                    </div>
+                    {showContractMetrics ? (
+                      <div>
+                        <dt>Inputs</dt>
+                        <dd>{Object.keys(workflow.contract?.inputs ?? {}).length}</dd>
+                      </div>
+                    ) : null}
                     {workflow.dependencies.length > 0 ? (
                       <div>
                         <dt>Uses</dt>
                         <dd>{workflow.dependencies.length}</dd>
                       </div>
                     ) : null}
-                    <div>
-                      <dt>Callers</dt>
-                      <dd>{workflow.callers.length}</dd>
-                    </div>
+                    {showContractMetrics ? (
+                      <div>
+                        <dt>Callers</dt>
+                        <dd>{workflow.callers.length}</dd>
+                      </div>
+                    ) : null}
                   </dl>
                 </CardContent>
               </Card>
