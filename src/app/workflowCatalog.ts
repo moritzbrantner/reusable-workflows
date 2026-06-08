@@ -171,6 +171,21 @@ const workflowDetails = [
     icon: Globe2,
   },
   {
+    file: ".github/workflows/package-publish.yml",
+    title: "Package Publish",
+    summary:
+      "Opinionated npm-compatible registry and Cargo package publishing with explicit publish gating.",
+    role: "Reusable contract",
+    useWhen:
+      "Use this workflow for standard npm or Cargo package publication from tag, release, or manual publish callers.",
+    responsibilities: [
+      "Validates the selected package manager and only publishes when `publish_enabled` is true.",
+      "Sets up npm or Cargo-specific tooling, caching, registry authentication, and default publish flags.",
+      "Keeps package publishing separate from custom app release flows handled by `release-template.yml`.",
+    ],
+    icon: PackageCheck,
+  },
+  {
     file: ".github/workflows/release-template.yml",
     title: "Release Template",
     summary: "Validate, build, publish, and upload release artifacts with explicit secrets.",
@@ -386,6 +401,18 @@ const workflowGraphNodes = [
     status: "stable",
   },
   {
+    id: "package-publish",
+    label: "Package Publish",
+    description: "npm and Cargo package publication with explicit gating.",
+    group: "Reusable contract",
+    x: 1008,
+    y: 688,
+    width: 208,
+    height: 112,
+    tone: "success",
+    status: "stable",
+  },
+  {
     id: "promote-branches",
     label: "Promote Branches",
     description: "Exact tested SHA promotion between maintained branches.",
@@ -491,6 +518,13 @@ const workflowGraphEdges = [
     id: "smoke-release",
     source: "smoke",
     target: "release-template",
+    label: "smoke",
+    kind: "optional",
+  },
+  {
+    id: "smoke-package-publish",
+    source: "smoke",
+    target: "package-publish",
     label: "smoke",
     kind: "optional",
   },

@@ -5,7 +5,7 @@ This repository owns shared GitHub Actions workflow contracts for maintained `mo
 The repository also publishes a small React GitHub Pages reference app from `src/`.
 That deployment intentionally calls the local `deploy-pages.yml` reusable workflow. CI also runs the app through the staged validation workflows, Storybook, Playwright, Unlighthouse, benchmark, bundle-size, stage, and compatibility paths so this repository dogfoods most of the workflow contract surface.
 
-Target release tag: `workflow-standard-v1`.
+Target release tag: `workflow-standard-v1.2`.
 
 ## Workflow Standard
 
@@ -18,14 +18,15 @@ Use staged reusable workflows instead of one oversized workflow:
 - `link-validation.yml`: local or deployed site crawling for broken links, assets, and fragment anchors.
 - `performance-validation.yml`: Unlighthouse, benchmarks, bundle-size checks, API reports, and heavier performance suites.
 - `deploy-pages.yml`: GitHub Pages build and deployment only.
-- `release-template.yml`: package or app release only.
+- `package-publish.yml`: npm-compatible registry and Cargo/crates.io package publishing only.
+- `release-template.yml`: custom app releases or nonstandard release flows only.
 - `stage-validation.yml`: branch-stage validation for flows such as `develop`, `nightly`, `beta`, `staging`, and `production`.
 - `promote-branches.yml`: exact tested SHA branch promotion with `--force-with-lease`.
 - `validate-repo.yml`: `scaffold-v2-initial` compatibility workflow for existing callers.
 
 ## Versioning And Tags
 
-`workflow-standard-v1` is treated as an immutable release tag. Do not move it after publishing. Additive fixes should ship as a new patch-style tag such as `workflow-standard-v1.1`; breaking input, secret, output, default, or behavior changes require `workflow-standard-v2`.
+Published workflow tags are treated as immutable release tags. Do not move them after publishing. Additive fixes should ship as a new patch-style tag such as `workflow-standard-v1.2`; breaking input, secret, output, default, or behavior changes require `workflow-standard-v2`.
 
 The repo may contain commits after a published tag. Those commits do not affect consumers until a new tag is created and adopted.
 
@@ -79,6 +80,8 @@ Most validation workflows accept:
 `upload_artifacts_on` accepts `failure`, `always`, or `never`. Use `artifact_name_suffix` with a leading separator, for example `-pr-${{ github.run_number }}`.
 Leave `concurrency_group` empty for reusable Pages deployments unless you need a custom group that is different from the caller workflow's top-level concurrency group.
 
+`package-publish.yml` also accepts `package_manager`, `publish_enabled`, `dry_run`, `publish_command`, npm-specific inputs such as `npm_registry_url`, `npm_scope`, `npm_access`, `npm_tag`, and `npm_provenance`, and Cargo-specific inputs such as `rust_toolchain`, `cargo_registry`, `cargo_package`, and `cargo_locked`. The publish step is skipped unless `publish_enabled` is true.
+
 `performance-validation.yml` also accepts `summary_paths`, a newline-separated list of Markdown files or globs to append to the GitHub Actions run summary. Summaries are independent of uploaded artifacts; keep full raw reports in artifacts and concise human-readable benchmark or performance results in Markdown summaries.
 Use `metrics_command` when a performance job should normalize build, bundle, benchmark, or Lighthouse outputs into a durable JSON artifact for dashboards or historical reports.
 
@@ -92,6 +95,7 @@ Pass explicit package auth only when the caller needs access that `github.token`
 - `node_auth_token`
 - `GH_PACKAGES_TOKEN`
 - `GH_PROMOTION_TOKEN` as `promotion_token` for `promote-branches.yml`
+- package publish tokens such as `NPM_TOKEN` or `CARGO_REGISTRY_TOKEN` only in package publish workflows
 - release-specific tokens such as `NPM_TOKEN` or `release_token` only in release workflows
 
 Avoid `secrets: inherit`.
@@ -100,6 +104,7 @@ Avoid `secrets: inherit`.
 
 - Validation workflows with artifacts expose `artifact_name`.
 - `deploy-pages.yml` exposes `page_url`.
+- `package-publish.yml` exposes `artifact_name` and `publish_status`.
 - `release-template.yml` exposes `artifact_name` and `release_status`.
 
 ## Consumer Examples
@@ -112,7 +117,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
     with:
       lint_command: bun run lint
       typecheck_command: bun run check-types
@@ -129,7 +134,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/integration-validation.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/integration-validation.yml@workflow-standard-v1.2
     with:
       integration_command: bun run test:integration
       migration_command: bun run db:check
@@ -147,7 +152,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/e2e-validation.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/e2e-validation.yml@workflow-standard-v1.2
     with:
       build_command: bun run build
       e2e_command: bun run test:e2e
@@ -163,7 +168,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/storybook-validation.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/storybook-validation.yml@workflow-standard-v1.2
     with:
       storybook_build_command: bun run build-storybook
       storybook_test_command: bun run test-storybook
@@ -180,7 +185,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/performance-validation.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/performance-validation.yml@workflow-standard-v1.2
     with:
       build_command: bun run build
       unlighthouse_command: bun run unlighthouse
@@ -201,7 +206,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/link-validation.yml@workflow-standard-v1.1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/link-validation.yml@workflow-standard-v1.2
     with:
       build_command: bun run build
       start_command: bun run preview -- --host 127.0.0.1 --port 4173
@@ -222,7 +227,7 @@ jobs:
       pages: write
       id-token: write
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1.2
     with:
       build_command: bun run build
       artifact_path: dist
@@ -236,7 +241,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/stage-validation.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/stage-validation.yml@workflow-standard-v1.2
     with:
       stage: staging
       staging_command: bun run test:staging
@@ -253,7 +258,7 @@ jobs:
   promote:
     permissions:
       contents: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@workflow-standard-v1.2
     with:
       source_branch: staging
       target_branch: production
@@ -264,6 +269,48 @@ jobs:
 
 `tested_sha` must resolve to a commit reachable from `source_branch`, and `target_branch` must not contain commits outside that tested commit.
 
+Use `package-publish.yml` for standard npm and Cargo package publication. Keep `release-template.yml` for custom app releases, signed desktop releases, GitHub Releases, or package flows that need repository-specific release commands.
+
+### Package Publish npm
+
+```yaml
+jobs:
+  publish:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.2
+    with:
+      package_manager: npm
+      publish_enabled: true
+      validate_command: bun run check-types && bun run test
+      build_command: bun run build
+      npm_access: public
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+```
+
+### Package Publish Cargo
+
+```yaml
+jobs:
+  publish:
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.2
+    with:
+      package_manager: cargo
+      publish_enabled: true
+      validate_command: cargo test --locked
+      build_command: cargo package --locked
+      cargo_package: my-crate
+    secrets:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+```
+
 ### Release Template
 
 ```yaml
@@ -273,15 +320,14 @@ jobs:
       contents: write
       packages: write
       id-token: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/release-template.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/release-template.yml@workflow-standard-v1.2
     with:
-      release_type: npm
+      release_type: app
       validate_command: bun run check-types && bun run build
       build_command: bun run build
-      release_command: bun publish
+      release_command: bun run release
       artifact_paths: dist
     secrets:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
       release_token: ${{ secrets.GITHUB_TOKEN }}
 ```
@@ -294,7 +340,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/validate-repo.yml@workflow-standard-v1
+    uses: moritzbrantner/reusable-workflows/.github/workflows/validate-repo.yml@workflow-standard-v1.2
     with:
       lint_command: bun run lint
       typecheck_command: bun run check-types
@@ -314,6 +360,8 @@ Desktop, Tauri, and Electron projects should run fast validation on PRs, keep sl
 
 Rust or mixed Rust projects should keep domain-specific Rust checks, use `cache_cargo`, and run benchmarks through scheduled or manual performance workflows.
 
+Packages should use `package-publish.yml` for ordinary npm or Cargo publication, with `publish_enabled` set only in tag, release, or manual publish callers.
+
 Static sites and simple projects should keep PR validation small, usually build-only plus lint/test when present, and run Pages deployment separately from validation.
 
 ## Release Tags
@@ -323,5 +371,6 @@ Static sites and simple projects should keep PR validation small, usually build-
 - `scaffold-v2-release-auth`: release token fallback update.
 - `workflow-standard-v1`: staged validation, Pages deployment, release, and promotion contract.
 - `workflow-standard-v1.1`: additive link-validation workflow contract.
+- `workflow-standard-v1.2`: additive package-publish workflow contract for npm and Cargo publication.
 
 See `SCAFFOLD_ALIGNMENT.md` for the maintained repo-family contract for this repository.

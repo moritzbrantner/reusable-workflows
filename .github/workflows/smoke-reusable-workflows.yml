@@ -117,3 +117,27 @@ jobs:
       build_command: "echo smoke release build"
       release_command: ""
       artifact_paths: ""
+
+  package-publish-npm:
+    uses: ./.github/workflows/package-publish.yml
+    with:
+      package_manager: npm
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      publish_enabled: false
+      validate_command: "echo smoke npm package validate"
+      build_command: "echo smoke npm package build"
+      artifact_paths: ""
+
+  package-publish-cargo:
+    uses: ./.github/workflows/package-publish.yml
+    with:
+      package_manager: cargo
+      rust_toolchain: ""
+      cache_cargo: false
+      install_command: ""
+      publish_enabled: false
+      validate_command: "echo smoke cargo package validate"
+      build_command: "echo smoke cargo package build"
+      artifact_paths: ""

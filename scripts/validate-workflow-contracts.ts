@@ -75,8 +75,8 @@ function stableJson(value: unknown): string {
 const contract = readJson<ContractFile>(contractPath);
 const errors: string[] = [];
 
-if (contract.workflow_standard !== "workflow-standard-v1") {
-  errors.push("contracts/workflows.json must declare workflow_standard workflow-standard-v1");
+if (contract.workflow_standard !== "workflow-standard-v1.2") {
+  errors.push("contracts/workflows.json must declare workflow_standard workflow-standard-v1.2");
 }
 
 const workflowContracts = contract.workflows;
@@ -132,7 +132,7 @@ if (extraContracts.length > 0) {
 }
 
 const requiredDocTokens = [
-  "workflow-standard-v1",
+  "workflow-standard-v1.2",
   ...contractWorkflowPaths.map((workflowPath) => path.basename(workflowPath)),
 ];
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "workflow_standard": "workflow-standard-v1",
+  "workflow_standard": "workflow-standard-v1.2",
   "workflows": {
     ".github/workflows/deploy-pages.yml": {
       "inputs": {
@@ -805,6 +805,208 @@
       "outputs": {},
       "permissions": {
         "contents": "write"
+      }
+    },
+    ".github/workflows/package-publish.yml": {
+      "inputs": {
+        "package_manager": {
+          "required": true,
+          "type": "string"
+        },
+        "working_directory": {
+          "required": false,
+          "type": "string",
+          "default": "."
+        },
+        "publish_enabled": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "dry_run": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "node_version": {
+          "required": false,
+          "type": "string",
+          "default": "24"
+        },
+        "bun_version": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "rust_toolchain": {
+          "required": false,
+          "type": "string",
+          "default": "stable"
+        },
+        "install_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "pre_publish_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "validate_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "build_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "publish_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "post_publish_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "npm_registry_url": {
+          "required": false,
+          "type": "string",
+          "default": "https://registry.npmjs.org"
+        },
+        "npm_scope": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "npm_access": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "npm_tag": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "npm_provenance": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "cargo_registry": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "cargo_package": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "cargo_locked": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "cache_bun": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "bun_cache_dependency_path": {
+          "required": false,
+          "type": "string",
+          "default": "**/bun.lock"
+        },
+        "cache_node": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "npm_cache_dependency_path": {
+          "required": false,
+          "type": "string",
+          "default": "**/package-lock.json"
+        },
+        "cache_cargo": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "cargo_cache_dependency_path": {
+          "required": false,
+          "type": "string",
+          "default": "**/Cargo.lock"
+        },
+        "artifact_paths": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "upload_artifacts_on": {
+          "required": false,
+          "type": "string",
+          "default": "failure"
+        },
+        "artifact_retention_days": {
+          "required": false,
+          "type": "number",
+          "default": 14
+        },
+        "artifact_name_suffix": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "timeout_minutes": {
+          "required": false,
+          "type": "number",
+          "default": 45
+        },
+        "concurrency_group": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "cancel_in_progress": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "secrets": {
+        "NPM_TOKEN": {
+          "required": false
+        },
+        "node_auth_token": {
+          "required": false
+        },
+        "GH_PACKAGES_TOKEN": {
+          "required": false
+        },
+        "CARGO_REGISTRY_TOKEN": {
+          "required": false
+        }
+      },
+      "outputs": {
+        "artifact_name": {
+          "description": "Failure or requested artifact name for this package publish job.",
+          "value": "${{ jobs.package-publish.outputs.artifact_name }}"
+        },
+        "publish_status": {
+          "description": "Outcome of the publish command step: success, failure, skipped, or cancelled.",
+          "value": "${{ jobs.package-publish.outputs.publish_status }}"
+        }
+      },
+      "permissions": {
+        "contents": "read",
+        "id-token": "write",
+        "packages": "write"
       }
     },
     ".github/workflows/release-template.yml": {
