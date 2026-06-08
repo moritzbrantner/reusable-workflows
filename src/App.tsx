@@ -658,28 +658,28 @@ function HomePage() {
           </div>
 
           <div className="signal-board" aria-label="Contract summary">
-            <div className="signal-board__stats" role="list" aria-label="Contract metrics">
-              <Stat className="signal-board__stat" role="listitem">
+            <ul className="signal-board__stats" aria-label="Contract metrics">
+              <li className="signal-board__stat">
                 <StatValue className="signal-board__stat-value">
                   {reusableWorkflows.length}
                 </StatValue>
                 <StatDescription className="signal-board__stat-description">
                   Reusable workflows
                 </StatDescription>
-              </Stat>
-              <Stat className="signal-board__stat" role="listitem">
+              </li>
+              <li className="signal-board__stat">
                 <StatValue className="signal-board__stat-value">{totalInputs}</StatValue>
                 <StatDescription className="signal-board__stat-description">
                   Documented inputs
                 </StatDescription>
-              </Stat>
-              <Stat className="signal-board__stat" role="listitem">
+              </li>
+              <li className="signal-board__stat">
                 <StatValue className="signal-board__stat-value">{outputCount}</StatValue>
                 <StatDescription className="signal-board__stat-description">
                   Workflow outputs
                 </StatDescription>
-              </Stat>
-            </div>
+              </li>
+            </ul>
             <div className="pipeline" aria-hidden="true">
               <span>caller</span>
               <span>validate</span>
