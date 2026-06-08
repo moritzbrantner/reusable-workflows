@@ -659,7 +659,7 @@ function HomePage() {
 
           <div className="signal-board" aria-label="Contract summary">
             <div className="signal-board__stats" role="list" aria-label="Contract metrics">
-              <Stat className="signal-board__stat">
+              <Stat className="signal-board__stat" role="listitem">
                 <StatValue className="signal-board__stat-value">
                   {reusableWorkflows.length}
                 </StatValue>
@@ -667,13 +667,13 @@ function HomePage() {
                   Reusable workflows
                 </StatDescription>
               </Stat>
-              <Stat className="signal-board__stat">
+              <Stat className="signal-board__stat" role="listitem">
                 <StatValue className="signal-board__stat-value">{totalInputs}</StatValue>
                 <StatDescription className="signal-board__stat-description">
                   Documented inputs
                 </StatDescription>
               </Stat>
-              <Stat className="signal-board__stat">
+              <Stat className="signal-board__stat" role="listitem">
                 <StatValue className="signal-board__stat-value">{outputCount}</StatValue>
                 <StatDescription className="signal-board__stat-description">
                   Workflow outputs
@@ -993,7 +993,7 @@ function DependencyGraph({
   const height = Math.max(...nodes.map((node) => node.y + node.height)) + padding * 2;
 
   return (
-    <figure className={className}>
+    <figure className={className} data-slot="dependency-graph">
       <div data-slot="dependency-graph-scroll-area">
         <svg
           aria-label={ariaLabel}
@@ -1676,7 +1676,7 @@ function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
             {workflow.jobs.map((job) => (
               <Card className="job-card" key={job.id}>
                 <CardHeader>
-                  <CardTitle>{job.name}</CardTitle>
+                  <div className="card-title">{job.name}</div>
                   <CardDescription>{job.id}</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -1719,7 +1719,7 @@ function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
         <section className="section workflow-page-grid" aria-labelledby="contract-title">
           <div>
             <p className="eyebrow">Contract</p>
-            <h2 id="contract-title">Inputs, outputs, secrets, and permissions</h2>
+            <h2 id="contract-title">Contract surface, secrets, and permissions</h2>
           </div>
           {contract ? (
             <div className="workflow-detail-stack">
