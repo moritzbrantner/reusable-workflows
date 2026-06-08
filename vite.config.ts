@@ -25,8 +25,9 @@ function workflowRoutePages() {
         .readdirSync(workflowsDir)
         .filter((file) => /\.ya?ml$/.test(file))
         .map((file) => file.replace(/\.ya?ml$/, ""));
+      const routeSlugs = [...slugs, "metrics"];
 
-      for (const slug of slugs) {
+      for (const slug of routeSlugs) {
         const routeDir = path.join(distDir, slug);
         fs.mkdirSync(routeDir, { recursive: true });
         fs.writeFileSync(path.join(routeDir, "index.html"), nestedIndexHtml);

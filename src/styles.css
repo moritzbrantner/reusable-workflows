@@ -209,6 +209,11 @@ h4 {
   background: transparent;
 }
 
+.section-link {
+  width: fit-content;
+  margin-bottom: 1rem;
+}
+
 .badge {
   display: inline-flex;
   min-width: 0;
@@ -948,6 +953,75 @@ h4 {
   padding: 1rem;
 }
 
+.metrics-page-hero h1 {
+  max-width: 13ch;
+}
+
+.metrics-detail-section .metrics-chart-panel {
+  margin-top: 0;
+}
+
+.metrics-definition-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.metrics-definition-card {
+  display: grid;
+  gap: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 1.15rem;
+}
+
+.metrics-definition-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.metrics-definition-card__header span {
+  width: 0.86rem;
+  height: 0.86rem;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+.metrics-definition-card h3,
+.metrics-definition-card p {
+  margin: 0;
+}
+
+.metrics-definition-card p,
+.metrics-definition-card dd {
+  color: var(--muted);
+}
+
+.metrics-definition-card dl {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+}
+
+.metrics-definition-card div:not(.metrics-definition-card__header) {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.metrics-definition-card dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.metrics-definition-card dd {
+  margin: 0;
+}
+
 .code-panel {
   overflow: auto;
   border: 1px solid var(--line);
@@ -1223,6 +1297,7 @@ h4 {
   .workflow-list,
   .dogfood-grid,
   .metrics-grid,
+  .metrics-definition-grid,
   .job-list,
   .dependency-columns {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1253,6 +1328,7 @@ h4 {
   .workflow-list,
   .dogfood-grid,
   .metrics-grid,
+  .metrics-definition-grid,
   .job-list,
   .dependency-columns,
   .signal-board__stats,

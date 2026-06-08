@@ -60,11 +60,22 @@ test("keeps metrics navigation usable with the empty fallback history", async ({
   await page.goto("/");
   await page.getByRole("link", { name: "Metrics" }).click();
 
-  await expect(page).toHaveURL(/#metrics$/);
+  await expect(page).toHaveURL(/\/metrics$/);
   await expect(
-    page.getByRole("heading", { name: "Last 5 successful main performance runs." }),
+    page.getByRole("heading", { name: "KPI definitions for performance runs." }),
   ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What each metric means." })).toBeVisible();
   await expect(page.getByText("No published build metrics yet.")).toBeVisible();
+});
+
+test("links the home metrics summary to KPI definitions", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "KPI definitions" }).click();
+
+  await expect(page).toHaveURL(/\/metrics$/);
+  await expect(
+    page.getByRole("heading", { name: "KPI definitions for performance runs." }),
+  ).toBeVisible();
 });
 
 test("renders latest build metrics and the last-5 table from a fixture history", async ({
@@ -132,6 +143,13 @@ test("renders latest build metrics and the last-5 table from a fixture history",
   await expect(page.getByRole("table", { name: "Last 5 build metrics" })).toBeVisible();
   await expect(page.getByRole("link", { name: "#105" })).toBeVisible();
   await expect(page.getByRole("link", { name: "#101" })).toBeVisible();
+
+  await page.goto("/metrics");
+
+  await expect(page.getByRole("heading", { name: "What each metric means." })).toBeVisible();
+  await expect(page.getByText("Chart value = run build duration")).toBeVisible();
+  await expect(page.getByText("performance-results/build.json")).toBeVisible();
+  await expect(page.getByRole("img", { name: "Last 5 build metrics trend chart" })).toBeVisible();
 });
 
 test("renders workflow detail pages with dependencies and contract data", async ({ page }) => {

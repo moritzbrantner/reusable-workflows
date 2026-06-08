@@ -8,3 +8,11 @@ test("has no obvious accessibility violations on the reference page", async ({ p
 
   expect(results.violations).toEqual([]);
 });
+
+test("has no obvious accessibility violations on the metrics page", async ({ page }) => {
+  await page.goto("/metrics");
+
+  const results = await new AxeBuilder({ page }).analyze();
+
+  expect(results.violations).toEqual([]);
+});

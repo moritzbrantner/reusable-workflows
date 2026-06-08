@@ -89,14 +89,61 @@ type ChartLegendItem = {
 
 const metricsChartSeries: Array<{
   color: string;
+  description: string;
   id: MetricsChartSeriesId;
+  interpretation: string;
   label: string;
+  normalization: string;
+  source: string;
 }> = [
-  { color: "#166534", id: "build", label: "Build duration" },
-  { color: "#2563eb", id: "bundle", label: "JS bundle" },
-  { color: "#c2410c", id: "benchmark", label: "Benchmark ops/s" },
-  { color: "#7c3aed", id: "lighthouse", label: "Lighthouse score" },
+  {
+    color: "#166534",
+    description:
+      "Elapsed wall-clock time for the measured `bun run build` command captured during the performance validation job.",
+    id: "build",
+    interpretation: "Lower values mean the reference app can be rebuilt and deployed faster.",
+    label: "Build duration",
+    normalization: "Chart value = run build duration / most recent available build duration * 100.",
+    source: "performance-results/build.json",
+  },
+  {
+    color: "#2563eb",
+    description:
+      "Total JavaScript bytes emitted into `dist/`, compared with the repository's 350 KB budget.",
+    id: "bundle",
+    interpretation:
+      "Lower values reduce the amount of script shipped by the published reference app.",
+    label: "JS bundle",
+    normalization:
+      "Chart value = run JavaScript bytes / most recent available JavaScript bytes * 100.",
+    source: "performance-results/bundle-size.json",
+  },
+  {
+    color: "#c2410c",
+    description:
+      "Throughput from the workflow contract JSON roundtrip benchmark over 10,000 iterations.",
+    id: "benchmark",
+    interpretation: "Higher values mean the contract data can be serialized and parsed faster.",
+    label: "Benchmark ops/s",
+    normalization:
+      "Chart value = run operations per second / most recent available operations per second * 100.",
+    source: "benchmark-results/workflow-contracts.json",
+  },
+  {
+    color: "#7c3aed",
+    description:
+      "Overall Lighthouse score collected from the built and previewed site during performance validation.",
+    id: "lighthouse",
+    interpretation:
+      "Higher values mean the published reference page keeps stronger page quality signals.",
+    label: "Lighthouse score",
+    normalization:
+      "Chart value = run Lighthouse score / most recent available Lighthouse score * 100.",
+    source: ".unlighthouse/ci-result.json",
+  },
 ];
+
+const standalonePageSlugs = new Set(["metrics"]);
 
 declare global {
   interface Window {
@@ -594,8 +641,14 @@ const parsedWorkflowsBySlug = new Map(parsedWorkflows.map((workflow) => [workflo
 const buildMetricsHistory = getBuildMetricsHistory();
 
 function App() {
+  const selectedPage =
+    typeof window === "undefined" ? "" : standalonePageFromPath(window.location.pathname);
   const selectedSlug = typeof window === "undefined" ? "" : slugFromPath(window.location.pathname);
   const selectedWorkflow = selectedSlug ? parsedWorkflowsBySlug.get(selectedSlug) : undefined;
+
+  if (selectedPage === "metrics") {
+    return <MetricsPage history={buildMetricsHistory} />;
+  }
 
   if (selectedWorkflow) {
     return <WorkflowPage workflow={selectedWorkflow} />;
@@ -881,7 +934,7 @@ function SiteHeader() {
           <a href={homeHref("connections")}>Connections</a>
           <a href={homeHref("workflows")}>Workflows</a>
           <a href={homeHref("dogfood")}>Dogfood</a>
-          <a href={homeHref("metrics")}>Metrics</a>
+          <a href={metricsHref()}>Metrics</a>
           <a href={homeHref("release")}>Release</a>
         </nav>
       </div>
@@ -1101,6 +1154,10 @@ function MetricsSection({ history }: { history: BuildMetricsHistory }) {
           prepends the latest run, and keeps the newest five builds.
         </p>
       </div>
+      <a className="button button--secondary section-link" href={metricsHref()}>
+        <Gauge aria-hidden="true" />
+        KPI definitions
+      </a>
 
       {latest ? (
         <>
@@ -1188,6 +1245,153 @@ function MetricsSection({ history }: { history: BuildMetricsHistory }) {
   );
 }
 
+function MetricsPage({ history }: { history: BuildMetricsHistory }) {
+  const builds = history.builds;
+  const latest = builds[0];
+
+  return (
+    <>
+      <SiteHeader />
+      <main id="top">
+        <section className="workflow-hero metrics-page-hero" aria-labelledby="metrics-page-title">
+          <div className="workflow-hero__body">
+            <a className="back-link" href={homeHref("metrics")}>
+              <ArrowLeft aria-hidden="true" />
+              Home metrics summary
+            </a>
+            <p className="eyebrow">Build Metrics</p>
+            <h1 id="metrics-page-title">KPI definitions for performance runs.</h1>
+            <p className="hero__lede">
+              The metrics page documents the KPIs shown in the trend chart, where they come from,
+              and how each line is normalized so build, bundle, benchmark, and Lighthouse values can
+              share one axis.
+            </p>
+            <div className="workflow-hero__meta" aria-label="Metrics metadata">
+              <Badge>Last {history.limit} successful runs</Badge>
+              <Badge variant="secondary">Indexed chart</Badge>
+              <Badge variant="outline">
+                Updated {history.generatedAt ? formatDateTime(history.generatedAt) : "after deploy"}
+              </Badge>
+            </div>
+          </div>
+          <div className="workflow-hero__stats" aria-label="Metrics summary">
+            <Stat className="signal-board__stat">
+              <StatValue className="signal-board__stat-value">{builds.length}</StatValue>
+              <StatDescription className="signal-board__stat-description">
+                Runs tracked
+              </StatDescription>
+            </Stat>
+            <Stat className="signal-board__stat">
+              <StatValue className="signal-board__stat-value">
+                {metricsChartSeries.length}
+              </StatValue>
+              <StatDescription className="signal-board__stat-description">KPIs</StatDescription>
+            </Stat>
+            <Stat className="signal-board__stat">
+              <StatValue className="signal-board__stat-value">
+                {latest ? formatBytes(latest.bundle.budgetBytes) : "n/a"}
+              </StatValue>
+              <StatDescription className="signal-board__stat-description">
+                JS budget
+              </StatDescription>
+            </Stat>
+            <Stat className="signal-board__stat">
+              <StatValue className="signal-board__stat-value">
+                {latest ? `#${latest.runNumber}` : "n/a"}
+              </StatValue>
+              <StatDescription className="signal-board__stat-description">
+                Latest run
+              </StatDescription>
+            </Stat>
+          </div>
+        </section>
+
+        <section className="section metrics-detail-section" aria-labelledby="metrics-trend-title">
+          <div className="section__heading workflow-index-heading">
+            <div>
+              <p className="eyebrow">Trend</p>
+              <h2 id="metrics-trend-title">Normalized KPI lines on one chart.</h2>
+            </div>
+            <p>
+              Each KPI is indexed against its own most recent available value, so every visible line
+              has a comparable baseline of 100 even though the raw units differ.
+            </p>
+          </div>
+          {latest ? (
+            <MetricsTrendChart builds={builds} />
+          ) : (
+            <Card className="metrics-empty">
+              <CardContent className="metrics-empty__content">
+                <p>
+                  No published build metrics yet. The next successful main-branch performance run
+                  will populate the trend chart.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+
+        <section className="section metrics-detail-section" aria-labelledby="metrics-kpis-title">
+          <div className="section__heading workflow-index-heading">
+            <div>
+              <p className="eyebrow">KPI Reference</p>
+              <h2 id="metrics-kpis-title">What each metric means.</h2>
+            </div>
+            <p>
+              The raw values remain visible in the latest cards and run history. The normalized
+              values are used only for the multi-line chart.
+            </p>
+          </div>
+
+          <div className="metrics-definition-grid">
+            {metricsChartSeries.map((series) => (
+              <MetricDefinitionCard key={series.id} latest={latest} series={series} />
+            ))}
+          </div>
+        </section>
+      </main>
+    </>
+  );
+}
+
+function MetricDefinitionCard({
+  latest,
+  series,
+}: {
+  latest?: BuildMetricsHistory["builds"][number];
+  series: (typeof metricsChartSeries)[number];
+}) {
+  return (
+    <article className="metrics-definition-card">
+      <div className="metrics-definition-card__header">
+        <span style={{ backgroundColor: series.color }} aria-hidden="true" />
+        <h3>{series.label}</h3>
+      </div>
+      <p>{series.description}</p>
+      <dl>
+        <div>
+          <dt>Latest raw value</dt>
+          <dd>{latest ? formatMetricRawValue(latest, series.id) : "n/a"}</dd>
+        </div>
+        <div>
+          <dt>Source</dt>
+          <dd>
+            <code>{series.source}</code>
+          </dd>
+        </div>
+        <div>
+          <dt>Normalization</dt>
+          <dd>{series.normalization}</dd>
+        </div>
+        <div>
+          <dt>Signal</dt>
+          <dd>{series.interpretation}</dd>
+        </div>
+      </dl>
+    </article>
+  );
+}
+
 function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["builds"] }) {
   const rows = createMetricsChartRows(builds);
   const legendItems: ChartLegendItem[] = metricsChartSeries.map((series) => ({
@@ -1217,22 +1421,34 @@ function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["builds"] }
     chartPadding.left +
     (rows.length <= 1 ? plotWidth / 2 : (index / (rows.length - 1)) * plotWidth);
   const getY = (value: number) => chartPadding.top + plotHeight - (value / maxY) * plotHeight;
-  const getPath = (seriesId: MetricsChartSeriesId) =>
-    rows
+  const getPath = (seriesId: MetricsChartSeriesId) => {
+    let isDrawingSegment = false;
+
+    return rows
       .flatMap((row, index) => {
         const value = row[seriesId];
 
-        return typeof value === "number" && Number.isFinite(value)
-          ? [`${index === 0 ? "M" : "L"} ${getX(index).toFixed(1)} ${getY(value).toFixed(1)}`]
-          : [];
+        if (typeof value !== "number" || !Number.isFinite(value)) {
+          isDrawingSegment = false;
+          return [];
+        }
+
+        const command = isDrawingSegment ? "L" : "M";
+        isDrawingSegment = true;
+
+        return [`${command} ${getX(index).toFixed(1)} ${getY(value).toFixed(1)}`];
       })
       .join(" ");
+  };
+  const paths = Object.fromEntries(
+    metricsChartSeries.map((series) => [series.id, getPath(series.id)]),
+  ) as Record<MetricsChartSeriesId, string>;
 
   return (
     <ChartPanel
       className="metrics-chart-panel"
       title="Performance trend"
-      description="Indexed to the latest run at 100 for cross-metric comparison."
+      description="Each KPI is indexed to its most recent available value at 100 for cross-metric comparison."
     >
       <div className="metrics-chart-layout">
         <div className="metrics-chart" role="img" aria-label="Last 5 build metrics trend chart">
@@ -1272,11 +1488,13 @@ function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["builds"] }
             ))}
             {visibleSeries.map((series) => (
               <g key={series.id}>
-                <path
-                  className="metrics-chart__line"
-                  d={getPath(series.id)}
-                  stroke={series.color}
-                />
+                {paths[series.id] ? (
+                  <path
+                    className="metrics-chart__line"
+                    d={paths[series.id]}
+                    stroke={series.color}
+                  />
+                ) : null}
                 {rows.map((row, index) => {
                   const value = row[series.id];
 
@@ -2166,25 +2384,79 @@ function formatDateTime(value: string) {
 
 function createMetricsChartRows(builds: BuildMetricsHistory["builds"]): MetricsChartDatum[] {
   const chronologicalBuilds = [...builds].reverse();
-  const latest = builds[0];
+  const references = Object.fromEntries(
+    metricsChartSeries.map((series) => [series.id, referenceMetricValue(builds, series.id)]),
+  ) as Record<MetricsChartSeriesId, number | null>;
 
-  return chronologicalBuilds.map((build) => ({
-    benchmark: normalizeMetric(
-      build.benchmark.operationsPerSecond,
-      latest.benchmark.operationsPerSecond,
-    ),
-    build: normalizeMetric(build.durations.buildMs, latest.durations.buildMs),
-    bundle: normalizeMetric(build.bundle.jsBytes, latest.bundle.jsBytes),
-    completedLabel: formatDateTime(build.completedAt),
-    lighthouse: normalizeMetric(build.lighthouse.score, latest.lighthouse.score),
-    raw: {
-      benchmark: formatOps(build.benchmark.operationsPerSecond),
-      build: formatDuration(build.durations.buildMs),
-      bundle: formatBytes(build.bundle.jsBytes),
-      lighthouse: formatScoreValue(build.lighthouse.score),
-    },
-    runLabel: `#${build.runNumber}`,
-  }));
+  return chronologicalBuilds.map((build) => {
+    const row: MetricsChartDatum = {
+      completedLabel: formatDateTime(build.completedAt),
+      raw: {} as Record<MetricsChartSeriesId, string>,
+      runLabel: `#${build.runNumber}`,
+    };
+
+    for (const series of metricsChartSeries) {
+      row.raw[series.id] = formatMetricRawValue(build, series.id);
+
+      const normalizedValue = normalizeMetric(
+        readMetricValue(build, series.id),
+        references[series.id],
+      );
+
+      if (normalizedValue !== undefined) {
+        row[series.id] = normalizedValue;
+      }
+    }
+
+    return row;
+  });
+}
+
+function referenceMetricValue(
+  builds: BuildMetricsHistory["builds"],
+  seriesId: MetricsChartSeriesId,
+) {
+  for (const build of builds) {
+    const value = readMetricValue(build, seriesId);
+
+    if (value !== null && Number.isFinite(value) && value !== 0) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function readMetricValue(
+  build: BuildMetricsHistory["builds"][number],
+  seriesId: MetricsChartSeriesId,
+) {
+  switch (seriesId) {
+    case "benchmark":
+      return build.benchmark.operationsPerSecond;
+    case "build":
+      return build.durations.buildMs;
+    case "bundle":
+      return build.bundle.jsBytes;
+    case "lighthouse":
+      return build.lighthouse.score;
+  }
+}
+
+function formatMetricRawValue(
+  build: BuildMetricsHistory["builds"][number],
+  seriesId: MetricsChartSeriesId,
+) {
+  switch (seriesId) {
+    case "benchmark":
+      return formatOps(build.benchmark.operationsPerSecond);
+    case "build":
+      return formatDuration(build.durations.buildMs);
+    case "bundle":
+      return formatBytes(build.bundle.jsBytes);
+    case "lighthouse":
+      return formatScoreValue(build.lighthouse.score);
+  }
 }
 
 function normalizeMetric(value: number | null, referenceValue: number | null) {
@@ -2209,15 +2481,27 @@ function slugFromFile(file: string) {
 }
 
 function slugFromPath(pathname: string) {
+  const candidate = lastPathPart(pathname);
+
+  return candidate && parsedWorkflowsBySlug.has(candidate) ? candidate : "";
+}
+
+function standalonePageFromPath(pathname: string) {
+  const candidate = lastPathPart(pathname);
+
+  return candidate && standalonePageSlugs.has(candidate) ? candidate : "";
+}
+
+function lastPathPart(pathname: string) {
   let candidate = "";
 
-  for (const part of pathname.split("/")) {
+  for (const part of pathname.replace(/\/index\.html$/, "/").split("/")) {
     if (part) {
       candidate = part;
     }
   }
 
-  return candidate && parsedWorkflowsBySlug.has(candidate) ? candidate : "";
+  return candidate;
 }
 
 function appBasePath(pathname = typeof window === "undefined" ? "/" : window.location.pathname) {
@@ -2226,15 +2510,23 @@ function appBasePath(pathname = typeof window === "undefined" ? "/" : window.loc
     .split("/")
     .filter(Boolean);
   const lastPart = parts.at(-1);
-  const baseParts = lastPart && parsedWorkflowsBySlug.has(lastPart) ? parts.slice(0, -1) : parts;
+  const baseParts = lastPart && isRoutePart(lastPart) ? parts.slice(0, -1) : parts;
 
   return baseParts.length > 0 ? `/${baseParts.join("/")}/` : "/";
+}
+
+function isRoutePart(part: string) {
+  return parsedWorkflowsBySlug.has(part) || standalonePageSlugs.has(part);
 }
 
 function homeHref(hash?: string, pathname?: string) {
   const basePath = appBasePath(pathname);
 
   return hash ? `${basePath}#${hash}` : basePath;
+}
+
+function metricsHref(pathname?: string) {
+  return `${appBasePath(pathname)}metrics`;
 }
 
 function workflowHref(slug: string, pathname?: string) {
@@ -2248,4 +2540,4 @@ function titleFromSlug(slug: string) {
     .join(" ");
 }
 
-export { App, appBasePath, homeHref, parsedWorkflows, workflowHref };
+export { App, appBasePath, homeHref, metricsHref, parsedWorkflows, workflowHref };
