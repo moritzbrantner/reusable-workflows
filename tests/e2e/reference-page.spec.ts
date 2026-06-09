@@ -87,7 +87,7 @@ test("renders the adoption generator and checker", async ({ page }) => {
     page.getByRole("heading", { name: "Generate and audit consumer workflows." }),
   ).toBeVisible();
   await expect(page.getByLabel("Generated workflow YAML")).toContainText(
-    "fast-validation.yml@workflow-standard-v1.2",
+    "fast-validation.yml@workflow-standard-v1.3",
   );
   await expect(page.getByLabel("Generated workflow YAML")).toContainText("permissions:");
 });
@@ -98,7 +98,7 @@ test("changes generated YAML for each common adoption profile", async ({ page })
   const generatedYaml = page.getByLabel("Generated workflow YAML");
 
   await page.getByRole("radio", { name: /Component library/ }).check({ force: true });
-  await expect(generatedYaml).toContainText("storybook-validation.yml@workflow-standard-v1.2");
+  await expect(generatedYaml).toContainText("storybook-validation.yml@workflow-standard-v1.3");
 
   await page.getByRole("radio", { name: /Package Package validation/ }).check({ force: true });
   await expect(generatedYaml).toContainText(".github/workflows/publish-package.yml");
@@ -111,7 +111,7 @@ test("changes generated YAML for each common adoption profile", async ({ page })
   await expect(generatedYaml).toContainText("working_directory: apps/web");
 
   await page.getByRole("radio", { name: /Web app/ }).check({ force: true });
-  await expect(generatedYaml).toContainText("e2e-validation.yml@workflow-standard-v1.2");
+  await expect(generatedYaml).toContainText("e2e-validation.yml@workflow-standard-v1.3");
 });
 
 test("reports adoption warnings for pasted workflow YAML", async ({ page }) => {

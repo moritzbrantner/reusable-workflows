@@ -5,11 +5,11 @@ import { defaultAdoptionOptions } from "./app/adoption/profiles";
 import { combinedGeneratedWorkflowText, generateAdoptionWorkflows } from "./app/adoption/generate";
 
 describe("adoption generator", () => {
-  test("emits pinned workflow-standard-v1.2 refs", () => {
+  test("emits pinned workflow-standard-v1.3 refs", () => {
     const yaml = generatedText(defaultAdoptionOptions("web-app"));
 
     expect(yaml).toContain(
-      "moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2",
+      "moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3",
     );
     expect(yaml).not.toContain("@main");
   });
@@ -62,7 +62,7 @@ jobs:
 name: Validate
 jobs:
   fast:
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     permissions:
       contents: read
       packages: read
@@ -79,7 +79,7 @@ jobs:
 name: Validate
 jobs:
   fast:
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
 `);
 
     expect(result.diagnostics).toContainEqual(

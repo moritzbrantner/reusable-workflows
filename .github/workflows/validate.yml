@@ -49,6 +49,7 @@ jobs:
       install_command: "bun install --frozen-lockfile"
       build_command: "bun run build"
       install_playwright: true
+      install_playwright_browsers: chromium
       e2e_command: "bunx playwright test"
       artifact_paths: |
         playwright-report
@@ -68,6 +69,7 @@ jobs:
       accessibility_command: "bun run test:a11y:dist"
       visual_command: "bun run test:visual:dist"
       install_playwright: true
+      install_playwright_browsers: chromium
       artifact_paths: |
         storybook-static
         playwright-report
@@ -144,6 +146,7 @@ jobs:
       build_command: "bun run build"
       e2e_command: "bunx playwright test tests/e2e/reference-page.spec.ts --project=chromium"
       install_playwright: true
+      install_playwright_browsers: chromium
       artifact_paths: |
         playwright-report
         test-results

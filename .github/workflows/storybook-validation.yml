@@ -79,6 +79,10 @@ on:
         required: false
         type: boolean
         default: false
+      install_playwright_browsers:
+        required: false
+        type: string
+        default: ""
       artifact_paths:
         required: false
         type: string
@@ -93,7 +97,7 @@ on:
       artifact_retention_days:
         required: false
         type: number
-        default: 14
+        default: 7
       artifact_name_suffix:
         required: false
         type: string
@@ -193,7 +197,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: ${{ inputs.install_playwright }}
-        run: bunx playwright install --with-deps
+        run: bunx playwright install --with-deps ${{ inputs.install_playwright_browsers }}
 
       - name: Run pre-command
         if: ${{ inputs.pre_command != '' }}

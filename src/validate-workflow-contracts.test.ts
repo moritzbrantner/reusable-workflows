@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 import { validateWorkflowContractsState } from "../scripts/validate-workflow-contracts";
 
 const docs = {
-  "README.md": "workflow-standard-v1.2 custom.yml",
-  "SCAFFOLD_ALIGNMENT.md": "workflow-standard-v1.2 custom.yml",
+  "README.md": "workflow-standard-v1.3 custom.yml",
+  "SCAFFOLD_ALIGNMENT.md": "workflow-standard-v1.3 custom.yml",
 };
 
 const matchingContract = {
@@ -20,7 +20,7 @@ function validateWorkflowSource(source: string) {
   return validateWorkflowContractsState({
     docs,
     repoWorkflowPaths: [".github/workflows/custom.yml"],
-    workflowStandard: "workflow-standard-v1.2",
+    workflowStandard: "workflow-standard-v1.3",
     workflows: matchingContract,
     workflowSources: {
       ".github/workflows/custom.yml": source,

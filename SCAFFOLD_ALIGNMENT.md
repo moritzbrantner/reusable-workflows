@@ -15,7 +15,7 @@ Local:
 - reusable workflow YAML implementations
 - workflow validation for this repository
 - release tags such as `scaffold-v2-initial`
-- release tags such as `workflow-standard-v1.2`
+- release tags such as `workflow-standard-v1.3`
 - machine-readable workflow contracts in `contracts/workflows.json`
 
 Shared:
@@ -40,7 +40,7 @@ Shared:
 - workflow input/output contract for `release-template.yml`
 - workflow input/output contract for `external-pull.yml`
 - pinned tag history referenced by maintained repos
-- staged workflow contract for `workflow-standard-v1.2`
+- staged workflow contract for `workflow-standard-v1.3`
 - `fast-validation.yml`
 - `integration-validation.yml`
 - `e2e-validation.yml`

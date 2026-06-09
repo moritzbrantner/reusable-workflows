@@ -5,7 +5,7 @@ This repository owns shared GitHub Actions workflow contracts for maintained `mo
 The repository also publishes a small React GitHub Pages reference app from `src/`.
 That deployment intentionally calls the local `deploy-pages.yml` reusable workflow. CI also runs the app through the staged validation workflows, Storybook, Playwright, Unlighthouse, benchmark, bundle-size, stage, and compatibility paths so this repository dogfoods most of the workflow contract surface.
 
-Target release tag: `workflow-standard-v1.2`.
+Target release tag: `workflow-standard-v1.3`.
 
 For step-by-step consumer setup, see [IMPLEMENTING_WORKFLOWS.md](IMPLEMENTING_WORKFLOWS.md).
 
@@ -34,7 +34,7 @@ Use staged reusable workflows instead of one oversized workflow:
 
 ## Versioning And Tags
 
-Published workflow tags are treated as immutable release tags. Do not move them after publishing. Additive fixes should ship as a new patch-style tag such as `workflow-standard-v1.2`; breaking input, secret, output, default, or behavior changes require `workflow-standard-v2`.
+Published workflow tags are treated as immutable release tags. Do not move them after publishing. Additive fixes should ship as a new patch-style tag such as `workflow-standard-v1.3`; breaking input, secret, output, default, or behavior changes require `workflow-standard-v2`.
 
 The repo may contain commits after a published tag. Those commits do not affect consumers until a new tag is created and adopted.
 
@@ -82,6 +82,7 @@ Most validation workflows accept:
 - `npm_cache_dependency_path`
 - `cargo_cache_dependency_path`
 - `install_playwright`
+- `install_playwright_browsers`
 - `install_xvfb`
 - `artifact_paths`
 - `upload_artifacts_on`
@@ -91,7 +92,10 @@ Most validation workflows accept:
 - `cancel_in_progress`
 
 `upload_artifacts_on` accepts `failure`, `always`, or `never`. Use `artifact_name_suffix` with a leading separator, for example `-pr-${{ github.run_number }}`.
+Validation workflows keep artifacts for 7 days by default; release and package workflows keep their 14-day default unless overridden.
 Leave `concurrency_group` empty for reusable Pages deployments unless you need a custom group that is different from the caller workflow's top-level concurrency group.
+
+Playwright-based workflows accept `install_playwright_browsers`, which is passed to `bunx playwright install --with-deps`. Leave it empty to keep Playwright's default behavior, or pass a browser such as `chromium` for faster browser-only jobs.
 
 `package-publish.yml` also accepts `package_manager`, `publish_enabled`, `dry_run`, `publish_command`, npm-specific inputs such as `npm_registry_url`, `npm_scope`, `npm_access`, `npm_tag`, and `npm_provenance`, and Cargo-specific inputs such as `rust_toolchain`, `cargo_registry`, `cargo_package`, and `cargo_locked`. The publish step is skipped unless `publish_enabled` is true.
 
@@ -132,7 +136,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     with:
       lint_command: bun run lint
       typecheck_command: bun run check-types
@@ -149,7 +153,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/integration-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/integration-validation.yml@workflow-standard-v1.3
     with:
       integration_command: bun run test:integration
       migration_command: bun run db:check
@@ -167,11 +171,12 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/e2e-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/e2e-validation.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
       e2e_command: bun run test:e2e
       install_playwright: true
+      install_playwright_browsers: chromium
       upload_artifacts_on: always
 ```
 
@@ -183,7 +188,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/storybook-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/storybook-validation.yml@workflow-standard-v1.3
     with:
       storybook_build_command: bun run build-storybook
       storybook_test_command: bun run test-storybook
@@ -200,7 +205,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/performance-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/performance-validation.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
       unlighthouse_command: bun run unlighthouse
@@ -208,6 +213,8 @@ jobs:
       bundle_size_command: bun run size
       api_report_command: bun run api-report
       metrics_command: bun run write-metrics
+      install_playwright: true
+      install_playwright_browsers: chromium
       summary_paths: |
         benchmark-results/*.md
       upload_artifacts_on: always
@@ -221,7 +228,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/link-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/link-validation.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
       start_command: bun run preview -- --host 127.0.0.1 --port 4173
@@ -243,7 +250,7 @@ jobs:
       pages: write
       id-token: write
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
       artifact_path: dist
@@ -264,7 +271,7 @@ jobs:
   external-pull:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/external-pull.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/external-pull.yml@workflow-standard-v1.3
     secrets:
       external_pull_url: ${{ secrets.EXTERNAL_PULL_URL }}
       external_pull_token: ${{ secrets.EXTERNAL_PULL_TOKEN }}
@@ -278,11 +285,12 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/stage-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/stage-validation.yml@workflow-standard-v1.3
     with:
       stage: staging
       staging_command: bun run test:staging
       install_playwright: true
+      install_playwright_browsers: chromium
       upload_artifacts_on: always
 ```
 
@@ -295,7 +303,7 @@ jobs:
   promote:
     permissions:
       contents: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@workflow-standard-v1.3
     with:
       source_branch: staging
       target_branch: production
@@ -317,7 +325,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.3
     with:
       package_manager: npm
       publish_enabled: true
@@ -337,7 +345,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.3
     with:
       package_manager: cargo
       publish_enabled: true
@@ -357,7 +365,7 @@ jobs:
       contents: write
       packages: write
       id-token: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/release-template.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/release-template.yml@workflow-standard-v1.3
     with:
       release_type: app
       validate_command: bun run check-types && bun run build
@@ -377,7 +385,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/validate-repo.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/validate-repo.yml@workflow-standard-v1.3
     with:
       lint_command: bun run lint
       typecheck_command: bun run check-types
@@ -409,5 +417,6 @@ Static sites and simple projects should keep PR validation small, usually build-
 - `workflow-standard-v1`: staged validation, Pages deployment, release, and promotion contract.
 - `workflow-standard-v1.1`: additive link-validation workflow contract.
 - `workflow-standard-v1.2`: additive package-publish workflow contract for npm and Cargo publication.
+- `workflow-standard-v1.3`: additive Playwright browser selection and shorter validation artifact retention defaults.
 
 See `SCAFFOLD_ALIGNMENT.md` for the maintained repo-family contract for this repository.

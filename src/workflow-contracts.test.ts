@@ -3,8 +3,8 @@ import { describe, expect, test } from "vitest";
 import workflowContracts from "../contracts/workflows.json";
 
 describe("workflow contract data", () => {
-  test("documents the workflow-standard-v1.2 reusable workflow family", () => {
-    expect(workflowContracts.workflow_standard).toBe("workflow-standard-v1.2");
+  test("documents the workflow-standard-v1.3 reusable workflow family", () => {
+    expect(workflowContracts.workflow_standard).toBe("workflow-standard-v1.3");
     expect(Object.keys(workflowContracts.workflows)).toEqual(
       expect.arrayContaining([
         ".github/workflows/fast-validation.yml",

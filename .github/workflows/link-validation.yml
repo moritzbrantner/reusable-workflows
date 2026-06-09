@@ -80,7 +80,7 @@ on:
       artifact_retention_days:
         required: false
         type: number
-        default: 14
+        default: 7
       artifact_name_suffix:
         required: false
         type: string

@@ -80,8 +80,8 @@ function stableJson(value: unknown): string {
 export function validateWorkflowContractsState(state: ValidationState): string[] {
   const errors: string[] = [];
 
-  if (state.workflowStandard !== "workflow-standard-v1.2") {
-    errors.push("contracts/workflows.json must declare workflow_standard workflow-standard-v1.2");
+  if (state.workflowStandard !== "workflow-standard-v1.3") {
+    errors.push("contracts/workflows.json must declare workflow_standard workflow-standard-v1.3");
   }
 
   for (const [relativePath, expected] of Object.entries(state.workflows)) {
@@ -129,7 +129,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   }
 
   const requiredDocTokens = [
-    "workflow-standard-v1.2",
+    "workflow-standard-v1.3",
     ...contractWorkflowPaths.map((workflowPath) => path.basename(workflowPath)),
   ];
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "workflow_standard": "workflow-standard-v1.2",
+  "workflow_standard": "workflow-standard-v1.3",
   "workflows": {
     ".github/workflows/deploy-pages.yml": {
       "inputs": {
@@ -112,7 +112,7 @@
         "artifact_retention_days": {
           "required": false,
           "type": "number",
-          "default": 14
+          "default": 7
         },
         "build_command": {
           "required": false,
@@ -173,6 +173,11 @@
           "required": false,
           "type": "boolean",
           "default": true
+        },
+        "install_playwright_browsers": {
+          "required": false,
+          "type": "string",
+          "default": ""
         },
         "install_xvfb": {
           "required": false,
@@ -412,7 +417,7 @@
         "artifact_retention_days": {
           "required": false,
           "type": "number",
-          "default": 14
+          "default": 7
         },
         "bun_cache_dependency_path": {
           "required": false,
@@ -619,7 +624,7 @@
         "artifact_retention_days": {
           "required": false,
           "type": "number",
-          "default": 14
+          "default": 7
         },
         "artifact_name_suffix": {
           "required": false,
@@ -676,7 +681,7 @@
         "artifact_retention_days": {
           "required": false,
           "type": "number",
-          "default": 14
+          "default": 7
         },
         "benchmark_command": {
           "required": false,
@@ -727,6 +732,16 @@
           "required": false,
           "type": "string",
           "default": "**/Cargo.lock"
+        },
+        "install_playwright": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "install_playwright_browsers": {
+          "required": false,
+          "type": "string",
+          "default": ""
         },
         "concurrency_group": {
           "required": false,
@@ -1217,7 +1232,7 @@
         "artifact_retention_days": {
           "required": false,
           "type": "number",
-          "default": 14
+          "default": 7
         },
         "beta_command": {
           "required": false,
@@ -1278,6 +1293,11 @@
           "required": false,
           "type": "boolean",
           "default": false
+        },
+        "install_playwright_browsers": {
+          "required": false,
+          "type": "string",
+          "default": ""
         },
         "install_xvfb": {
           "required": false,
@@ -1378,7 +1398,7 @@
         "artifact_retention_days": {
           "required": false,
           "type": "number",
-          "default": 14
+          "default": 7
         },
         "bun_cache_dependency_path": {
           "required": false,
@@ -1429,6 +1449,11 @@
           "required": false,
           "type": "boolean",
           "default": false
+        },
+        "install_playwright_browsers": {
+          "required": false,
+          "type": "string",
+          "default": ""
         },
         "node_version": {
           "required": false,
@@ -1515,7 +1540,7 @@
         "artifact_retention_days": {
           "required": false,
           "type": "number",
-          "default": 14
+          "default": 7
         },
         "build_command": {
           "required": false,
@@ -1581,6 +1606,11 @@
           "required": false,
           "type": "boolean",
           "default": false
+        },
+        "install_playwright_browsers": {
+          "required": false,
+          "type": "string",
+          "default": ""
         },
         "install_xvfb": {
           "required": false,

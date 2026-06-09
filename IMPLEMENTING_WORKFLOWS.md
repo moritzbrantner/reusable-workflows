@@ -3,7 +3,7 @@
 This guide explains how to adopt the reusable workflows from this repository in a consuming project.
 Use `README.md` as the contract reference; use this file as the implementation path.
 
-Current stable workflow ref: `workflow-standard-v1.2`.
+Current stable workflow ref: `workflow-standard-v1.3`.
 
 ## 1. Choose The Workflow Split
 
@@ -30,7 +30,7 @@ Do not combine validation, deployment, publishing, and branch promotion in one c
 Call workflows with a release tag, not a moving branch:
 
 ```yaml
-uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
+uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
 ```
 
 Update consumers to a newer tag through normal pull requests. Do not point production repositories at `main`.
@@ -124,7 +124,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     with:
       bun_version: "1.3.14"
       install_command: bun install --frozen-lockfile
@@ -143,7 +143,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     with:
       working_directory: apps/web
       install_command: bun install --frozen-lockfile
@@ -176,7 +176,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     with:
       install_command: bun install --frozen-lockfile
       format_command: bun run format:check
@@ -189,7 +189,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/link-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/link-validation.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
       start_command: bun run preview -- --host 127.0.0.1 --port 4173
@@ -200,11 +200,12 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/e2e-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/e2e-validation.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
       e2e_command: bunx playwright test
       install_playwright: true
+      install_playwright_browsers: chromium
       upload_artifacts_on: always
 ```
 
@@ -236,7 +237,7 @@ jobs:
       pages: write
       id-token: write
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1.3
     with:
       install_command: bun install --frozen-lockfile
       build_command: bun run build
@@ -278,7 +279,7 @@ jobs:
   external-pull:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/external-pull.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/external-pull.yml@workflow-standard-v1.3
     secrets:
       external_pull_url: ${{ secrets.EXTERNAL_PULL_URL }}
       external_pull_token: ${{ secrets.EXTERNAL_PULL_TOKEN }}
@@ -305,13 +306,15 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/performance-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/performance-validation.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
       unlighthouse_command: bun run unlighthouse
       benchmark_command: bun run bench
       bundle_size_command: bun run size
       metrics_command: bun run write-metrics
+      install_playwright: true
+      install_playwright_browsers: chromium
       summary_paths: |
         benchmark-results/*.md
       upload_artifacts_on: always
@@ -341,7 +344,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.3
     with:
       package_manager: npm
       publish_enabled: true
@@ -370,7 +373,7 @@ jobs:
       contents: read
       packages: write
       id-token: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/package-publish.yml@workflow-standard-v1.3
     with:
       package_manager: cargo
       publish_enabled: true
@@ -400,7 +403,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/stage-validation.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/stage-validation.yml@workflow-standard-v1.3
     with:
       stage: staging
       staging_command: bun run test:staging
@@ -410,7 +413,7 @@ jobs:
     needs: stage-validation
     permissions:
       contents: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@workflow-standard-v1.2
+    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@workflow-standard-v1.3
     with:
       source_branch: staging
       target_branch: production
@@ -427,7 +430,7 @@ Before merging a consumer implementation:
 
 1. Run the project commands locally.
 2. Confirm each caller job has job-level `permissions`.
-3. Confirm the workflow uses `@workflow-standard-v1.2`.
+3. Confirm the workflow uses `@workflow-standard-v1.3`.
 4. Confirm no caller uses `secrets: inherit`.
 5. Confirm private package tokens are passed only where needed.
 6. Confirm `working_directory` and cache dependency paths match monorepo layout.
@@ -437,7 +440,7 @@ Before merging a consumer implementation:
 ## Common Mistakes
 
 - Calling reusable workflows from a step. Reusable workflows must be called at the job level with `jobs.<job_id>.uses`.
-- Using `main` instead of a release tag. Pin to `workflow-standard-v1.2`.
+- Using `main` instead of a release tag. Pin to `workflow-standard-v1.3`.
 - Passing every secret to every job. Pass only the explicit secrets required by the selected workflow.
 - Running publish or release jobs on pull requests. Keep publishing behind tags, releases, or manual dispatch.
 - Forgetting `pages: write` and `id-token: write` for Pages deployment.

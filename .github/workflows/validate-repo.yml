@@ -59,6 +59,10 @@ on:
         required: false
         type: boolean
         default: false
+      install_playwright_browsers:
+        required: false
+        type: string
+        default: ""
       install_xvfb:
         required: false
         type: boolean
@@ -76,7 +80,7 @@ on:
       artifact_retention_days:
         required: false
         type: number
-        default: 14
+        default: 7
       artifact_name_suffix:
         required: false
         type: string
@@ -232,7 +236,7 @@ jobs:
 
       - name: Install Playwright browsers
         if: ${{ inputs.install_playwright }}
-        run: bunx playwright install --with-deps
+        run: bunx playwright install --with-deps ${{ inputs.install_playwright_browsers }}
 
       - name: Run e2e tests with Xvfb
         if: ${{ inputs.e2e_command != '' && inputs.install_xvfb }}
