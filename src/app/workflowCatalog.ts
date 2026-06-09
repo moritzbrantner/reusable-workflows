@@ -9,6 +9,7 @@ import {
   Link as LinkIcon,
   PackageCheck,
   Rocket,
+  ServerCog,
   ShieldCheck,
   TestTube2,
   Workflow,
@@ -172,6 +173,20 @@ const workflowDetails = [
       "Deploys to GitHub Pages and exposes the resulting `page_url` output.",
     ],
     icon: Globe2,
+  },
+  {
+    file: ".github/workflows/external-pull.yml",
+    title: "External Pull",
+    summary: "External server trigger for pulling the current repository ref and SHA.",
+    role: "Reusable contract",
+    useWhen:
+      "Use this workflow when a repository should notify an external deployment host to pull the current version.",
+    responsibilities: [
+      "Posts repository, ref, SHA, run, actor, and event metadata to a secret endpoint.",
+      "Authenticates with an explicit bearer token secret instead of forwarding the GitHub token.",
+      "Retries transient request failures and fails unless the server returns a 2xx response.",
+    ],
+    icon: ServerCog,
   },
   {
     file: ".github/workflows/package-publish.yml",
@@ -389,6 +404,19 @@ const workflowGraphNodes = [
     width: 208,
     height: 112,
     tone: "success",
+    status: "stable",
+  },
+  {
+    id: "external-pull",
+    label: "External Pull",
+    description: "External server notification for pulling the current ref.",
+    group: "Reusable contract",
+    version: "No local caller",
+    x: 1008,
+    y: 504,
+    width: 208,
+    height: 112,
+    tone: "muted",
     status: "stable",
   },
   {

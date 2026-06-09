@@ -234,6 +234,47 @@
         "packages": "read"
       }
     },
+    ".github/workflows/external-pull.yml": {
+      "inputs": {
+        "cancel_in_progress": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "concurrency_group": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "request_timeout_seconds": {
+          "required": false,
+          "type": "number",
+          "default": 30
+        },
+        "timeout_minutes": {
+          "required": false,
+          "type": "number",
+          "default": 10
+        }
+      },
+      "secrets": {
+        "external_pull_token": {
+          "required": true
+        },
+        "external_pull_url": {
+          "required": true
+        }
+      },
+      "outputs": {
+        "http_status": {
+          "description": "HTTP status returned by the external pull endpoint.",
+          "value": "${{ jobs.external-pull.outputs.http_status }}"
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      }
+    },
     ".github/workflows/fast-validation.yml": {
       "inputs": {
         "build_command": {

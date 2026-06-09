@@ -12,6 +12,7 @@ describe("workflow contract data", () => {
         ".github/workflows/storybook-validation.yml",
         ".github/workflows/performance-validation.yml",
         ".github/workflows/deploy-pages.yml",
+        ".github/workflows/external-pull.yml",
         ".github/workflows/package-publish.yml",
       ]),
     );
@@ -21,5 +22,8 @@ describe("workflow contract data", () => {
     expect(
       workflowContracts.workflows[".github/workflows/package-publish.yml"].inputs,
     ).toHaveProperty("package_manager");
+    expect(
+      workflowContracts.workflows[".github/workflows/external-pull.yml"].inputs,
+    ).toHaveProperty("request_timeout_seconds");
   });
 });

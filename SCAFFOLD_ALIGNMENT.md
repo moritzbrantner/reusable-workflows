@@ -38,6 +38,7 @@ Shared:
 - workflow input/output contract for `promote-branches.yml`
 - workflow input/output contract for `package-publish.yml`
 - workflow input/output contract for `release-template.yml`
+- workflow input/output contract for `external-pull.yml`
 - pinned tag history referenced by maintained repos
 - staged workflow contract for `workflow-standard-v1.2`
 - `fast-validation.yml`
@@ -47,6 +48,7 @@ Shared:
 - `link-validation.yml`
 - `performance-validation.yml`
 - `deploy-pages.yml`
+- `external-pull.yml`
 - `package-publish.yml`
 - `stage-validation.yml`
 - `validate-repo.yml`

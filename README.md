@@ -7,6 +7,8 @@ That deployment intentionally calls the local `deploy-pages.yml` reusable workfl
 
 Target release tag: `workflow-standard-v1.2`.
 
+For step-by-step consumer setup, see [IMPLEMENTING_WORKFLOWS.md](IMPLEMENTING_WORKFLOWS.md).
+
 ## Workflow Standard
 
 Use staged reusable workflows instead of one oversized workflow:
@@ -18,6 +20,7 @@ Use staged reusable workflows instead of one oversized workflow:
 - `link-validation.yml`: local or deployed site crawling for broken links, assets, and fragment anchors.
 - `performance-validation.yml`: Unlighthouse, benchmarks, bundle-size checks, API reports, and heavier performance suites.
 - `deploy-pages.yml`: GitHub Pages build and deployment only.
+- `external-pull.yml`: external server notification for pulling the current repo ref/SHA.
 - `package-publish.yml`: npm-compatible registry and Cargo/crates.io package publishing only.
 - `release-template.yml`: custom app releases or nonstandard release flows only.
 - `stage-validation.yml`: branch-stage validation for flows such as `develop`, `nightly`, `beta`, `staging`, and `production`.
@@ -95,6 +98,7 @@ Pass explicit package auth only when the caller needs access that `github.token`
 - `node_auth_token`
 - `GH_PACKAGES_TOKEN`
 - `GH_PROMOTION_TOKEN` as `promotion_token` for `promote-branches.yml`
+- `external_pull_url` and `external_pull_token` for `external-pull.yml`
 - package publish tokens such as `NPM_TOKEN` or `CARGO_REGISTRY_TOKEN` only in package publish workflows
 - release-specific tokens such as `NPM_TOKEN` or `release_token` only in release workflows
 
@@ -104,6 +108,7 @@ Avoid `secrets: inherit`.
 
 - Validation workflows with artifacts expose `artifact_name`.
 - `deploy-pages.yml` exposes `page_url`.
+- `external-pull.yml` exposes `http_status`.
 - `package-publish.yml` exposes `artifact_name` and `publish_status`.
 - `release-template.yml` exposes `artifact_name` and `release_status`.
 
@@ -231,6 +236,27 @@ jobs:
     with:
       build_command: bun run build
       artifact_path: dist
+```
+
+### External Pull
+
+```yaml
+name: Trigger External Pull
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  external-pull:
+    permissions:
+      contents: read
+    uses: moritzbrantner/reusable-workflows/.github/workflows/external-pull.yml@workflow-standard-v1.2
+    secrets:
+      external_pull_url: ${{ secrets.EXTERNAL_PULL_URL }}
+      external_pull_token: ${{ secrets.EXTERNAL_PULL_TOKEN }}
 ```
 
 ### Stage Validation
