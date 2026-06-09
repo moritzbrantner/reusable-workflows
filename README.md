@@ -9,6 +9,11 @@ Target release tag: `workflow-standard-v1.2`.
 
 For step-by-step consumer setup, see [IMPLEMENTING_WORKFLOWS.md](IMPLEMENTING_WORKFLOWS.md).
 
+The published reference app includes an adoption tool at `/adoption` that generates starter caller
+workflow YAML for common repository profiles and audits pasted workflow YAML for migration issues.
+The same checks can run locally with `bun run adoption:check`; use
+`bun run adoption:check:strict` when warnings should fail CI.
+
 ## Workflow Standard
 
 Use staged reusable workflows instead of one oversized workflow:
@@ -52,6 +57,11 @@ CI runs `scripts/validate-workflow-contracts.ts` to verify:
 - reusable workflow inputs, secrets, outputs, and job permissions match the contract file
 - `README.md` and `SCAFFOLD_ALIGNMENT.md` document every reusable workflow
 - the sibling `monorepo/REUSABLE_WORKFLOWS.md` reference is current when that repo is checked out next to this one
+
+The repository also ships `scripts/check-adoption.ts` for consuming repositories. It parses
+`.github/workflows/*.yml`, detects calls to `moritzbrantner/reusable-workflows`, warns about moving
+refs, inherited secrets, missing or weak job permissions, broad monorepo cache paths, and overly
+broad artifact uploads, and exits nonzero only for errors unless `--strict` is passed.
 
 ## Common Inputs
 
@@ -228,6 +238,7 @@ jobs:
 jobs:
   deploy-pages:
     permissions:
+      actions: read
       contents: read
       pages: write
       id-token: write

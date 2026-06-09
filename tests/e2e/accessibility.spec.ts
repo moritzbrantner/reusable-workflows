@@ -16,3 +16,11 @@ test("has no obvious accessibility violations on the metrics page", async ({ pag
 
   expect(results.violations).toEqual([]);
 });
+
+test("has no obvious accessibility violations on the adoption page", async ({ page }) => {
+  await page.goto("/adoption");
+
+  const results = await new AxeBuilder({ page }).analyze();
+
+  expect(results.violations).toEqual([]);
+});

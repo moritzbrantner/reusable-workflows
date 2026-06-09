@@ -2,6 +2,7 @@ import { ArrowUpRight, Boxes, Braces, Globe2, ShieldCheck } from "lucide-react";
 
 import workflowContracts from "../../contracts/workflows.json";
 import { buildMetricsHistory } from "../app/metricsCatalog";
+import { adoptionHref } from "../app/routes";
 import { parsedWorkflows, workflowGraphEdges, workflowGraphNodes } from "../app/workflowCatalog";
 import {
   Badge,
@@ -62,6 +63,10 @@ export function HomePage() {
               >
                 <ArrowUpRight aria-hidden="true" />
                 Workflow files
+              </a>
+              <a className="button button--secondary" href={adoptionHref()}>
+                <ShieldCheck aria-hidden="true" />
+                Adoption tool
               </a>
             </div>
           </div>

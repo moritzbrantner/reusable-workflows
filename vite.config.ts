@@ -27,7 +27,7 @@ function workflowRoutePages() {
         .readdirSync(workflowsDir)
         .filter((file) => /\.ya?ml$/.test(file))
         .map((file) => file.replace(/\.ya?ml$/, ""));
-      const routeSlugs = [...slugs, "metrics"];
+      const routeSlugs = [...slugs, "adoption", "metrics"];
 
       for (const slug of routeSlugs) {
         const routeDir = path.join(distDir, slug);

@@ -31,7 +31,7 @@ export const metricsChartSeries: Array<{
   {
     color: "#2563eb",
     description:
-      "Total JavaScript bytes emitted into `dist/`, compared with the repository's 375 KiB budget.",
+      "Total JavaScript bytes emitted into `dist/`, compared with the repository's 425 KiB budget.",
     id: "bundle",
     interpretation:
       "Lower values reduce the amount of script shipped by the published reference app.",

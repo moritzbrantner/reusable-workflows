@@ -4,6 +4,7 @@ const workflowSlugs = [
   "deploy-docs-pages",
   "deploy-pages",
   "e2e-validation",
+  "external-pull",
   "fast-validation",
   "integration-validation",
   "link-validation",
@@ -77,6 +78,55 @@ test("links the home metrics summary to KPI definitions", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "KPI definitions for performance runs." }),
   ).toBeVisible();
+});
+
+test("renders the adoption generator and checker", async ({ page }) => {
+  await page.goto("/adoption");
+
+  await expect(
+    page.getByRole("heading", { name: "Generate and audit consumer workflows." }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Generated workflow YAML")).toContainText(
+    "fast-validation.yml@workflow-standard-v1.2",
+  );
+  await expect(page.getByLabel("Generated workflow YAML")).toContainText("permissions:");
+});
+
+test("changes generated YAML for each common adoption profile", async ({ page }) => {
+  await page.goto("/adoption");
+
+  const generatedYaml = page.getByLabel("Generated workflow YAML");
+
+  await page.getByRole("radio", { name: /Component library/ }).check({ force: true });
+  await expect(generatedYaml).toContainText("storybook-validation.yml@workflow-standard-v1.2");
+
+  await page.getByRole("radio", { name: /Package Package validation/ }).check({ force: true });
+  await expect(generatedYaml).toContainText(".github/workflows/publish-package.yml");
+  await expect(generatedYaml).toContainText("publish_enabled: false");
+
+  await page.getByRole("radio", { name: /Pages site/ }).check({ force: true });
+  await expect(generatedYaml).toContainText(".github/workflows/deploy-pages.yml");
+
+  await page.getByRole("radio", { name: /Monorepo web app/ }).check({ force: true });
+  await expect(generatedYaml).toContainText("working_directory: apps/web");
+
+  await page.getByRole("radio", { name: /Web app/ }).check({ force: true });
+  await expect(generatedYaml).toContainText("e2e-validation.yml@workflow-standard-v1.2");
+});
+
+test("reports adoption warnings for pasted workflow YAML", async ({ page }) => {
+  await page.goto("/adoption");
+
+  await page.getByLabel("Workflow YAML to audit").fill(`name: Validate
+jobs:
+  fast:
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@main
+    secrets: inherit
+`);
+
+  await expect(page.getByText("moving-workflow-ref")).toBeVisible();
+  await expect(page.getByText("inherited-secrets")).toBeVisible();
+  await expect(page.getByText("missing-job-permissions")).toBeVisible();
 });
 
 test("renders latest build metrics and the last-5 table from a fixture history", async ({

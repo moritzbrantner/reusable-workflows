@@ -1,4 +1,4 @@
-import { homeHref, metricsHref } from "../app/routes";
+import { adoptionHref, homeHref, metricsHref } from "../app/routes";
 
 export function SiteHeader() {
   return (
@@ -15,6 +15,7 @@ export function SiteHeader() {
           <a href={homeHref("connections")}>Connections</a>
           <a href={homeHref("workflows")}>Workflows</a>
           <a href={homeHref("dogfood")}>Dogfood</a>
+          <a href={adoptionHref()}>Adoption</a>
           <a href={metricsHref()}>Metrics</a>
           <a href={homeHref("release")}>Release</a>
         </nav>

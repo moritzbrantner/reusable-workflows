@@ -35,7 +35,29 @@ uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@wo
 
 Update consumers to a newer tag through normal pull requests. Do not point production repositories at `main`.
 
-## 3. Configure Repository Permissions
+## 3. Use The Adoption Tool
+
+Use the reference app's `/adoption` page to generate starter caller workflows for common repository
+profiles such as web apps, monorepo web apps, component libraries, packages, and Pages sites.
+The generator emits complete workflow files with pinned refs, job-level permissions, and explicit
+secrets.
+
+To audit an existing consuming repository from the command line, run this repository's checker with
+the consumer repo as the root:
+
+```sh
+bun scripts/check-adoption.ts --root ../consumer-repo
+```
+
+The checker warns by default for migration issues such as `@main` refs, `secrets: inherit`, missing
+or weak job permissions, broad monorepo cache paths, and artifact uploads set to `always` outside
+the workflows where that is usually intentional. Use strict mode when warnings should fail CI:
+
+```sh
+bun scripts/check-adoption.ts --root ../consumer-repo --strict
+```
+
+## 4. Configure Repository Permissions
 
 Set default workflow permissions to read-only in the consuming repository when possible.
 Then grant job-level permissions for each reusable workflow caller.
@@ -52,6 +74,7 @@ GitHub Pages deployment needs:
 
 ```yaml
 permissions:
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -74,7 +97,7 @@ permissions:
   contents: write
 ```
 
-## 4. Pass Secrets Explicitly
+## 5. Pass Secrets Explicitly
 
 Avoid `secrets: inherit`. Pass only the secrets required by that job.
 
@@ -88,7 +111,7 @@ Common cases:
 - Pass `external_pull_url` and `external_pull_token` only to external pull jobs.
 - Pass `release_token` only when the release command needs a token different from the default GitHub token.
 
-## 5. Use Project-Local Commands
+## 6. Use Project-Local Commands
 
 Reusable workflows run the commands you provide from `working_directory`, which defaults to `.`.
 Use the commands that already work locally in the consuming project.
@@ -131,7 +154,7 @@ jobs:
       bun_cache_dependency_path: apps/web/bun.lock
 ```
 
-## 6. Add A Practical Pull Request Caller
+## 7. Add A Practical Pull Request Caller
 
 A web app with unit, link, and e2e coverage can start with this `.github/workflows/validate.yml`:
 
@@ -187,7 +210,7 @@ jobs:
 
 Use `needs:` only when a job depends on another job's completion or output. Independent validation jobs should fan out in parallel.
 
-## 7. Add Pages Deployment Separately
+## 8. Add Pages Deployment Separately
 
 Keep Pages deployment out of pull request validation.
 Create a separate `.github/workflows/deploy-pages.yml` caller:
@@ -208,6 +231,7 @@ concurrency:
 jobs:
   deploy-pages:
     permissions:
+      actions: read
       contents: read
       pages: write
       id-token: write
@@ -231,7 +255,7 @@ Then read:
 ${{ needs.deploy-pages.outputs.page_url }}
 ```
 
-## 8. Add External Pull Only For Pull-Based Hosts
+## 9. Add External Pull Only For Pull-Based Hosts
 
 Use `external-pull.yml` when an external server receives a webhook-like request and pulls the current ref itself.
 Configure these repository secrets in the consumer:
@@ -263,7 +287,7 @@ jobs:
 The endpoint receives JSON with repository, owner, repository URL, ref, ref name, SHA, workflow, run ID, run attempt, run URL, actor, and event name.
 It must return a `2xx` status. Any non-`2xx` response fails the job.
 
-## 9. Add Performance Checks Deliberately
+## 10. Add Performance Checks Deliberately
 
 Performance checks are useful but often slower and noisier than fast validation.
 Run them on schedules, manual dispatch, default-branch pushes, or selected pull requests.
@@ -295,7 +319,7 @@ jobs:
 
 Use `summary_paths` for concise Markdown summaries. Keep full raw reports in `artifact_paths`.
 
-## 10. Publish Packages From Tags Or Manual Dispatch
+## 11. Publish Packages From Tags Or Manual Dispatch
 
 Keep `publish_enabled` false in dry runs and validation-only calls.
 Set it to true only in tag, release, or manual publish workflows.
@@ -357,7 +381,7 @@ jobs:
       CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 ```
 
-## 11. Use Stage Validation And Promotion Together
+## 12. Use Stage Validation And Promotion Together
 
 For staged branches, validate the source branch first, then promote the exact tested SHA.
 
@@ -397,7 +421,7 @@ jobs:
 
 `tested_sha` must be reachable from `source_branch`, and `target_branch` must not contain commits outside that tested commit.
 
-## 12. Validate The Consumer Setup
+## 13. Validate The Consumer Setup
 
 Before merging a consumer implementation:
 

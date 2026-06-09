@@ -1,5 +1,6 @@
 import { buildMetricsHistory } from "./app/metricsCatalog";
 import {
+  adoptionHref,
   appBasePath,
   homeHref,
   metricsHref,
@@ -8,6 +9,7 @@ import {
   workflowHref,
 } from "./app/routes";
 import { parsedWorkflows, parsedWorkflowsBySlug } from "./app/workflowCatalog";
+import { AdoptionPage } from "./pages/AdoptionPage";
 import { HomePage } from "./pages/HomePage";
 import { MetricsPage } from "./pages/MetricsPage";
 import { WorkflowPage } from "./pages/WorkflowPage";
@@ -22,6 +24,10 @@ function App() {
     return <MetricsPage history={buildMetricsHistory} />;
   }
 
+  if (selectedPage === "adoption") {
+    return <AdoptionPage />;
+  }
+
   if (selectedWorkflow) {
     return <WorkflowPage workflow={selectedWorkflow} />;
   }
@@ -29,4 +35,4 @@ function App() {
   return <HomePage />;
 }
 
-export { App, appBasePath, homeHref, metricsHref, parsedWorkflows, workflowHref };
+export { App, adoptionHref, appBasePath, homeHref, metricsHref, parsedWorkflows, workflowHref };

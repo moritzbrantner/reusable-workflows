@@ -27,6 +27,8 @@
     "size:check": "bun run build && bun run size:check:dist",
     "size:check:dist": "bun scripts/check-bundle-size.ts",
     "api:check": "bun run validate:contracts",
+    "adoption:check": "bun scripts/check-adoption.ts",
+    "adoption:check:strict": "bun scripts/check-adoption.ts --strict",
     "validate:contracts": "bun scripts/validate-workflow-contracts.ts",
     "verify": "bun run format:check && bun run lint && bun run check-types && bun run test:unit && bun run build && bun run validate:contracts && bun run size:check:dist && bun run storybook:build && bun run test:storybook && bun run bench"
   },

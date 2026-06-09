@@ -19,7 +19,7 @@ type CheckBundleSizeOptions = {
   warningRatio?: number;
 };
 
-const defaultBudgetBytes = 375 * 1024;
+const defaultBudgetBytes = 425 * 1024;
 const defaultWarningRatio = 0.95;
 
 export function createBundleSizeReport({

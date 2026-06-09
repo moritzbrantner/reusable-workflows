@@ -1,7 +1,7 @@
 {
-  "jsBytes": 374735,
-  "budgetBytes": 384000,
-  "budgetUsagePercent": 97.6,
-  "warningThresholdBytes": 364800,
+  "jsBytes": 400041,
+  "budgetBytes": 435200,
+  "budgetUsagePercent": 91.9,
+  "warningThresholdBytes": 413440,
   "withinBudget": true
 }

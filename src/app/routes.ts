@@ -1,6 +1,6 @@
 import { parsedWorkflowsBySlug } from "./workflowCatalog";
 
-const standalonePageSlugs = new Set(["metrics"]);
+const standalonePageSlugs = new Set(["adoption", "metrics"]);
 
 export function slugFromPath(pathname: string) {
   const candidate = lastPathPart(pathname);
@@ -51,6 +51,10 @@ export function homeHref(hash?: string, pathname?: string) {
 
 export function metricsHref(pathname?: string) {
   return `${appBasePath(pathname)}metrics`;
+}
+
+export function adoptionHref(pathname?: string) {
+  return `${appBasePath(pathname)}adoption`;
 }
 
 export function workflowHref(slug: string, pathname?: string) {
