@@ -1,22 +1,22 @@
 # Reusable Workflows Reference
 
-This repository owns shared GitHub Actions workflow contracts for maintained `moritzbrantner/*` repositories.
+This repository owns shared GitHub Actions Workflow Contracts for Consumer Repositories in the maintained `moritzbrantner/*` family.
 
 The repository also publishes a small React GitHub Pages reference app from `src/`.
-That deployment intentionally calls the local `deploy-pages.yml` reusable workflow. CI also runs the app through the staged validation workflows, Storybook, Playwright, Unlighthouse, benchmark, bundle-size, stage, and compatibility paths so this repository dogfoods most of the workflow contract surface.
+That deployment intentionally calls the `deploy-pages.yml` Reusable Workflow. CI also runs the app through the validation, Storybook, Playwright, Unlighthouse, benchmark, bundle-size, Stage Validation, and Compatibility Workflow paths so this repository dogfoods most of the Workflow Contract surface.
 
 Target release tag: `workflow-standard-v1.3`.
 
 For step-by-step consumer setup, see [IMPLEMENTING_WORKFLOWS.md](IMPLEMENTING_WORKFLOWS.md).
 
-The published reference app includes an adoption tool at `/adoption` that generates starter caller
-workflow YAML for common repository profiles and audits pasted workflow YAML for migration issues.
+The published reference app includes an Adoption Tool at `/adoption` that generates starter Caller
+Workflow YAML for common Adoption Profiles and audits pasted workflow YAML for Adoption Diagnostics.
 The same checks can run locally with `bun run adoption:check`; use
 `bun run adoption:check:strict` when warnings should fail CI.
 
 ## Workflow Standard
 
-Use staged reusable workflows instead of one oversized workflow:
+Use smaller Reusable Workflows by Lifecycle Step instead of one oversized workflow:
 
 - `fast-validation.yml`: PR/default-branch linting, formatting checks, typechecking, build, and unit tests.
 - `integration-validation.yml`: integration tests, service/database checks, migration checks, and package/API checks.
@@ -30,19 +30,19 @@ Use staged reusable workflows instead of one oversized workflow:
 - `release-template.yml`: custom app releases or nonstandard release flows only.
 - `stage-validation.yml`: branch-stage validation for flows such as `develop`, `nightly`, `beta`, `staging`, and `production`.
 - `promote-branches.yml`: exact tested SHA branch promotion with `--force-with-lease`.
-- `validate-repo.yml`: `scaffold-v2-initial` compatibility workflow for existing callers.
+- `validate-repo.yml`: `scaffold-v2-initial` Compatibility Workflow for existing callers.
 
 ## Versioning And Tags
 
-Published workflow tags are treated as immutable release tags. Do not move them after publishing. Additive fixes should ship as a new patch-style tag such as `workflow-standard-v1.3`; breaking input, secret, output, default, or behavior changes require `workflow-standard-v2`.
+Published workflow tags are treated as immutable Release Tags. Do not move them after publishing. Additive fixes should ship as a new patch-style tag such as `workflow-standard-v1.3`; breaking input, secret, output, default, or documented behavior changes require a new major Workflow Standard such as `workflow-standard-v2`.
 
 The repo may contain commits after a published tag. Those commits do not affect consumers until a new tag is created and adopted.
 
 Release checklist:
 
 1. Update workflow YAML.
-2. Update `contracts/workflows.json`.
-3. Update `README.md`, `SCAFFOLD_ALIGNMENT.md`, and the canonical `monorepo/REUSABLE_WORKFLOWS.md` reference.
+2. Update the Contract Manifest in `contracts/workflows.json`.
+3. Update `README.md`, `SCAFFOLD_ALIGNMENT.md`, and the scaffold reference in `monorepo/REUSABLE_WORKFLOWS.md` when scaffold expectations change.
 4. Run `bun run validate:contracts`.
 5. Run `docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 -color .github/workflows/*.yml`.
 6. Confirm `Smoke Reusable Workflows` and `Deploy Docs Pages` pass.
@@ -50,15 +50,15 @@ Release checklist:
 
 ## Contract Validation
 
-The machine-readable workflow contract lives in `contracts/workflows.json`.
+The Contract Manifest lives in `contracts/workflows.json`.
 
 CI runs `scripts/validate-workflow-contracts.ts` to verify:
 
-- reusable workflow inputs, secrets, outputs, and job permissions match the contract file
-- `README.md` and `SCAFFOLD_ALIGNMENT.md` document every reusable workflow
+- Reusable Workflow inputs, secrets, outputs, and job permissions match the Contract Manifest
+- `README.md` and `SCAFFOLD_ALIGNMENT.md` document every Reusable Workflow
 - the sibling `monorepo/REUSABLE_WORKFLOWS.md` reference is current when that repo is checked out next to this one
 
-The repository also ships `scripts/check-adoption.ts` for consuming repositories. It parses
+The repository also ships `scripts/check-adoption.ts` for Consumer Repositories. It parses
 `.github/workflows/*.yml`, detects calls to `moritzbrantner/reusable-workflows`, warns about moving
 refs, inherited secrets, missing or weak job permissions, broad monorepo cache paths, and overly
 broad artifact uploads, and exits nonzero only for errors unless `--strict` is passed.
@@ -419,4 +419,4 @@ Static sites and simple projects should keep PR validation small, usually build-
 - `workflow-standard-v1.2`: additive package-publish workflow contract for npm and Cargo publication.
 - `workflow-standard-v1.3`: additive Playwright browser selection and shorter validation artifact retention defaults.
 
-See `SCAFFOLD_ALIGNMENT.md` for the maintained repo-family contract for this repository.
+See `SCAFFOLD_ALIGNMENT.md` for how this repository's Workflow Contracts align with the sibling Scaffold Contract.

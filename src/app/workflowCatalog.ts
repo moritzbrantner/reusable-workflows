@@ -36,13 +36,13 @@ const workflowDetails = [
     file: ".github/workflows/validate.yml",
     title: "Validate",
     summary:
-      "Main PR and push caller that fans out into fast, integration, e2e, docs, link, performance, stage, compatibility, and actionlint checks.",
-    role: "Local caller",
+      "Main PR and push Caller Workflow that fans out into fast, integration, e2e, docs, link, performance, Stage Validation, compatibility, and actionlint checks.",
+    role: "Caller Workflow",
     useWhen:
       "Use this local workflow as the repository-wide CI entrypoint for pushes and pull requests.",
     responsibilities: [
-      "Calls the reusable validation workflows with this app's concrete Bun, Playwright, contract, and build commands.",
-      "Runs actionlint over every workflow file after reusable workflow checks are configured.",
+      "Calls the reusable validation workflows with this app's concrete Bun, Playwright, Workflow Contract, and build commands.",
+      "Runs actionlint over every workflow file after Reusable Workflow checks are configured.",
       "Keeps CI concurrency scoped to the workflow and Git ref.",
     ],
     icon: Workflow,
@@ -51,10 +51,10 @@ const workflowDetails = [
     file: ".github/workflows/deploy-docs-pages.yml",
     title: "Deploy Docs Pages",
     summary:
-      "Default-branch and manual caller that builds the reference app and publishes it through the reusable Pages workflow.",
-    role: "Local caller",
+      "Default-branch and manual Caller Workflow that builds the reference app and publishes it through the reusable Pages workflow.",
+    role: "Caller Workflow",
     useWhen:
-      "Use this caller to publish the generated documentation site from `dist/` to GitHub Pages.",
+      "Use this Caller Workflow to publish the generated documentation site from `dist/` to GitHub Pages.",
     responsibilities: [
       "Runs on `main` pushes and manual dispatches.",
       "Delegates build, artifact upload, and Pages deployment to `deploy-pages.yml`.",
@@ -66,10 +66,10 @@ const workflowDetails = [
     file: ".github/workflows/smoke-reusable-workflows.yml",
     title: "Smoke Reusable Workflows",
     summary:
-      "Low-cost caller that exercises the reusable workflow API with minimal shell commands.",
-    role: "Local caller",
+      "Low-cost Caller Workflow that exercises the reusable workflow API with minimal shell commands.",
+    role: "Caller Workflow",
     useWhen:
-      "Use this workflow to catch contract regressions in reusable workflows without running the full application test suite.",
+      "Use this workflow to catch Workflow Contract regressions in Reusable Workflows without running the full application test suite.",
     responsibilities: [
       "Calls every reusable validation workflow with no-op or smoke commands.",
       "Verifies optional setup paths can be disabled for smoke runs.",
@@ -81,7 +81,7 @@ const workflowDetails = [
     file: ".github/workflows/fast-validation.yml",
     title: "Fast Validation",
     summary: "Formatting, linting, typechecking, builds, and unit tests for tight PR feedback.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen: "Use this workflow for the checks that should complete first on every pull request.",
     responsibilities: [
       "Installs Bun, Node, and optional Cargo cache paths as requested by inputs.",
@@ -94,7 +94,7 @@ const workflowDetails = [
     file: ".github/workflows/integration-validation.yml",
     title: "Integration Validation",
     summary: "Service checks, database checks, migrations, package checks, and integration suites.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow when validation needs external services, migration checks, or heavier package verification.",
     responsibilities: [
@@ -108,7 +108,7 @@ const workflowDetails = [
     file: ".github/workflows/e2e-validation.yml",
     title: "E2E Validation",
     summary: "Browser, Playwright, Electron, Tauri, mobile, and artifact-backed e2e runs.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow for browser or app-level tests that need a build step and failure artifacts.",
     responsibilities: [
@@ -122,7 +122,7 @@ const workflowDetails = [
     file: ".github/workflows/storybook-validation.yml",
     title: "Storybook Validation",
     summary: "Storybook builds, interaction tests, accessibility checks, and visual validation.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow when component documentation and browser-level component checks are part of CI.",
     responsibilities: [
@@ -136,7 +136,7 @@ const workflowDetails = [
     file: ".github/workflows/link-validation.yml",
     title: "Link Validation",
     summary: "Local or deployed site crawling for broken links, assets, and fragment anchors.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow after a site build when broken links or fragment anchors need automated coverage.",
     responsibilities: [
@@ -150,7 +150,7 @@ const workflowDetails = [
     file: ".github/workflows/performance-validation.yml",
     title: "Performance Validation",
     summary: "Unlighthouse, benchmarks, bundle size checks, API reports, and heavier suites.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow for checks that are valuable but slower than ordinary PR validation.",
     responsibilities: [
@@ -164,7 +164,7 @@ const workflowDetails = [
     file: ".github/workflows/deploy-pages.yml",
     title: "Deploy Pages",
     summary: "GitHub Pages configuration, artifact upload, deployment, and page_url output.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow when a repository needs a standard GitHub Pages deployment after a build.",
     responsibilities: [
@@ -178,7 +178,7 @@ const workflowDetails = [
     file: ".github/workflows/external-pull.yml",
     title: "External Pull",
     summary: "External server trigger for pulling the current repository ref and SHA.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow when a repository should notify an external deployment host to pull the current version.",
     responsibilities: [
@@ -193,7 +193,7 @@ const workflowDetails = [
     title: "Package Publish",
     summary:
       "Opinionated npm-compatible registry and Cargo package publishing with explicit publish gating.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow for standard npm or Cargo package publication from tag, release, or manual publish callers.",
     responsibilities: [
@@ -207,7 +207,7 @@ const workflowDetails = [
     file: ".github/workflows/release-template.yml",
     title: "Release Template",
     summary: "Validate, build, publish, and upload release artifacts with explicit secrets.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow as a reusable release skeleton where each repository supplies its own publish command.",
     responsibilities: [
@@ -221,12 +221,12 @@ const workflowDetails = [
     file: ".github/workflows/stage-validation.yml",
     title: "Stage Validation",
     summary: "Stage-specific branch checks for develop, nightly, beta, staging, and production.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow when branch or deployment stage should select a different validation command.",
     responsibilities: [
       "Maps the requested stage to develop, nightly, beta, staging, or production commands.",
-      "Keeps stage-specific validation in one reusable contract.",
+      "Keeps stage-specific validation in one Reusable Workflow.",
       "Supports artifacts for stage checks that produce diagnostics.",
     ],
     icon: GitBranch,
@@ -235,7 +235,7 @@ const workflowDetails = [
     file: ".github/workflows/promote-branches.yml",
     title: "Promote Branches",
     summary: "Exact tested SHA promotion between branches with force-with-lease safeguards.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow to promote a known tested commit from one maintained branch to another.",
     responsibilities: [
@@ -249,7 +249,7 @@ const workflowDetails = [
     file: ".github/workflows/validate-repo.yml",
     title: "Validate Repo",
     summary: "Compatibility workflow for existing scaffold-v2 repositories during migration.",
-    role: "Reusable contract",
+    role: "Reusable Workflow",
     useWhen:
       "Use this workflow for repositories that still expect the older combined validation surface.",
     responsibilities: [
@@ -265,8 +265,8 @@ const workflowGraphNodes = [
   {
     id: "validate",
     label: "Validate",
-    description: "PR and push caller for the app validation path.",
-    group: "Caller",
+    description: "PR and push Caller Workflow for the app validation path.",
+    group: "Caller Workflow",
     x: 0,
     y: 168,
     width: 216,
@@ -277,8 +277,8 @@ const workflowGraphNodes = [
   {
     id: "deploy-docs-pages",
     label: "Deploy Docs Pages",
-    description: "Default-branch and manual Pages deployment caller.",
-    group: "Caller",
+    description: "Default-branch and manual Pages deployment Caller Workflow.",
+    group: "Caller Workflow",
     x: 0,
     y: 464,
     width: 216,
@@ -289,8 +289,8 @@ const workflowGraphNodes = [
   {
     id: "smoke",
     label: "Smoke Reusable Workflows",
-    description: "Smoke caller that exercises reusable contracts with minimal commands.",
-    group: "Caller",
+    description: "Smoke Caller Workflow that exercises Reusable Workflows with minimal commands.",
+    group: "Caller Workflow",
     x: 0,
     y: 760,
     width: 216,
@@ -302,7 +302,7 @@ const workflowGraphNodes = [
     id: "fast-validation",
     label: "Fast Validation",
     description: "Format, lint, typecheck, build, and unit tests.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 320,
     y: 0,
     width: 208,
@@ -314,7 +314,7 @@ const workflowGraphNodes = [
     id: "integration-validation",
     label: "Integration Validation",
     description: "Services, migrations, packages, and integration suites.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 320,
     y: 136,
     width: 208,
@@ -326,7 +326,7 @@ const workflowGraphNodes = [
     id: "e2e-validation",
     label: "E2E Validation",
     description: "Browser, desktop, mobile, and artifact-backed e2e runs.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 320,
     y: 272,
     width: 208,
@@ -338,7 +338,7 @@ const workflowGraphNodes = [
     id: "storybook-validation",
     label: "Storybook Validation",
     description: "Storybook, interaction, accessibility, and visual checks.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 320,
     y: 408,
     width: 208,
@@ -350,7 +350,7 @@ const workflowGraphNodes = [
     id: "link-validation",
     label: "Link Validation",
     description: "Site crawling for routes, assets, and fragment anchors.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 320,
     y: 544,
     width: 208,
@@ -362,7 +362,7 @@ const workflowGraphNodes = [
     id: "performance-validation",
     label: "Performance Validation",
     description: "Unlighthouse, benchmarks, bundle size, and API reports.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 320,
     y: 680,
     width: 208,
@@ -374,7 +374,7 @@ const workflowGraphNodes = [
     id: "stage-validation",
     label: "Stage Validation",
     description: "Branch-stage checks for develop through production.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 664,
     y: 136,
     width: 208,
@@ -386,7 +386,7 @@ const workflowGraphNodes = [
     id: "validate-repo",
     label: "Validate Repo",
     description: "Compatibility path for existing scaffold-v2 callers.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 664,
     y: 320,
     width: 208,
@@ -398,7 +398,7 @@ const workflowGraphNodes = [
     id: "deploy-pages",
     label: "Deploy Pages",
     description: "Build artifact upload and GitHub Pages deployment.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 664,
     y: 504,
     width: 208,
@@ -410,8 +410,8 @@ const workflowGraphNodes = [
     id: "external-pull",
     label: "External Pull",
     description: "External server notification for pulling the current ref.",
-    group: "Reusable contract",
-    version: "No local caller",
+    group: "Reusable Workflow",
+    version: "No caller workflow",
     x: 1008,
     y: 504,
     width: 208,
@@ -423,7 +423,7 @@ const workflowGraphNodes = [
     id: "release-template",
     label: "Release Template",
     description: "Validate, build, publish, and upload release artifacts.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 664,
     y: 688,
     width: 208,
@@ -435,7 +435,7 @@ const workflowGraphNodes = [
     id: "package-publish",
     label: "Package Publish",
     description: "npm and Cargo package publication with explicit gating.",
-    group: "Reusable contract",
+    group: "Reusable Workflow",
     x: 1008,
     y: 688,
     width: 208,
@@ -447,8 +447,8 @@ const workflowGraphNodes = [
     id: "promote-branches",
     label: "Promote Branches",
     description: "Exact tested SHA promotion between maintained branches.",
-    group: "Reusable contract",
-    version: "No local caller",
+    group: "Reusable Workflow",
+    version: "No caller workflow",
     x: 1008,
     y: 320,
     width: 208,
@@ -582,7 +582,7 @@ function buildParsedWorkflows() {
     .map(([file, workflow]) => parseWorkflow(file, workflow))
     .sort((first, second) => {
       if (first.role !== second.role) {
-        return first.role === "Reusable contract" ? -1 : 1;
+        return first.role === "Reusable Workflow" ? -1 : 1;
       }
 
       return first.title.localeCompare(second.title);
@@ -627,7 +627,7 @@ function fallbackWorkflowMetadata(file: string): WorkflowMetadata {
     file,
     title,
     summary: `Workflow documentation for ${file}.`,
-    role: contracts[file] ? "Reusable contract" : "Local caller",
+    role: contracts[file] ? "Reusable Workflow" : "Caller Workflow",
     useWhen: `Use this workflow when ${title.toLowerCase()} is the appropriate repository automation entrypoint.`,
     responsibilities: ["Review the workflow source for repository-specific responsibilities."],
     icon: Workflow,
@@ -635,11 +635,11 @@ function fallbackWorkflowMetadata(file: string): WorkflowMetadata {
 }
 
 export function buildUsageSnippet(workflow: ParsedWorkflow) {
-  if (workflow.role === "Local caller") {
+  if (workflow.role === "Caller Workflow") {
     return `# ${workflow.file}
-# This workflow is a repository-local caller.
+# This workflow is a Caller Workflow.
 # It invokes:
-${workflow.dependencies.map((dependency) => `# - ${dependency}`).join("\n") || "# - no local reusable workflows"}`;
+${workflow.dependencies.map((dependency) => `# - ${dependency}`).join("\n") || "# - no invoked Reusable Workflows"}`;
   }
 
   const contractInputs = Object.entries(workflow.contract?.inputs ?? {})

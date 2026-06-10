@@ -43,7 +43,7 @@ export const metricsChartSeries: Array<{
   {
     color: "#c2410c",
     description:
-      "Throughput from the workflow contract JSON roundtrip benchmark over 10,000 iterations.",
+      "Throughput from the Contract Manifest JSON roundtrip benchmark over 10,000 iterations.",
     id: "benchmark",
     interpretation: "Higher values mean the contract data can be serialized and parsed faster.",
     label: "Benchmark ops/s",

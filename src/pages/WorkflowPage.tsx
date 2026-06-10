@@ -82,7 +82,7 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
   const callerWorkflows = workflow.callers
     .map((file) => parsedWorkflowsByFile.get(file))
     .filter((caller): caller is ParsedWorkflow => Boolean(caller));
-  const showDependencyCard = workflow.role === "Local caller" || dependencyWorkflows.length > 0;
+  const showDependencyCard = workflow.role === "Caller Workflow" || dependencyWorkflows.length > 0;
 
   return (
     <>
@@ -183,13 +183,13 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
             {showDependencyCard ? (
               <RelationshipCard
                 title="Uses these workflows"
-                emptyText="This workflow does not call another local reusable workflow."
+                emptyText="This workflow does not call another Reusable Workflow."
                 workflows={dependencyWorkflows}
               />
             ) : null}
             <RelationshipCard
               title="Used by these workflows"
-              emptyText="No local workflow currently calls this workflow."
+              emptyText="No Caller Workflow currently calls this workflow."
               workflows={callerWorkflows}
             />
           </div>

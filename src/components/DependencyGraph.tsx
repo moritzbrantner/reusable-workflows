@@ -117,10 +117,10 @@ export function DependencyGraph({
       </div>
       {showLegend ? (
         <div data-slot="dependency-graph-legend">
-          <span data-tone="accent">Caller</span>
-          <span data-tone="success">Reusable contract</span>
+          <span data-tone="accent">Caller Workflow</span>
+          <span data-tone="success">Reusable Workflow</span>
           <span data-tone="warning">Compatibility</span>
-          <span data-tone="muted">No local caller</span>
+          <span data-tone="muted">No caller workflow</span>
         </div>
       ) : null}
       {caption ? <figcaption>{caption}</figcaption> : null}

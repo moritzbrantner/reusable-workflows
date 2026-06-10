@@ -19,7 +19,7 @@ export type WorkflowMetadata = {
   file: string;
   title: string;
   summary: string;
-  role: "Reusable contract" | "Local caller";
+  role: "Reusable Workflow" | "Caller Workflow";
   useWhen: string;
   responsibilities: string[];
   icon: LucideIcon;

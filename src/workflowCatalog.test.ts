@@ -18,6 +18,15 @@ describe("workflow catalog", () => {
     expect(parsedWorkflows.map((workflow) => workflow.file).sort()).toEqual(workflowFiles);
   });
 
+  test("classifies reusable workflows and caller workflows with canonical role names", () => {
+    const deployPagesWorkflow = parsedWorkflowsByFile.get(".github/workflows/deploy-pages.yml");
+    const validateWorkflow = parsedWorkflowsByFile.get(".github/workflows/validate.yml");
+
+    expect(deployPagesWorkflow?.role).toBe("Reusable Workflow");
+    expect(validateWorkflow?.role).toBe("Caller Workflow");
+    expect(parsedWorkflows[0]?.role).toBe("Reusable Workflow");
+  });
+
   test("parses validate.yml triggers and reusable workflow dependencies", () => {
     const validateWorkflow = parsedWorkflowsByFile.get(".github/workflows/validate.yml");
 

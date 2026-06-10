@@ -62,7 +62,7 @@ export function AdoptionPage() {
               Reference home
             </a>
             <p className="eyebrow">Adoption Tool</p>
-            <h1 id="adoption-title">Generate and audit consumer workflows.</h1>
+            <h1 id="adoption-title">Generate and audit Caller Workflows.</h1>
             <p className="hero__lede">
               Select a common repository profile, generate starter caller workflow files, and audit
               pasted workflow YAML for the adoption mistakes that usually slow down migration.

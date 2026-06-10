@@ -1,13 +1,13 @@
 # Implementing The Reusable Workflows
 
-This guide explains how to adopt the reusable workflows from this repository in a consuming project.
-Use `README.md` as the contract reference; use this file as the implementation path.
+This guide explains how to adopt the Reusable Workflows from this repository in a Consumer Repository.
+Use `README.md` as the Workflow Contract reference; use this file as the implementation path.
 
 Current stable workflow ref: `workflow-standard-v1.3`.
 
 ## 1. Choose The Workflow Split
 
-Start with the smallest workflow set that matches the project.
+Start with the smallest Reusable Workflow set that matches the project.
 
 - Use `fast-validation.yml` on every pull request and default-branch push.
 - Add `integration-validation.yml` when the project has service, database, migration, package, or API checks.
@@ -23,11 +23,11 @@ Start with the smallest workflow set that matches the project.
 - Use `release-template.yml` for custom app releases or release flows that need repository-specific commands.
 - Keep `validate-repo.yml` only for existing scaffold-v2 callers that still need the older combined validation surface.
 
-Do not combine validation, deployment, publishing, and branch promotion in one caller workflow. Keep each lifecycle step in a separate job or file so each job can use the narrowest permissions and secrets.
+Do not combine validation, deployment, publishing, and branch promotion in one Caller Workflow. Keep each Lifecycle Step in a separate job or file so each job can use the narrowest permissions and secrets.
 
 ## 2. Pin The Reusable Workflow Ref
 
-Call workflows with a release tag, not a moving branch:
+Call workflows with a Release Tag, not a branch ref:
 
 ```yaml
 uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
@@ -37,13 +37,13 @@ Update consumers to a newer tag through normal pull requests. Do not point produ
 
 ## 3. Use The Adoption Tool
 
-Use the reference app's `/adoption` page to generate starter caller workflows for common repository
-profiles such as web apps, monorepo web apps, component libraries, packages, and Pages sites.
+Use the reference app's `/adoption` page to generate starter Caller Workflows for common Adoption
+Profiles such as web apps, monorepo web apps, component libraries, packages, and Pages sites.
 The generator emits complete workflow files with pinned refs, job-level permissions, and explicit
 secrets.
 
-To audit an existing consuming repository from the command line, run this repository's checker with
-the consumer repo as the root:
+To audit an existing Consumer Repository from the command line, run this repository's checker with
+the Consumer Repository as the root:
 
 ```sh
 bun scripts/check-adoption.ts --root ../consumer-repo
@@ -60,7 +60,7 @@ bun scripts/check-adoption.ts --root ../consumer-repo --strict
 ## 4. Configure Repository Permissions
 
 Set default workflow permissions to read-only in the consuming repository when possible.
-Then grant job-level permissions for each reusable workflow caller.
+Then grant job-level permissions for each Caller Workflow.
 
 Validation jobs usually need:
 
@@ -434,7 +434,7 @@ Before merging a consumer implementation:
 4. Confirm no caller uses `secrets: inherit`.
 5. Confirm private package tokens are passed only where needed.
 6. Confirm `working_directory` and cache dependency paths match monorepo layout.
-7. Run actionlint against the consumer workflows.
+7. Run actionlint against the Consumer Repository workflows.
 8. Open a pull request and verify artifacts upload only according to `upload_artifacts_on`.
 
 ## Common Mistakes
