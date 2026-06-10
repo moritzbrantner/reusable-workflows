@@ -23,14 +23,14 @@ test("renders the reusable workflow reference page", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /shared ci and release contracts/i }),
+    page.getByRole("heading", { name: /shared ci and release workflow contracts/i }),
   ).toBeVisible();
   await expect(page.locator(".hero").getByText("workflow-standard-v1")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Every workflow has a reference page." }),
   ).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Local workflow caller connection graph" }),
+    page.getByRole("img", { name: "Caller Workflow connection graph" }),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Deploy Pages" })).toBeVisible();
 });
@@ -45,7 +45,7 @@ test("keeps workflow connection navigation usable", async ({ page }) => {
   await expect(graph.getByText("Deploy Docs Pages")).toBeVisible();
   await expect(graph.getByText("Fast Validation")).toBeVisible();
   await expect(graph.getByText("Deploy Pages")).toBeVisible();
-  await expect(graph.getByText("No local caller")).toBeVisible();
+  await expect(graph.getByText("No caller workflow")).toBeVisible();
 });
 
 test("keeps dogfood navigation usable", async ({ page }) => {
@@ -84,7 +84,7 @@ test("renders the adoption generator and checker", async ({ page }) => {
   await page.goto("/adoption");
 
   await expect(
-    page.getByRole("heading", { name: "Generate and audit consumer workflows." }),
+    page.getByRole("heading", { name: "Generate and audit Caller Workflows." }),
   ).toBeVisible();
   await expect(page.getByLabel("Generated workflow YAML")).toContainText(
     "fast-validation.yml@workflow-standard-v1.3",
