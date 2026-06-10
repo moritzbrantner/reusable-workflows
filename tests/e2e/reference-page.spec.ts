@@ -29,9 +29,7 @@ test("renders the reusable workflow reference page", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Every workflow has a reference page." }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("img", { name: "Caller Workflow connection graph" }),
-  ).toBeVisible();
+  await expect(page.getByRole("img", { name: "Caller Workflow connection graph" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Deploy Pages" })).toBeVisible();
 });
 
