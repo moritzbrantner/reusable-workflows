@@ -36,13 +36,14 @@ const workflowDetails = [
     file: ".github/workflows/validate.yml",
     title: "Validate",
     summary:
-      "Main PR and push Caller Workflow that fans out into fast, integration, e2e, docs, link, performance, Stage Validation, compatibility, and actionlint checks.",
+      "Main CI Caller Workflow that runs fast PR checks first and gates heavier validation behind main-branch pushes, manual dispatch, or PR labels.",
     role: "Caller Workflow",
     useWhen:
-      "Use this local workflow as the repository-wide CI entrypoint for pushes and pull requests.",
+      "Use this local workflow as the repository-wide CI entrypoint for pull requests, main-branch pushes, and manual full validation.",
     responsibilities: [
-      "Calls the reusable validation workflows with this app's concrete Bun, Playwright, Workflow Contract, and build commands.",
-      "Runs actionlint over every workflow file after Reusable Workflow checks are configured.",
+      "Runs Fast Validation and actionlint as the default fail-fast gate.",
+      "Runs e2e, Storybook, link, performance, Stage Validation, integration, and compatibility jobs only after the fast gate passes.",
+      "Supports manual dispatch inputs and PR labels for selectively enabling costly validation suites.",
       "Keeps CI concurrency scoped to the workflow and Git ref.",
     ],
     icon: Workflow,
@@ -71,9 +72,10 @@ const workflowDetails = [
     useWhen:
       "Use this workflow to catch Workflow Contract regressions in Reusable Workflows without running the full application test suite.",
     responsibilities: [
-      "Calls every reusable validation workflow with no-op or smoke commands.",
+      "Runs automatically only when workflow API surface or contract-validation files change.",
+      "Calls every reusable validation workflow with no-op or smoke commands after the fast smoke check passes.",
       "Verifies optional setup paths can be disabled for smoke runs.",
-      "Exercises release and permissions-sensitive workflows with repository-local inputs.",
+      "Keeps a manual dispatch path for explicit Reusable Workflow smoke coverage.",
     ],
     icon: ShieldCheck,
   },

@@ -30,7 +30,7 @@ describe("workflow catalog", () => {
   test("parses validate.yml triggers and reusable workflow dependencies", () => {
     const validateWorkflow = parsedWorkflowsByFile.get(".github/workflows/validate.yml");
 
-    expect(validateWorkflow?.triggers).toEqual(["push", "pull_request"]);
+    expect(validateWorkflow?.triggers).toEqual(["push", "pull_request", "workflow_dispatch"]);
     expect(validateWorkflow?.dependencies).toEqual(
       expect.arrayContaining([
         ".github/workflows/e2e-validation.yml",

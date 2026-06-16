@@ -2,7 +2,48 @@ name: Validate
 
 on:
   push:
+    branches:
+      - main
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+    inputs:
+      run_full_validation:
+        description: "Run all validation jobs."
+        required: false
+        type: boolean
+        default: false
+      run_e2e:
+        description: "Run E2E validation."
+        required: false
+        type: boolean
+        default: false
+      run_storybook:
+        description: "Run Storybook validation."
+        required: false
+        type: boolean
+        default: false
+      run_link_validation:
+        description: "Run link validation."
+        required: false
+        type: boolean
+        default: false
+      run_performance:
+        description: "Run performance validation."
+        required: false
+        type: boolean
+        default: false
+      run_workflow_compatibility:
+        description: "Run reusable workflow compatibility jobs."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -27,6 +68,13 @@ jobs:
       unit_test_command: "bun run test:unit && bun run validate:contracts"
 
   integration-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_workflow_compatibility)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:workflow-compat')))
+      }}
     uses: ./.github/workflows/integration-validation.yml
     permissions:
       contents: read
@@ -40,6 +88,13 @@ jobs:
       artifact_paths: ""
 
   e2e-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:e2e')))
+      }}
     uses: ./.github/workflows/e2e-validation.yml
     permissions:
       contents: read
@@ -56,6 +111,13 @@ jobs:
         test-results
 
   storybook-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_storybook)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:storybook')))
+      }}
     uses: ./.github/workflows/storybook-validation.yml
     permissions:
       contents: read
@@ -76,6 +138,13 @@ jobs:
         test-results
 
   link-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_link_validation)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:links')))
+      }}
     uses: ./.github/workflows/link-validation.yml
     permissions:
       contents: read
@@ -96,6 +165,13 @@ jobs:
         linkinator-report.json
 
   performance-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
+      }}
     uses: ./.github/workflows/performance-validation.yml
     permissions:
       contents: read
@@ -117,9 +193,16 @@ jobs:
       summary_paths: |
         benchmark-results/*.md
         performance-results/current-build.md
-      upload_artifacts_on: always
+      upload_artifacts_on: ${{ github.event_name == 'pull_request' && 'failure' || 'always' }}
 
   stage-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_workflow_compatibility)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:workflow-compat')))
+      }}
     uses: ./.github/workflows/stage-validation.yml
     permissions:
       contents: read
@@ -132,6 +215,13 @@ jobs:
       artifact_paths: ""
 
   validate-repo-compatibility:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_workflow_compatibility)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:workflow-compat')))
+      }}
     uses: ./.github/workflows/validate-repo.yml
     permissions:
       contents: read

@@ -58,6 +58,31 @@ CI runs `scripts/validate-workflow-contracts.ts` to verify:
 - `README.md` and `SCAFFOLD_ALIGNMENT.md` document every Reusable Workflow
 - the sibling `monorepo/REUSABLE_WORKFLOWS.md` reference is current when that repo is checked out next to this one
 
+## CI Behavior
+
+This repository optimizes CI for fast PR feedback and lower GitHub Actions minutes.
+`Validate` runs on pull requests, manual dispatch, and pushes to `main`; feature-branch pushes do not run `Validate` directly.
+
+On ordinary pull requests, only Fast Validation and actionlint run by default.
+Costlier validation jobs run after those fast checks pass when a PR has the matching label, when `Validate` is manually dispatched with the matching input, or when code lands on `main`.
+Supported PR labels are:
+
+- `ci:full`
+- `ci:e2e`
+- `ci:storybook`
+- `ci:links`
+- `ci:perf`
+- `ci:workflow-compat`
+
+If branch protection or rulesets are enabled, require checks that always run on pull requests:
+
+- `Validate / app-validation`
+- `Validate / actionlint`
+
+Do not require `Smoke Reusable Workflows` while it uses path filters.
+GitHub leaves path-filtered required workflow checks pending when the workflow does not run.
+Keep `Smoke Reusable Workflows` optional, remove its path filters, or add a separate always-running required status job before making it required.
+
 The repository also ships `scripts/check-adoption.ts` for Consumer Repositories. It parses
 `.github/workflows/*.yml`, detects calls to `moritzbrantner/reusable-workflows`, warns about moving
 refs, inherited secrets, missing or weak job permissions, broad monorepo cache paths, and overly

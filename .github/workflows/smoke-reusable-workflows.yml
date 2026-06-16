@@ -2,7 +2,24 @@ name: Smoke Reusable Workflows
 
 on:
   push:
+    paths:
+      - ".github/workflows/**"
+      - "contracts/workflows.json"
+      - "scripts/validate-workflow-contracts.ts"
+      - "scripts/workflow-catalog-data.ts"
+      - "src/app/workflowCatalog.ts"
+      - "src/workflow-contracts.test.ts"
+      - "src/validate-workflow-contracts.test.ts"
   pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "contracts/workflows.json"
+      - "scripts/validate-workflow-contracts.ts"
+      - "scripts/workflow-catalog-data.ts"
+      - "src/app/workflowCatalog.ts"
+      - "src/workflow-contracts.test.ts"
+      - "src/validate-workflow-contracts.test.ts"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,6 +44,7 @@ jobs:
       unit_test_command: "echo smoke unit"
 
   integration-validation:
+    needs: fast-validation
     uses: ./.github/workflows/integration-validation.yml
     with:
       node_version: ""
@@ -38,6 +56,7 @@ jobs:
       artifact_paths: ""
 
   e2e-validation:
+    needs: fast-validation
     uses: ./.github/workflows/e2e-validation.yml
     with:
       node_version: ""
@@ -48,6 +67,7 @@ jobs:
       artifact_paths: ""
 
   storybook-validation:
+    needs: fast-validation
     uses: ./.github/workflows/storybook-validation.yml
     with:
       node_version: ""
@@ -60,6 +80,7 @@ jobs:
       artifact_paths: ""
 
   link-validation:
+    needs: fast-validation
     uses: ./.github/workflows/link-validation.yml
     with:
       node_version: ""
@@ -69,6 +90,7 @@ jobs:
       artifact_paths: ""
 
   performance-validation:
+    needs: fast-validation
     uses: ./.github/workflows/performance-validation.yml
     with:
       node_version: ""
@@ -83,6 +105,7 @@ jobs:
       artifact_paths: ""
 
   stage-validation:
+    needs: fast-validation
     uses: ./.github/workflows/stage-validation.yml
     with:
       stage: develop
@@ -93,6 +116,7 @@ jobs:
       artifact_paths: ""
 
   validate-repo:
+    needs: fast-validation
     uses: ./.github/workflows/validate-repo.yml
     with:
       node_version: ""
@@ -107,6 +131,7 @@ jobs:
       artifact_paths: ""
 
   release-template:
+    needs: fast-validation
     uses: ./.github/workflows/release-template.yml
     with:
       release_type: smoke
@@ -119,6 +144,7 @@ jobs:
       artifact_paths: ""
 
   package-publish-npm:
+    needs: fast-validation
     uses: ./.github/workflows/package-publish.yml
     with:
       package_manager: npm
@@ -131,6 +157,7 @@ jobs:
       artifact_paths: ""
 
   package-publish-cargo:
+    needs: fast-validation
     uses: ./.github/workflows/package-publish.yml
     with:
       package_manager: cargo

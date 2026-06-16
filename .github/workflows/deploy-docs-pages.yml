@@ -6,6 +6,8 @@ on:
       - Validate
     types:
       - completed
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:

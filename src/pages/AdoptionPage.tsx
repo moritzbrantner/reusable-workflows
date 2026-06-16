@@ -1,4 +1,6 @@
 import { ArrowLeft, ClipboardCheck, FileCode2 } from "lucide-react";
+import { Checkbox } from "@moritzbrantner/ui/components/stable/checkbox";
+import { RadioGroup, RadioGroupItem } from "@moritzbrantner/ui/components/stable/radio-group";
 import { useMemo, useState } from "react";
 
 import { adoptionProfileById, adoptionProfiles, packageManagers } from "../app/adoption/profiles";
@@ -109,22 +111,32 @@ export function AdoptionPage() {
                 <CardDescription>Starter workflows for the common repo shapes.</CardDescription>
               </CardHeader>
               <CardContent className="adoption-controls__content">
-                <div className="adoption-profile-grid" role="radiogroup" aria-label="Profile">
+                <RadioGroup
+                  aria-label="Profile"
+                  className="adoption-profile-grid"
+                  onValueChange={(value) => selectProfile(value as AdoptionProfileId)}
+                  value={options.profileId}
+                >
                   {adoptionProfiles.map((profile) => (
-                    <label className="adoption-choice" key={profile.id}>
-                      <input
-                        checked={options.profileId === profile.id}
-                        name="profile"
-                        onChange={() => selectProfile(profile.id)}
-                        type="radio"
+                    <div
+                      className="adoption-choice"
+                      data-state={options.profileId === profile.id ? "checked" : "unchecked"}
+                      key={profile.id}
+                    >
+                      <RadioGroupItem
+                        id={`profile-${profile.id}`}
+                        value={profile.id}
+                        aria-describedby={`profile-${profile.id}-description`}
                       />
-                      <span>
+                      <label className="adoption-choice__copy" htmlFor={`profile-${profile.id}`}>
                         <strong>{profile.label}</strong>
-                        <small>{profile.description}</small>
-                      </span>
-                    </label>
+                        <small id={`profile-${profile.id}-description`}>
+                          {profile.description}
+                        </small>
+                      </label>
+                    </div>
                   ))}
-                </div>
+                </RadioGroup>
 
                 <div className="adoption-field-grid">
                   <label>
@@ -278,15 +290,17 @@ function Toggle({
   label: string;
   onChange: (checked: boolean) => void;
 }) {
+  const id = `workflow-option-${label.toLowerCase().replaceAll(/\W+/g, "-")}`;
+
   return (
-    <label className="adoption-toggle">
-      <input
+    <div className="adoption-toggle" data-state={checked ? "checked" : "unchecked"}>
+      <Checkbox
         checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        type="checkbox"
+        id={id}
+        onCheckedChange={(nextChecked) => onChange(nextChecked === true)}
       />
-      <span>{label}</span>
-    </label>
+      <label htmlFor={id}>{label}</label>
+    </div>
   );
 }
 

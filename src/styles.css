@@ -1,4 +1,5 @@
-@import "@moritzbrantner/ui/studio/styles.css";
+@import "@moritzbrantner/ui/pop/styles.css";
+@import "@moritzbrantner/ui/component-sources.css";
 
 @source "./**/*.{ts,tsx}";
 
@@ -1028,14 +1029,17 @@ h4 {
 
 .adoption-layout {
   display: grid;
-  grid-template-columns: minmax(240px, 0.75fr) minmax(0, 1.25fr);
-  gap: clamp(2rem, 4rem, 5rem);
+  grid-template-columns: minmax(220px, 340px) minmax(0, 860px);
+  gap: clamp(2rem, 4vw, 4rem);
+  align-items: start;
 }
 
 .adoption-tool-grid,
 .adoption-audit-grid {
   display: grid;
   gap: 1rem;
+  min-width: 0;
+  max-width: 860px;
 }
 
 .adoption-controls__content,
@@ -1043,6 +1047,14 @@ h4 {
 .adoption-diagnostics-card .card-header,
 .adoption-output .card-header {
   padding-bottom: 1rem;
+}
+
+.adoption-controls,
+.adoption-output,
+.adoption-audit-card,
+.adoption-diagnostics-card {
+  width: 100%;
+  min-width: 0;
 }
 
 .adoption-profile-grid,
@@ -1065,16 +1077,16 @@ h4 {
   padding: 0.8rem;
 }
 
-.adoption-choice input,
-.adoption-toggle input {
+.adoption-choice [data-slot="radio-group-item"],
+.adoption-toggle [data-slot="checkbox"] {
   flex: 0 0 auto;
-  margin-top: 0.2rem;
-  accent-color: var(--accent);
+  margin: -0.35rem 0 -0.35rem -0.45rem;
 }
 
-.adoption-choice span {
+.adoption-choice__copy {
   display: grid;
   gap: 0.2rem;
+  min-width: 0;
 }
 
 .adoption-choice small,
@@ -1085,7 +1097,7 @@ h4 {
 }
 
 .adoption-choice strong,
-.adoption-toggle span {
+.adoption-toggle label {
   font-weight: 800;
 }
 
