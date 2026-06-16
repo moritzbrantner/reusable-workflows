@@ -95,20 +95,20 @@ test("changes generated YAML for each common adoption profile", async ({ page })
 
   const generatedYaml = page.getByLabel("Generated workflow YAML");
 
-  await page.getByRole("radio", { name: /Component library/ }).check({ force: true });
+  await page.getByText("Component library", { exact: true }).click();
   await expect(generatedYaml).toContainText("storybook-validation.yml@workflow-standard-v1.3");
 
-  await page.getByRole("radio", { name: /Package Package validation/ }).check({ force: true });
+  await page.getByText("Package", { exact: true }).click();
   await expect(generatedYaml).toContainText(".github/workflows/publish-package.yml");
   await expect(generatedYaml).toContainText("publish_enabled: false");
 
-  await page.getByRole("radio", { name: /Pages site/ }).check({ force: true });
+  await page.getByText("Pages site", { exact: true }).click();
   await expect(generatedYaml).toContainText(".github/workflows/deploy-pages.yml");
 
-  await page.getByRole("radio", { name: /Monorepo web app/ }).check({ force: true });
+  await page.getByText("Monorepo web app", { exact: true }).click();
   await expect(generatedYaml).toContainText("working_directory: apps/web");
 
-  await page.getByRole("radio", { name: /Web app/ }).check({ force: true });
+  await page.getByText("Web app", { exact: true }).click();
   await expect(generatedYaml).toContainText("e2e-validation.yml@workflow-standard-v1.3");
 });
 
