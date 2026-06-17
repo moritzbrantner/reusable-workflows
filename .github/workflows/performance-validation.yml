@@ -296,6 +296,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.artifact-name.outputs.name }}
+          include-hidden-files: true
           path: ${{ inputs.artifact_paths }}
           if-no-files-found: ignore
           retention-days: ${{ inputs.artifact_retention_days }}

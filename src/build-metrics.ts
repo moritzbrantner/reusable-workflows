@@ -26,6 +26,9 @@ export type BuildMetricsEntry = {
   bundle: {
     jsBytes: number | null;
     budgetBytes: number | null;
+    cssBytes: number | null;
+    cssBudgetBytes: number | null;
+    cssWithinBudget: boolean | null;
     withinBudget: boolean | null;
   };
   benchmark: {
@@ -158,7 +161,16 @@ export function buildMetricsEntryFromReports({
   const runAttempt = optionalNumberEnv(env, "GITHUB_RUN_ATTEMPT", 1);
   const commitSha = requiredEnv(env, "GITHUB_SHA");
   const branch = normalizeBranch(env.GITHUB_REF_NAME ?? env.GITHUB_REF ?? "");
-  const startedAt = env.BUILD_METRICS_STARTED_AT ?? completedAt;
+  const measuredCompletedAt = readString(buildReport, ["completedAt"]);
+  const entryCompletedAt =
+    measuredCompletedAt && isValidDateString(measuredCompletedAt)
+      ? measuredCompletedAt
+      : completedAt;
+  const measuredStartedAt = readString(buildReport, ["startedAt"]);
+  const startedAt =
+    measuredStartedAt && isValidDateString(measuredStartedAt)
+      ? measuredStartedAt
+      : (env.BUILD_METRICS_STARTED_AT ?? entryCompletedAt);
 
   return {
     id: `${runId}-${runAttempt}`,
@@ -172,7 +184,7 @@ export function buildMetricsEntryFromReports({
     commitUrl: `${serverUrl}/${repository}/commit/${commitSha}`,
     runUrl: `${serverUrl}/${repository}/actions/runs/${runId}/attempts/${runAttempt}`,
     startedAt,
-    completedAt,
+    completedAt: entryCompletedAt,
     status: "success",
     durations: {
       buildMs: readNumber(buildReport, ["durationMs"]),
@@ -180,6 +192,9 @@ export function buildMetricsEntryFromReports({
     bundle: {
       jsBytes: readNumber(bundleReport, ["jsBytes"]),
       budgetBytes: readNumber(bundleReport, ["budgetBytes"]),
+      cssBytes: readNumber(bundleReport, ["cssBytes"]),
+      cssBudgetBytes: readNumber(bundleReport, ["cssBudgetBytes"]),
+      cssWithinBudget: readBoolean(bundleReport, ["cssWithinBudget"]),
       withinBudget: readBoolean(bundleReport, ["withinBudget"]),
     },
     benchmark: {
@@ -200,6 +215,7 @@ export function buildMetricsMarkdown(entry: BuildMetricsEntry): string {
     `- Commit: [${entry.commitShortSha}](${entry.commitUrl})`,
     `- Build duration: ${formatNullable(entry.durations.buildMs, " ms")}`,
     `- JavaScript bundle: ${formatNullable(entry.bundle.jsBytes, " bytes")}`,
+    `- CSS bundle: ${formatNullable(entry.bundle.cssBytes, " bytes")}`,
     `- Benchmark throughput: ${formatNullable(entry.benchmark.operationsPerSecond, " ops/s")}`,
     `- Lighthouse score: ${formatScore(entry.lighthouse.score)}`,
     "",
@@ -233,6 +249,9 @@ function normalizeBuildMetricsEntry(value: unknown): unknown {
     bundle: {
       jsBytes: readNumber(value, ["bundle", "jsBytes"]),
       budgetBytes: readNumber(value, ["bundle", "budgetBytes"]),
+      cssBytes: readNumber(value, ["bundle", "cssBytes"]),
+      cssBudgetBytes: readNumber(value, ["bundle", "cssBudgetBytes"]),
+      cssWithinBudget: readBoolean(value, ["bundle", "cssWithinBudget"]),
       withinBudget: readBoolean(value, ["bundle", "withinBudget"]),
     },
     benchmark: {

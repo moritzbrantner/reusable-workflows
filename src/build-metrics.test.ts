@@ -50,8 +50,19 @@ describe("build metrics", () => {
   test("parses benchmark and Lighthouse reports into the current build shape", () => {
     const entry = buildMetricsEntryFromReports({
       benchmarkReport,
-      buildReport: { durationMs: 1200 },
-      bundleReport: { jsBytes: 123456, budgetBytes: 358400, withinBudget: true },
+      buildReport: {
+        completedAt: "2026-06-07T12:00:01.200Z",
+        durationMs: 1200,
+        startedAt: "2026-06-07T12:00:00.000Z",
+      },
+      bundleReport: {
+        budgetBytes: 358400,
+        cssBudgetBytes: 122880,
+        cssBytes: 45678,
+        cssWithinBudget: true,
+        jsBytes: 123456,
+        withinBudget: true,
+      },
       completedAt: "2026-06-07T12:00:00.000Z",
       env,
       lighthouseReport,
@@ -67,6 +78,26 @@ describe("build metrics", () => {
     expect(entry.lighthouse.categories.bestPractices).toBe(0.96);
     expect(entry.lighthouse.metrics.largestContentfulPaintMs).toBe(1355.8);
     expect(entry.bundle.withinBudget).toBe(true);
+    expect(entry.bundle.cssBytes).toBe(45678);
+    expect(entry.startedAt).toBe("2026-06-07T12:00:00.000Z");
+    expect(entry.completedAt).toBe("2026-06-07T12:00:01.200Z");
+  });
+
+  test("keeps old bundle metrics history entries without CSS fields", () => {
+    const build = makeBuild();
+    const legacyBuild = {
+      ...build,
+      bundle: {
+        budgetBytes: 358400,
+        jsBytes: 123456,
+        withinBudget: true,
+      },
+    };
+    const history = normalizeBuildMetricsHistory({ builds: [legacyBuild] });
+
+    expect(history.builds[0].bundle.cssBytes).toBeNull();
+    expect(history.builds[0].bundle.cssBudgetBytes).toBeNull();
+    expect(history.builds[0].bundle.cssWithinBudget).toBeNull();
   });
 
   test("uses null Lighthouse fields when the Lighthouse report is missing", () => {
@@ -89,7 +120,14 @@ describe("build metrics", () => {
       buildMetricsEntryFromReports({
         benchmarkReport,
         buildReport: { durationMs: 1200 },
-        bundleReport: { jsBytes: 123456, budgetBytes: 358400, withinBudget: true },
+        bundleReport: {
+          budgetBytes: 358400,
+          cssBudgetBytes: 122880,
+          cssBytes: 45678,
+          cssWithinBudget: true,
+          jsBytes: 123456,
+          withinBudget: true,
+        },
         completedAt: "2026-06-07T12:00:00.000Z",
         env: { ...env, GITHUB_RUN_ATTEMPT: "not-a-number" },
         lighthouseReport,
@@ -208,7 +246,14 @@ function makeBuild(overrides: Partial<BuildMetricsEntry> = {}): BuildMetricsEntr
     completedAt: overrides.completedAt ?? "2026-06-07T12:00:00.000Z",
     status: "success",
     durations: { buildMs: 1200 },
-    bundle: { jsBytes: 123456, budgetBytes: 358400, withinBudget: true },
+    bundle: {
+      budgetBytes: 358400,
+      cssBudgetBytes: 122880,
+      cssBytes: 45678,
+      cssWithinBudget: true,
+      jsBytes: 123456,
+      withinBudget: true,
+    },
     benchmark: {
       name: "workflow-contract-json-roundtrip",
       durationMs: 662.12,

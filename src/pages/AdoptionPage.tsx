@@ -1,6 +1,4 @@
 import { ArrowLeft, ClipboardCheck, FileCode2 } from "lucide-react";
-import { Checkbox } from "@moritzbrantner/ui/components/stable/checkbox";
-import { RadioGroup, RadioGroupItem } from "@moritzbrantner/ui/components/stable/radio-group";
 import { useMemo, useState } from "react";
 
 import { adoptionProfileById, adoptionProfiles, packageManagers } from "../app/adoption/profiles";
@@ -111,22 +109,21 @@ export function AdoptionPage() {
                 <CardDescription>Starter workflows for the common repo shapes.</CardDescription>
               </CardHeader>
               <CardContent className="adoption-controls__content">
-                <RadioGroup
-                  aria-label="Profile"
-                  className="adoption-profile-grid"
-                  onValueChange={(value) => selectProfile(value as AdoptionProfileId)}
-                  value={options.profileId}
-                >
+                <div aria-label="Profile" className="adoption-profile-grid" role="radiogroup">
                   {adoptionProfiles.map((profile) => (
                     <div
                       className="adoption-choice"
                       data-state={options.profileId === profile.id ? "checked" : "unchecked"}
                       key={profile.id}
                     >
-                      <RadioGroupItem
+                      <input
+                        checked={options.profileId === profile.id}
                         id={`profile-${profile.id}`}
-                        value={profile.id}
                         aria-describedby={`profile-${profile.id}-description`}
+                        name="adoption-profile"
+                        onChange={() => selectProfile(profile.id)}
+                        type="radio"
+                        value={profile.id}
                       />
                       <label className="adoption-choice__copy" htmlFor={`profile-${profile.id}`}>
                         <strong>{profile.label}</strong>
@@ -136,7 +133,7 @@ export function AdoptionPage() {
                       </label>
                     </div>
                   ))}
-                </RadioGroup>
+                </div>
 
                 <div className="adoption-field-grid">
                   <label>
@@ -294,10 +291,11 @@ function Toggle({
 
   return (
     <div className="adoption-toggle" data-state={checked ? "checked" : "unchecked"}>
-      <Checkbox
+      <input
         checked={checked}
         id={id}
-        onCheckedChange={(nextChecked) => onChange(nextChecked === true)}
+        onChange={(event) => onChange(event.target.checked)}
+        type="checkbox"
       />
       <label htmlFor={id}>{label}</label>
     </div>

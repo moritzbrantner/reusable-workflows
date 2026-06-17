@@ -59,7 +59,7 @@ export function MetricsTrendChart({ builds }: { builds: BuildMetricsHistory["bui
     <ChartPanel
       className="metrics-chart-panel"
       title="Performance trend"
-      description="Each KPI is indexed to its most recent available value at 100 for cross-metric comparison."
+      description="Each KPI is indexed to the oldest visible value at 100. Values below 100 show regression from that baseline."
     >
       <div className="metrics-chart-layout">
         <div className="metrics-chart" role="img" aria-label="Last 5 build metrics trend chart">

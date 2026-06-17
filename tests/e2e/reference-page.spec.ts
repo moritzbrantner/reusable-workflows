@@ -154,7 +154,14 @@ test("renders latest build metrics and the last-5 table from a fixture history",
           completedAt: `2026-06-07T12:${25 - index}:00.000Z`,
           status: "success",
           durations: { buildMs: 1200 + index * 100 },
-          bundle: { jsBytes: 128000 + index * 1000, budgetBytes: 358400, withinBudget: true },
+          bundle: {
+            budgetBytes: 430080,
+            cssBudgetBytes: 122880,
+            cssBytes: 32000 + index * 100,
+            cssWithinBudget: true,
+            jsBytes: 128000 + index * 1000,
+            withinBudget: true,
+          },
           benchmark: {
             name: "workflow-contract-json-roundtrip",
             durationMs: 600 + index,
@@ -196,7 +203,7 @@ test("renders latest build metrics and the last-5 table from a fixture history",
   await page.goto("/metrics");
 
   await expect(page.getByRole("heading", { name: "What each metric means." })).toBeVisible();
-  await expect(page.getByText("Chart value = run build duration")).toBeVisible();
+  await expect(page.getByText("Health index = oldest visible build duration")).toBeVisible();
   await expect(page.getByText("performance-results/build.json")).toBeVisible();
   await expect(page.getByRole("img", { name: "Last 5 build metrics trend chart" })).toBeVisible();
 });

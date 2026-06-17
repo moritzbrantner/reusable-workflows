@@ -1,10 +1,13 @@
-@import "@moritzbrantner/ui/pop/styles.css";
-@import "@moritzbrantner/ui/component-sources.css";
-
-@source "./**/*.{ts,tsx}";
-
 :root {
   color-scheme: light;
+  --background: oklch(0.985 0.012 145);
+  --foreground: oklch(0.19 0.035 155);
+  --muted-foreground: oklch(0.43 0.035 155);
+  --border: oklch(0.86 0.025 145);
+  --card: oklch(0.998 0.005 145);
+  --primary: oklch(0.43 0.11 155);
+  --primary-foreground: oklch(0.985 0.012 145);
+  --glass-shadow: 0 18px 60px color-mix(in oklch, var(--foreground) 12%, transparent);
   --bg: var(--background);
   --ink: var(--foreground);
   --muted: var(--muted-foreground);
@@ -39,6 +42,11 @@ body {
   background: var(--bg);
   color: var(--ink);
   line-height: 1.6;
+}
+
+.route-loading {
+  min-height: 100vh;
+  background: var(--bg);
 }
 
 a {
@@ -400,6 +408,7 @@ h4 {
 
 .connection-graph {
   overflow: hidden;
+  min-width: 320px;
   border: 0;
   border-radius: 6px;
   background:
@@ -1084,10 +1093,25 @@ h4 {
   padding: 0.8rem;
 }
 
-.adoption-choice [data-slot="radio-group-item"],
-.adoption-toggle [data-slot="checkbox"] {
+.adoption-choice input[type="radio"],
+.adoption-toggle input[type="checkbox"] {
   flex: 0 0 auto;
-  margin: -0.35rem 0 -0.35rem -0.45rem;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0.1rem 0 0;
+  accent-color: var(--accent);
+}
+
+.adoption-choice:focus-within,
+.adoption-toggle:focus-within {
+  outline: 3px solid color-mix(in oklch, var(--primary) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.adoption-choice[data-state="checked"],
+.adoption-toggle[data-state="checked"] {
+  border-color: color-mix(in oklch, var(--primary) 62%, var(--line) 38%);
+  background: color-mix(in oklch, var(--card) 82%, var(--primary) 18%);
 }
 
 .adoption-choice__copy {

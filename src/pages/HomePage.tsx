@@ -23,9 +23,9 @@ import {
   StatValue,
 } from "../components/ui";
 import { DependencyGraph } from "../components/DependencyGraph";
+import { MetricsSection } from "../components/MetricsSection";
 import { SiteHeader } from "../components/SiteHeader";
-import { MetricsSection } from "./MetricsPage";
-import { WorkflowIndex } from "./WorkflowPage";
+import { WorkflowIndex } from "../components/WorkflowIndex";
 
 export function HomePage() {
   const reusableWorkflows = parsedWorkflows.filter(
