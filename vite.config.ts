@@ -22,7 +22,8 @@ function workflowRoutePages() {
 
       const nestedIndexHtml = fs
         .readFileSync(indexPath, "utf8")
-        .replaceAll("./assets/", "../assets/");
+        .replaceAll("./assets/", "../assets/")
+        .replace('href="./favicon.svg"', 'href="../favicon.svg"');
       const slugs = fs
         .readdirSync(workflowsDir)
         .filter((file) => /\.ya?ml$/.test(file))
