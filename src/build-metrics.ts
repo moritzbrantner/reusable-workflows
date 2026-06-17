@@ -55,7 +55,7 @@ export type BuildMetricsEntry = {
 
 type JsonRecord = Record<string, unknown>;
 
-export const metricsHistoryLimit = 5;
+const metricsHistoryLimit = 5;
 
 export function emptyBuildMetricsHistory(generatedAt: string | null = null): BuildMetricsHistory {
   return {

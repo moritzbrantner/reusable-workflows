@@ -1,7 +1,7 @@
 import workflowContracts from "../../../contracts/workflows.json";
 import type { AdoptionOptions, AdoptionProfile, AdoptionProfileId, PackageManager } from "./types";
 
-export const defaultWorkflowRef = workflowContracts.workflow_standard;
+const defaultWorkflowRef = workflowContracts.workflow_standard;
 
 const baseOptions: AdoptionOptions = {
   profileId: "web-app",

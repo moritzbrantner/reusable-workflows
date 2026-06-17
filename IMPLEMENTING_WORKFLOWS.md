@@ -126,8 +126,6 @@ jobs:
       packages: read
     uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     with:
-      bun_version: "1.3.14"
-      install_command: bun install --frozen-lockfile
       format_command: bun run format:check
       lint_command: bun run lint
       typecheck_command: bun run check-types
@@ -146,7 +144,6 @@ jobs:
     uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     with:
       working_directory: apps/web
-      install_command: bun install --frozen-lockfile
       lint_command: bun run lint
       typecheck_command: bun run check-types
       build_command: bun run build
@@ -178,7 +175,6 @@ jobs:
       packages: read
     uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@workflow-standard-v1.3
     with:
-      install_command: bun install --frozen-lockfile
       format_command: bun run format:check
       lint_command: bun run lint
       typecheck_command: bun run check-types
@@ -239,9 +235,7 @@ jobs:
       packages: read
     uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1.3
     with:
-      install_command: bun install --frozen-lockfile
       build_command: bun run build
-      artifact_path: dist
 ```
 
 The reusable workflow exposes `page_url` if a downstream job needs the deployed URL:

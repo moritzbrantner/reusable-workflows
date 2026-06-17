@@ -8,7 +8,7 @@ import {
   slugFromPath,
   workflowHref,
 } from "./app/routes";
-import { parsedWorkflows, parsedWorkflowsBySlug } from "./app/workflowCatalog";
+import { parsedWorkflowsBySlug } from "./app/workflowCatalog";
 import { AdoptionPage } from "./pages/AdoptionPage";
 import { HomePage } from "./pages/HomePage";
 import { MetricsPage } from "./pages/MetricsPage";
@@ -35,4 +35,4 @@ function App() {
   return <HomePage />;
 }
 
-export { App, adoptionHref, appBasePath, homeHref, metricsHref, parsedWorkflows, workflowHref };
+export { App, adoptionHref, appBasePath, homeHref, metricsHref, workflowHref };

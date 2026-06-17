@@ -19,7 +19,7 @@ export type AdoptionOptions = {
   includePackagePublish: boolean;
 };
 
-export type AdoptionDiagnosticLevel = "warning" | "error";
+type AdoptionDiagnosticLevel = "warning" | "error";
 
 export type AdoptionDiagnostic = {
   code: string;

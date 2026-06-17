@@ -42,7 +42,7 @@ const workflowDetails = [
       "Use this local workflow as the repository-wide CI entrypoint for pull requests, main-branch pushes, and manual full validation.",
     responsibilities: [
       "Runs Fast Validation and actionlint as the default fail-fast gate.",
-      "Runs e2e, Storybook, link, performance, Stage Validation, integration, and compatibility jobs only after the fast gate passes.",
+      "Runs e2e, Storybook, link, and performance jobs only after the fast gate passes.",
       "Supports manual dispatch inputs and PR labels for selectively enabling costly validation suites.",
       "Keeps CI concurrency scoped to the workflow and Git ref.",
     ],
@@ -462,12 +462,6 @@ const workflowGraphNodes = [
 
 const workflowGraphEdges = [
   { id: "validate-fast", source: "validate", target: "fast-validation", label: "uses" },
-  {
-    id: "validate-integration",
-    source: "validate",
-    target: "integration-validation",
-    label: "uses",
-  },
   { id: "validate-e2e", source: "validate", target: "e2e-validation", label: "uses" },
   {
     id: "validate-storybook",
@@ -482,8 +476,6 @@ const workflowGraphEdges = [
     target: "performance-validation",
     label: "uses",
   },
-  { id: "validate-stage", source: "validate", target: "stage-validation", label: "uses" },
-  { id: "validate-compat", source: "validate", target: "validate-repo", label: "uses" },
   {
     id: "deploy-docs-pages-deploy",
     source: "deploy-docs-pages",

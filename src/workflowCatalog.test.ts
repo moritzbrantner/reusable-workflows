@@ -35,12 +35,9 @@ describe("workflow catalog", () => {
       expect.arrayContaining([
         ".github/workflows/e2e-validation.yml",
         ".github/workflows/fast-validation.yml",
-        ".github/workflows/integration-validation.yml",
         ".github/workflows/link-validation.yml",
         ".github/workflows/performance-validation.yml",
-        ".github/workflows/stage-validation.yml",
         ".github/workflows/storybook-validation.yml",
-        ".github/workflows/validate-repo.yml",
       ]),
     );
   });

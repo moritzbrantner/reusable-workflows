@@ -72,7 +72,6 @@ Supported PR labels are:
 - `ci:storybook`
 - `ci:links`
 - `ci:perf`
-- `ci:workflow-compat`
 
 If branch protection or rulesets are enabled, require checks that always run on pull requests:
 
@@ -278,7 +277,6 @@ jobs:
     uses: moritzbrantner/reusable-workflows/.github/workflows/deploy-pages.yml@workflow-standard-v1.3
     with:
       build_command: bun run build
-      artifact_path: dist
 ```
 
 ### External Pull

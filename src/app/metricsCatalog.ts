@@ -73,7 +73,7 @@ declare global {
 
 export const buildMetricsHistory = getBuildMetricsHistory();
 
-export function getBuildMetricsHistory(): BuildMetricsHistory {
+function getBuildMetricsHistory(): BuildMetricsHistory {
   if (typeof window !== "undefined" && window.buildMetricsHistoryFixture) {
     return window.buildMetricsHistoryFixture;
   }
