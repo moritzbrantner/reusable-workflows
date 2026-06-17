@@ -614,6 +614,26 @@ function parseWorkflow(
   };
 }
 
+export function workflowInputMetrics(workflows: ParsedWorkflow[]) {
+  const reusableWorkflows = workflows.filter((workflow) => workflow.role === "Reusable Workflow");
+  const inputNames = new Set<string>();
+
+  const totalInputSlots = reusableWorkflows.reduce((count, workflow) => {
+    const names = Object.keys(workflow.contract?.inputs ?? {});
+
+    for (const name of names) {
+      inputNames.add(name);
+    }
+
+    return count + names.length;
+  }, 0);
+
+  return {
+    totalInputSlots,
+    uniqueInputNames: inputNames.size,
+  };
+}
+
 function fallbackWorkflowMetadata(file: string): WorkflowMetadata {
   const title = titleFromSlug(slugFromFile(file));
 

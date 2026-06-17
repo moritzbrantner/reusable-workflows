@@ -87,6 +87,17 @@ The repository also ships `scripts/check-adoption.ts` for Consumer Repositories.
 refs, inherited secrets, missing or weak job permissions, broad monorepo cache paths, and overly
 broad artifact uploads, and exits nonzero only for errors unless `--strict` is passed.
 
+## Input Surface Metrics
+
+The reference app reports unique input names separately from workflow-specific input slots. In
+`workflow-standard-v1.3`, the Contract Manifest currently contains 79 unique input names and 279
+workflow-specific input slots across the 13 Reusable Workflows. The larger slot count is expected:
+common controls such as timeouts, concurrency, package setup, caches, artifacts, and working
+directories are repeated on each workflow that owns that behavior.
+
+Do not remove or rename inputs in `workflow-standard-v1.3`. Breaking input, secret, output, default,
+or behavior changes must ship under a new major Workflow Standard.
+
 ## Common Inputs
 
 Most validation workflows accept:
@@ -127,6 +138,24 @@ Playwright-based workflows accept `install_playwright_browsers`, which is passed
 Use `metrics_command` when a performance job should normalize build, bundle, benchmark, or Lighthouse outputs into a durable JSON artifact for dashboards or historical reports.
 
 `link-validation.yml` accepts `start_command`, `link_check_url`, and `link_check_command`. When `start_command` is set, the workflow starts it in the background, waits for `link_check_url`, exposes `LINK_CHECK_URL` and `LINK_CHECK_BASE_URL` to the link-check command, and stops the background process during cleanup. Callers must pass `link_check_command`; the examples use `linkinator` to crawl the configured URL, check fragments, and skip non-local external URLs.
+
+## Future v2 Input Reduction
+
+`workflow-standard-v2` should reduce workflow-specific input slots below 200 while preserving the
+Lifecycle Step split. The intended breaking changes are:
+
+- remove `validate-repo.yml` from the main standard and keep it as `workflow-standard-v1.3`
+  compatibility only
+- remove `concurrency_group` and `cancel_in_progress`; define concurrency in Caller Workflows
+- remove `cache_bun`, `cache_node`, and `cache_cargo`; use empty cache dependency path inputs to
+  disable caches
+- remove `artifact_name_suffix`; keep deterministic artifact names
+- remove `install_playwright`; use `install_playwright_browsers` as the single Playwright install
+  control
+- remove `install_xvfb`; include `xvfb-run` in the caller-provided command when a workflow needs it
+
+Consumers should stay on `workflow-standard-v1.3` until they intentionally migrate through a normal
+pull request to a published v2 Release Tag.
 
 ## Common Secrets
 

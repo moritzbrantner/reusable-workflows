@@ -53,6 +53,18 @@ Shared:
 - `stage-validation.yml`
 - `validate-repo.yml`
 
+## Future v2 alignment
+
+`workflow-standard-v1.3` keeps repeated common inputs because they are part of the released Workflow
+Contract. The reference app reports 79 unique input names separately from 279 workflow-specific
+input slots to make that distinction visible.
+
+A future `workflow-standard-v2` may reduce the slot count below 200 by removing `validate-repo.yml`
+from the main standard, moving concurrency to Caller Workflows, replacing cache booleans with empty
+cache dependency paths, removing `artifact_name_suffix`, consolidating Playwright setup into
+`install_playwright_browsers`, and requiring callers to put `xvfb-run` directly in commands that
+need it. Those changes must not be backported into `workflow-standard-v1.3`.
+
 ## Config references
 
 - `.platform-upgrader.json`: not applicable yet for this non-app repo

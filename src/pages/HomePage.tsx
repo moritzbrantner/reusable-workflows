@@ -3,7 +3,12 @@ import { ArrowUpRight, Boxes, Braces, Globe2, ShieldCheck } from "lucide-react";
 import workflowContracts from "../../contracts/workflows.json";
 import { buildMetricsHistory } from "../app/metricsCatalog";
 import { adoptionHref } from "../app/routes";
-import { parsedWorkflows, workflowGraphEdges, workflowGraphNodes } from "../app/workflowCatalog";
+import {
+  parsedWorkflows,
+  workflowGraphEdges,
+  workflowGraphNodes,
+  workflowInputMetrics,
+} from "../app/workflowCatalog";
 import {
   Badge,
   Card,
@@ -27,10 +32,7 @@ export function HomePage() {
     (workflow) => workflow.role === "Reusable Workflow",
   );
   const callerWorkflows = parsedWorkflows.filter((workflow) => workflow.role === "Caller Workflow");
-  const totalInputs = reusableWorkflows.reduce(
-    (count, workflow) => count + Object.keys(workflow.contract?.inputs ?? {}).length,
-    0,
-  );
+  const { totalInputSlots, uniqueInputNames } = workflowInputMetrics(parsedWorkflows);
   const outputCount = reusableWorkflows.filter(
     (workflow) => Object.keys(workflow.contract?.outputs ?? {}).length > 0,
   ).length;
@@ -81,9 +83,10 @@ export function HomePage() {
                 </StatDescription>
               </li>
               <li className="signal-board__stat">
-                <StatValue className="signal-board__stat-value">{totalInputs}</StatValue>
+                <StatValue className="signal-board__stat-value">{uniqueInputNames}</StatValue>
                 <StatDescription className="signal-board__stat-description">
-                  Documented inputs
+                  Unique inputs
+                  <span>{totalInputSlots} workflow-specific input slots</span>
                 </StatDescription>
               </li>
               <li className="signal-board__stat">

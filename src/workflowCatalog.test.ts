@@ -3,7 +3,11 @@ import path from "node:path";
 
 import { describe, expect, test } from "vitest";
 
-import { parsedWorkflows, parsedWorkflowsByFile } from "./app/workflowCatalog";
+import {
+  parsedWorkflows,
+  parsedWorkflowsByFile,
+  workflowInputMetrics,
+} from "./app/workflowCatalog";
 import { parseWorkflowForCatalog } from "../scripts/workflow-catalog-data";
 
 const workflowsDir = path.resolve(import.meta.dirname, "..", ".github", "workflows");
@@ -56,6 +60,13 @@ describe("workflow catalog", () => {
         stepCount: 11,
       }),
     ]);
+  });
+
+  test("counts unique input names separately from workflow-specific input slots", () => {
+    expect(workflowInputMetrics(parsedWorkflows)).toEqual({
+      totalInputSlots: 279,
+      uniqueInputNames: 79,
+    });
   });
 
   test("normalizes array-style needs and runs-on values", () => {

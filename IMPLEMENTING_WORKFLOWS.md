@@ -35,6 +35,27 @@ uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@wo
 
 Update consumers to a newer tag through normal pull requests. Do not point production repositories at `main`.
 
+### Future `workflow-standard-v2` Migration
+
+`workflow-standard-v1.3` intentionally keeps repeated common inputs on each Reusable Workflow. The
+reference app separates 79 unique input names from 279 workflow-specific input slots so consumers
+can distinguish the concept count from the full callable surface.
+
+A future `workflow-standard-v2` should reduce the slot count below 200. Treat these as breaking
+changes that require an explicit migration PR:
+
+- replace `validate-repo.yml` with the staged validation workflows; keep `validate-repo.yml` only
+  for `workflow-standard-v1.3` compatibility
+- move `concurrency_group` and `cancel_in_progress` to Caller Workflow `concurrency`
+- disable caches with empty cache dependency path inputs instead of `cache_bun`, `cache_node`, or
+  `cache_cargo`
+- remove `artifact_name_suffix` and rely on deterministic artifact names plus GitHub run metadata
+- replace `install_playwright` with `install_playwright_browsers` as the single Playwright setup
+  control
+- put `xvfb-run` directly in the command that needs it instead of using `install_xvfb`
+
+Do not apply those removals to `workflow-standard-v1.3` consumers.
+
 ## 3. Use The Adoption Tool
 
 Use the reference app's `/adoption` page to generate starter Caller Workflows for common Adoption

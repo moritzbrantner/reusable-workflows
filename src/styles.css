@@ -305,6 +305,13 @@ h4 {
   font-weight: 700;
 }
 
+.signal-board__stat-description span {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
 .pipeline {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
