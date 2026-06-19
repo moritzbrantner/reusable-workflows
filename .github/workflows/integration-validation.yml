@@ -122,7 +122,7 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set artifact name
         id: artifact-name

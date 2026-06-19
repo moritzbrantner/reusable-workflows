@@ -46,7 +46,7 @@ jobs:
             echo "::error::promotion_token is required for branch promotion." >&2
             exit 1
           fi
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           token: ${{ secrets.promotion_token }}
