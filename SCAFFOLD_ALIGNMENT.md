@@ -41,6 +41,7 @@ Shared:
 - workflow input/output contract for `external-pull.yml`
 - pinned tag history referenced by maintained repos
 - staged workflow contract for `workflow-standard-v1.3`
+- `coding-tooling-validation.yml` (private Consumer Repositories only)
 - `fast-validation.yml`
 - `integration-validation.yml`
 - `e2e-validation.yml`
