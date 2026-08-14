@@ -59,6 +59,11 @@ _Avoid_: Legacy workflow
 **Scaffold Contract**:
 The sibling `monorepo` scaffold-family contract that this repository aligns with where relevant, without overriding this repository's released Workflow Contracts.
 
+**Private Tooling Workflow**:
+The Reusable Workflow `coding-tooling-validation.yml`, available only to private Consumer
+Repositories owned by the same account, which adapts the private `coding-tooling` Action to the
+Workflow Contract. Public consumers use the public command-driven workflows instead.
+
 ## Reusable Workflows
 
 **Fast Validation**:
