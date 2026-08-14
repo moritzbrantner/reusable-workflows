@@ -18,6 +18,7 @@ The same checks can run locally with `bun run adoption:check`; use
 
 Use smaller Reusable Workflows by Lifecycle Step instead of one oversized workflow:
 
+- `coding-tooling-validation.yml`: private-consumer adapter that runs a pinned private `coding-tooling` Action and uploads its JSON report.
 - `fast-validation.yml`: PR/default-branch linting, formatting checks, typechecking, build, and unit tests.
 - `integration-validation.yml`: integration tests, service/database checks, migration checks, and package/API checks.
 - `e2e-validation.yml`: Playwright, browser, Electron, Tauri, or mobile e2e tests with artifacts.
@@ -86,6 +87,16 @@ The repository also ships `scripts/check-adoption.ts` for Consumer Repositories.
 `.github/workflows/*.yml`, detects calls to `moritzbrantner/reusable-workflows`, warns about moving
 refs, inherited secrets, missing or weak job permissions, broad monorepo cache paths, and overly
 broad artifact uploads, and exits nonzero only for errors unless `--strict` is passed.
+
+## Private coding-tooling consumers
+
+Private repositories owned by this GitHub account may use `coding-tooling-validation.yml` after
+`moritzbrantner/coding-tooling` grants Actions access to those private repositories. The workflow
+pins the private Action to an exact commit and accepts semantic validation tiers instead of shell
+commands. See [PRIVATE_CODING_TOOLING.md](PRIVATE_CODING_TOOLING.md).
+
+Public repositories cannot consume that private Action. They continue to use the public
+command-driven Lifecycle Workflows and public third-party Actions.
 
 ## Input Surface Metrics
 
