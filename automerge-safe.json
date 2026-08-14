@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Opt-in automerge for aged patch updates to development dependencies after required checks pass.",
+  "packageRules": [
+    {
+      "description": "Automerge development dependency patches after a 14-day release age",
+      "matchDepTypes": [
+        "devDependencies"
+      ],
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "minimumReleaseAge": "14 days",
+      "automerge": true,
+      "automergeType": "pr"
+    }
+  ]
+}

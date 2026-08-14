@@ -98,6 +98,22 @@ commands. See [PRIVATE_CODING_TOOLING.md](PRIVATE_CODING_TOOLING.md).
 Public repositories cannot consume that private Action. They continue to use the public
 command-driven Lifecycle Workflows and public third-party Actions.
 
+## Dependency update qualification
+
+Dependency updaters propose changes; Consumer Repository validation qualifies them. The private
+`coding-tooling-validation.yml` adapter can run a declared `dependency-update` tier for Dependabot
+or Renovate pull requests while the ordinary fast workflow remains required for every pull request.
+
+See [DEPENDENCY_UPDATES.md](DEPENDENCY_UPDATES.md) for rollout, caller examples, benchmark evidence,
+and the single-updater rule. This repository also publishes [`default.json`](default.json) as a
+conservative shareable Renovate preset and [`automerge-safe.json`](automerge-safe.json) as an
+explicit opt-in for aged development-dependency patch updates. The default preset does not
+automerge.
+
+The repository itself continues using its existing Dependabot configuration until Renovate is
+installed and activated. Do not enable both tools as version-update pull request producers for the
+same ecosystem.
+
 ## Input Surface Metrics
 
 The reference app reports unique input names separately from workflow-specific input slots. In
