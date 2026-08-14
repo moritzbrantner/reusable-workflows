@@ -57,7 +57,7 @@ jobs:
       - name: Run private coding-tooling Action
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@a0558661e9295202fa80d87f0a339c3041f5bf6d
+        uses: moritzbrantner/coding-tooling@7a656c1fb84f9f733f4855c785941542b410f7d1
         with:
           tier: ${{ inputs.tier }}
           component: ${{ inputs.component }}
@@ -75,7 +75,7 @@ jobs:
             echo
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Result: \`${{ steps.tooling.outcome }}\`"
-            echo "- Action revision: \`a0558661e9295202fa80d87f0a339c3041f5bf6d\`"
+            echo "- Action revision: \`7a656c1fb84f9f733f4855c785941542b410f7d1\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Name report artifact
