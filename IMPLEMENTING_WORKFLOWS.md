@@ -462,3 +462,14 @@ Before merging a consumer implementation:
 - Forgetting `contents: write` and a promotion token for `promote-branches.yml`.
 - Setting `working_directory` without also adjusting cache dependency paths in monorepos.
 - Uploading large artifacts on every PR by default. Prefer `failure` unless the artifact is intentionally reviewed.
+
+## Private repositories: deterministic tooling tier
+
+Private Consumer Repositories owned by this GitHub account may call
+`coding-tooling-validation.yml` after the private `moritzbrantner/coding-tooling` repository grants
+them Actions access. Public repositories cannot use this path and should keep the public workflows
+documented above.
+
+The private workflow accepts a semantic `tier` and reads `.coding-tooling.json`; it does not accept
+repository-specific command strings. It uploads the same JSON report produced by local agent and
+orchestrator runs. See [PRIVATE_CODING_TOOLING.md](PRIVATE_CODING_TOOLING.md).
