@@ -5,35 +5,42 @@
     ".github/workflows/coding-tooling-validation.yml": {
       "inputs": {
         "artifact_retention_days": {
+          "description": "Retention for the machine-readable report.",
           "required": false,
           "type": "number",
           "default": 7
         },
         "bun_version": {
+          "description": "Bun version used to execute the private Action.",
           "required": false,
           "type": "string",
           "default": "1.3.14"
         },
         "component": {
+          "description": "Optional component name or repository-relative path.",
           "required": false,
           "type": "string",
           "default": ""
         },
         "config": {
+          "description": "Repository-relative coding-tooling configuration path.",
           "required": false,
           "type": "string",
           "default": ".coding-tooling.json"
         },
         "strict": {
+          "description": "Fail when a selected capability is unavailable.",
           "required": false,
           "type": "boolean",
           "default": true
         },
         "tier": {
+          "description": "Validation tier from the consumer repository's coding-tooling configuration.",
           "required": true,
           "type": "string"
         },
         "timeout_minutes": {
+          "description": "Job timeout.",
           "required": false,
           "type": "number",
           "default": 30
