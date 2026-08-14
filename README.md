@@ -101,8 +101,8 @@ command-driven Lifecycle Workflows and public third-party Actions.
 ## Input Surface Metrics
 
 The reference app reports unique input names separately from workflow-specific input slots. In
-`workflow-standard-v1.3`, the Contract Manifest currently contains 79 unique input names and 279
-workflow-specific input slots across the 13 Reusable Workflows. The larger slot count is expected:
+`workflow-standard-v1.3`, the Contract Manifest currently contains 83 unique input names and 286
+workflow-specific input slots across the 14 Reusable Workflows. The larger slot count is expected:
 common controls such as timeouts, concurrency, package setup, caches, artifacts, and working
 directories are repeated on each workflow that owns that behavior.
 
