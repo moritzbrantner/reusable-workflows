@@ -38,12 +38,7 @@ Add `.coding-tooling.json`:
     ]
   },
   "requiredCapabilities": ["lint", "typecheck", "test:unit", "build"],
-  "optionalCapabilities": [
-    "test:integration",
-    "test:e2e",
-    "dependencies:audit",
-    "benchmark:smoke"
-  ],
+  "optionalCapabilities": ["test:integration", "test:e2e", "dependencies:audit", "benchmark:smoke"],
   "conventionRefs": ["AGENT-001", "AGENT-007", "TEST-002", "CI-001", "CI-003"]
 }
 ```
@@ -74,7 +69,6 @@ validation fails.
 
 Do not pass repository-specific shell commands through this interface. Those commands remain
 declared in the Consumer Repository and are discovered mechanically by `coding-tooling`.
-
 
 ## Dependency update Caller Workflow
 

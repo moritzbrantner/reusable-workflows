@@ -75,12 +75,7 @@ Private Consumer Repositories can declare:
     ]
   },
   "requiredCapabilities": ["lint", "typecheck", "test:unit", "build"],
-  "optionalCapabilities": [
-    "test:integration",
-    "test:e2e",
-    "dependencies:audit",
-    "benchmark:smoke"
-  ],
+  "optionalCapabilities": ["test:integration", "test:e2e", "dependencies:audit", "benchmark:smoke"],
   "conventionRefs": ["CI-001", "CI-003", "TEST-002"]
 }
 ```
