@@ -1,0 +1,99 @@
+name: Private Coding Tooling Validation
+
+on:
+  workflow_call:
+    inputs:
+      tier:
+        description: Validation tier from the consumer repository's coding-tooling configuration.
+        required: true
+        type: string
+      component:
+        description: Optional component name or repository-relative path.
+        required: false
+        type: string
+        default: ""
+      config:
+        description: Repository-relative coding-tooling configuration path.
+        required: false
+        type: string
+        default: .coding-tooling.json
+      strict:
+        description: Fail when a selected capability is unavailable.
+        required: false
+        type: boolean
+        default: true
+      bun_version:
+        description: Bun version used to execute the private Action.
+        required: false
+        type: string
+        default: 1.3.14
+      timeout_minutes:
+        description: Job timeout.
+        required: false
+        type: number
+        default: 30
+      artifact_retention_days:
+        description: Retention for the machine-readable report.
+        required: false
+        type: number
+        default: 7
+    outputs:
+      artifact_name:
+        description: Artifact containing the coding-tooling JSON report.
+        value: ${{ jobs.coding-tooling.outputs.artifact_name }}
+
+jobs:
+  coding-tooling:
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    outputs:
+      artifact_name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - name: Check out consumer repository
+        uses: actions/checkout@v6
+
+      - name: Run private coding-tooling Action
+        id: tooling
+        continue-on-error: true
+        uses: moritzbrantner/coding-tooling@9c0c6c19be0841fd6124a919e3ca42c04dd28dfc
+        with:
+          tier: ${{ inputs.tier }}
+          component: ${{ inputs.component }}
+          config: ${{ inputs.config }}
+          report-path: .artifacts/coding-tooling/report.json
+          strict: ${{ inputs.strict }}
+          bun-version: ${{ inputs.bun_version }}
+
+      - name: Write validation summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## coding-tooling validation"
+            echo
+            echo "- Tier: \`${{ inputs.tier }}\`"
+            echo "- Result: \`${{ steps.tooling.outcome }}\`"
+            echo "- Action revision: \`9c0c6c19be0841fd6124a919e3ca42c04dd28dfc\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Name report artifact
+        id: artifact
+        if: ${{ always() }}
+        shell: bash
+        run: echo "name=coding-tooling-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload coding-tooling report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: .artifacts/coding-tooling/report.json
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Propagate coding-tooling result
+        if: ${{ steps.tooling.outcome != 'success' }}
+        shell: bash
+        run: exit 1
