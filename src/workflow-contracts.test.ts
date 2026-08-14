@@ -7,6 +7,7 @@ describe("workflow contract data", () => {
     expect(workflowContracts.workflow_standard).toBe("workflow-standard-v1.3");
     expect(Object.keys(workflowContracts.workflows)).toEqual(
       expect.arrayContaining([
+        ".github/workflows/coding-tooling-validation.yml",
         ".github/workflows/fast-validation.yml",
         ".github/workflows/link-validation.yml",
         ".github/workflows/storybook-validation.yml",
