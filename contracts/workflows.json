@@ -2,6 +2,54 @@
   "schema_version": 1,
   "workflow_standard": "workflow-standard-v1.3",
   "workflows": {
+    ".github/workflows/coding-tooling-validation.yml": {
+      "inputs": {
+        "artifact_retention_days": {
+          "required": false,
+          "type": "number",
+          "default": 7
+        },
+        "bun_version": {
+          "required": false,
+          "type": "string",
+          "default": "1.3.14"
+        },
+        "component": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "config": {
+          "required": false,
+          "type": "string",
+          "default": ".coding-tooling.json"
+        },
+        "strict": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "tier": {
+          "required": true,
+          "type": "string"
+        },
+        "timeout_minutes": {
+          "required": false,
+          "type": "number",
+          "default": 30
+        }
+      },
+      "secrets": {},
+      "outputs": {
+        "artifact_name": {
+          "description": "Artifact containing the coding-tooling JSON report.",
+          "value": "${{ jobs.coding-tooling.outputs.artifact_name }}"
+        }
+      },
+      "permissions": {
+        "contents": "read"
+      }
+    },
     ".github/workflows/deploy-pages.yml": {
       "inputs": {
         "artifact_path": {
@@ -661,208 +709,6 @@
         "packages": "read"
       }
     },
-    ".github/workflows/performance-validation.yml": {
-      "inputs": {
-        "api_report_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "artifact_name_suffix": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "artifact_paths": {
-          "required": false,
-          "type": "string",
-          "default": ".unlighthouse\nunlighthouse-reports\nbenchmark-results\nperformance-results\n"
-        },
-        "artifact_retention_days": {
-          "required": false,
-          "type": "number",
-          "default": 7
-        },
-        "benchmark_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "build_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "bun_cache_dependency_path": {
-          "required": false,
-          "type": "string",
-          "default": "**/bun.lock"
-        },
-        "bun_version": {
-          "required": false,
-          "type": "string",
-          "default": "1.3.14"
-        },
-        "bundle_size_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "cache_bun": {
-          "required": false,
-          "type": "boolean",
-          "default": true
-        },
-        "cache_cargo": {
-          "required": false,
-          "type": "boolean",
-          "default": false
-        },
-        "cache_node": {
-          "required": false,
-          "type": "boolean",
-          "default": false
-        },
-        "cancel_in_progress": {
-          "required": false,
-          "type": "boolean",
-          "default": true
-        },
-        "cargo_cache_dependency_path": {
-          "required": false,
-          "type": "string",
-          "default": "**/Cargo.lock"
-        },
-        "install_playwright": {
-          "required": false,
-          "type": "boolean",
-          "default": false
-        },
-        "install_playwright_browsers": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "concurrency_group": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "install_command": {
-          "required": false,
-          "type": "string",
-          "default": "bun install --frozen-lockfile"
-        },
-        "metrics_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "node_version": {
-          "required": false,
-          "type": "string",
-          "default": "24"
-        },
-        "npm_cache_dependency_path": {
-          "required": false,
-          "type": "string",
-          "default": "**/package-lock.json"
-        },
-        "post_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "pre_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "summary_paths": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "timeout_minutes": {
-          "required": false,
-          "type": "number",
-          "default": 60
-        },
-        "unlighthouse_command": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "upload_artifacts_on": {
-          "required": false,
-          "type": "string",
-          "default": "failure"
-        },
-        "working_directory": {
-          "required": false,
-          "type": "string",
-          "default": "."
-        }
-      },
-      "secrets": {
-        "GH_PACKAGES_TOKEN": {
-          "required": false
-        },
-        "node_auth_token": {
-          "required": false
-        }
-      },
-      "outputs": {
-        "artifact_name": {
-          "description": "Failure or requested artifact name for this validation job.",
-          "value": "${{ jobs.performance-validation.outputs.artifact_name }}"
-        }
-      },
-      "permissions": {
-        "contents": "read",
-        "packages": "read"
-      }
-    },
-    ".github/workflows/promote-branches.yml": {
-      "inputs": {
-        "cancel_in_progress": {
-          "required": false,
-          "type": "boolean",
-          "default": false
-        },
-        "concurrency_group": {
-          "required": false,
-          "type": "string",
-          "default": ""
-        },
-        "source_branch": {
-          "required": true,
-          "type": "string"
-        },
-        "target_branch": {
-          "required": true,
-          "type": "string"
-        },
-        "tested_sha": {
-          "required": true,
-          "type": "string"
-        },
-        "timeout_minutes": {
-          "required": false,
-          "type": "number",
-          "default": 10
-        }
-      },
-      "secrets": {
-        "promotion_token": {
-          "required": true
-        }
-      },
-      "outputs": {},
-      "permissions": {
-        "contents": "write"
-      }
-    },
     ".github/workflows/package-publish.yml": {
       "inputs": {
         "package_manager": {
@@ -1063,6 +909,208 @@
         "contents": "read",
         "id-token": "write",
         "packages": "write"
+      }
+    },
+    ".github/workflows/performance-validation.yml": {
+      "inputs": {
+        "api_report_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "artifact_name_suffix": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "artifact_paths": {
+          "required": false,
+          "type": "string",
+          "default": ".unlighthouse\nunlighthouse-reports\nbenchmark-results\nperformance-results\n"
+        },
+        "artifact_retention_days": {
+          "required": false,
+          "type": "number",
+          "default": 7
+        },
+        "benchmark_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "build_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "bun_cache_dependency_path": {
+          "required": false,
+          "type": "string",
+          "default": "**/bun.lock"
+        },
+        "bun_version": {
+          "required": false,
+          "type": "string",
+          "default": "1.3.14"
+        },
+        "bundle_size_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "cache_bun": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "cache_cargo": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "cache_node": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "cancel_in_progress": {
+          "required": false,
+          "type": "boolean",
+          "default": true
+        },
+        "cargo_cache_dependency_path": {
+          "required": false,
+          "type": "string",
+          "default": "**/Cargo.lock"
+        },
+        "install_playwright": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "install_playwright_browsers": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "concurrency_group": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "install_command": {
+          "required": false,
+          "type": "string",
+          "default": "bun install --frozen-lockfile"
+        },
+        "metrics_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "node_version": {
+          "required": false,
+          "type": "string",
+          "default": "24"
+        },
+        "npm_cache_dependency_path": {
+          "required": false,
+          "type": "string",
+          "default": "**/package-lock.json"
+        },
+        "post_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "pre_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "summary_paths": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "timeout_minutes": {
+          "required": false,
+          "type": "number",
+          "default": 60
+        },
+        "unlighthouse_command": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "upload_artifacts_on": {
+          "required": false,
+          "type": "string",
+          "default": "failure"
+        },
+        "working_directory": {
+          "required": false,
+          "type": "string",
+          "default": "."
+        }
+      },
+      "secrets": {
+        "GH_PACKAGES_TOKEN": {
+          "required": false
+        },
+        "node_auth_token": {
+          "required": false
+        }
+      },
+      "outputs": {
+        "artifact_name": {
+          "description": "Failure or requested artifact name for this validation job.",
+          "value": "${{ jobs.performance-validation.outputs.artifact_name }}"
+        }
+      },
+      "permissions": {
+        "contents": "read",
+        "packages": "read"
+      }
+    },
+    ".github/workflows/promote-branches.yml": {
+      "inputs": {
+        "cancel_in_progress": {
+          "required": false,
+          "type": "boolean",
+          "default": false
+        },
+        "concurrency_group": {
+          "required": false,
+          "type": "string",
+          "default": ""
+        },
+        "source_branch": {
+          "required": true,
+          "type": "string"
+        },
+        "target_branch": {
+          "required": true,
+          "type": "string"
+        },
+        "tested_sha": {
+          "required": true,
+          "type": "string"
+        },
+        "timeout_minutes": {
+          "required": false,
+          "type": "number",
+          "default": 10
+        }
+      },
+      "secrets": {
+        "promotion_token": {
+          "required": true
+        }
+      },
+      "outputs": {},
+      "permissions": {
+        "contents": "write"
       }
     },
     ".github/workflows/release-template.yml": {
