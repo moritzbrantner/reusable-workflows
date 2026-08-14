@@ -64,8 +64,8 @@ describe("workflow catalog", () => {
 
   test("counts unique input names separately from workflow-specific input slots", () => {
     expect(workflowInputMetrics(parsedWorkflows)).toEqual({
-      totalInputSlots: 279,
-      uniqueInputNames: 79,
+      totalInputSlots: 286,
+      uniqueInputNames: 83,
     });
   });
 
