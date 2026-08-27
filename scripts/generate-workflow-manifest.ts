@@ -17,12 +17,8 @@ type WorkflowJob = {
 };
 
 type WorkflowFile = {
-  on?: {
-    workflow_call?: WorkflowCall;
-  };
-  true?: {
-    workflow_call?: WorkflowCall;
-  };
+  on?: unknown;
+  true?: unknown;
   jobs?: Record<string, WorkflowJob>;
 };
 
@@ -54,7 +50,16 @@ function readWorkflow(source: string): WorkflowFile {
 }
 
 function workflowCallFor(workflow: WorkflowFile): WorkflowCall | undefined {
-  return workflow.on?.workflow_call ?? workflow.true?.workflow_call;
+  for (const triggers of [workflow.on, workflow.true]) {
+    if (!isRecord(triggers) || !("workflow_call" in triggers)) {
+      continue;
+    }
+
+    const workflowCall = triggers.workflow_call;
+    return isRecord(workflowCall) ? (workflowCall as WorkflowCall) : {};
+  }
+
+  return undefined;
 }
 
 function sortedRecord(value: Record<string, unknown> | undefined): Record<string, unknown> {
