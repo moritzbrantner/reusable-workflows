@@ -2,8 +2,8 @@ import { describe, expect, test } from "vitest";
 
 import workflowContracts from "../contracts/workflows.json";
 
-describe("workflow contract data", () => {
-  test("documents the workflow-standard-v1.3 reusable workflow family", () => {
+describe("workflow-standard-v1.3 compatibility snapshot", () => {
+  test("keeps the released v1.3 interfaces available to the legacy reference UI", () => {
     expect(workflowContracts.workflow_standard).toBe("workflow-standard-v1.3");
     expect(Object.keys(workflowContracts.workflows)).toEqual(
       expect.arrayContaining([
@@ -17,13 +17,10 @@ describe("workflow contract data", () => {
       ]),
     );
     expect(
-      workflowContracts.workflows[".github/workflows/performance-validation.yml"].inputs,
-    ).toHaveProperty("metrics_command");
+      workflowContracts.workflows[".github/workflows/fast-validation.yml"].inputs,
+    ).toHaveProperty("format_command");
     expect(
-      workflowContracts.workflows[".github/workflows/package-publish.yml"].inputs,
-    ).toHaveProperty("package_manager");
-    expect(
-      workflowContracts.workflows[".github/workflows/external-pull.yml"].inputs,
-    ).toHaveProperty("request_timeout_seconds");
+      workflowContracts.workflows[".github/workflows/fast-validation.yml"].inputs,
+    ).toHaveProperty("unit_test_command");
   });
 });
