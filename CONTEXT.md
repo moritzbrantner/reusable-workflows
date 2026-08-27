@@ -1,101 +1,77 @@
-# Workflow Contract
+# Workflow Capability Context
 
-This context defines the language for the reusable GitHub Actions workflow contracts owned by this repository.
+This repository owns optional GitHub Actions adapter capabilities. It does not own the development model of consumer repositories.
 
 ## Language
 
-**Workflow Contract**:
-The versioned callable promise exposed by this repository's reusable GitHub Actions workflows. It includes inputs, secrets, outputs, permissions, defaults, and documented execution behavior.
-_Avoid_: Using contract to mean only a YAML file or only `contracts/workflows.json`
+**Workflow Capability**  
+A callable `.github/workflows/*.yml` unit that provides one GitHub-hosted responsibility. Capabilities are independently adoptable and should not require a repository to adopt a larger workflow family.
 
-**Contract Manifest**:
-The machine-readable registry in `contracts/workflows.json` for workflow interfaces and permissions. It is the validated data slice of the broader Workflow Contract.
-_Avoid_: Workflow schema, contract file
+**Caller Workflow**  
+A repository-local workflow that invokes a Workflow Capability with `jobs.<id>.uses`.
 
-**Reusable Workflow**:
-A `.github/workflows/*.yml` file that exposes `workflow_call` for consumer repositories.
-_Avoid_: Reusable contract, shared workflow
+**Consumer Repository**  
+A repository that chooses to invoke one or more Workflow Capabilities.
 
-**Caller Workflow**:
-A workflow that invokes a Reusable Workflow with `jobs.<id>.uses`.
-_Avoid_: Local caller, consumer workflow
+**Repository-owned validation**  
+Commands, configuration, and deterministic tooling that define what a repository considers valid. These should work locally without requiring this repository or an orchestrator.
 
-**Consumer Repository**:
-A repository that adopts this repository's Reusable Workflows.
-_Avoid_: Maintained repository, scaffold-family repository
+**Source-first development**  
+Development against repository sources, including exact sibling sources where appropriate, without requiring package publication or hosted cross-repository access as a prerequisite.
 
-**Workflow Standard**:
-A versioned contract family, such as `workflow-standard-v1.3`, that groups compatible Reusable Workflows.
+**Compatibility Release**  
+The immutable `workflow-standard-v1.3` tag and its historical contract snapshot. It exists for current callers but does not define the architecture of `main`.
 
-**Release Tag**:
-An immutable Git tag that Consumer Repositories pin to when adopting a Workflow Standard.
-_Avoid_: Moving branch, `main` ref for production consumers
+**Capability Release**  
+An optional immutable ref published for one or more compatible capability changes. New capability work must not depend on publishing a new monolithic Workflow Standard.
 
-**Adoption Tool**:
-The generator and audit surface for consumer workflow adoption. It creates starter Caller Workflow files and reports Adoption Diagnostics.
+**Generated Capability Manifest**  
+Machine-readable metadata derived from the current workflow YAML. Inputs, secrets, outputs, defaults, and permissions are not manually duplicated as an authoritative contract.
 
-**Adoption Profile**:
-A common Consumer Repository shape, such as web app, monorepo web app, component library, package, or Pages site.
+**Advanced Capability**  
+A capability such as branch promotion, stage validation, external deployment notification, or custom release automation that is useful only when a repository actually needs that structure.
 
-**Adoption Diagnostic**:
-A warning or error emitted while auditing consumer workflow YAML.
+## Ownership rules
 
-**Lifecycle Step**:
-A distinct CI or release responsibility owned by a Reusable Workflow, such as validation, deployment, publishing, release, or branch promotion.
-_Avoid_: Pipeline stage
+1. Workflow YAML owns the current hosted interface.
+2. Consumer repositories own semantic validation commands and source-workspace behavior.
+3. `coding-tooling` may execute the same repository checks locally or remotely, but GitHub access is not a prerequisite for the local path.
+4. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport execution and evidence.
+5. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
+6. Publication and release workflows are terminal, optional operations rather than development prerequisites.
+7. Concurrency policy belongs in Caller Workflows unless a GitHub API requires capability-local serialization.
 
-**Stage**:
-A named branch or deployment lane used by Stage Validation, such as `develop`, `nightly`, `beta`, `staging`, or `production`.
-_Avoid_: Pipeline stage, GitHub Environment
+## Capability classes
 
-**Branch Promotion**:
-Advancing an exact tested SHA from one branch or ref to another with safeguards.
-_Avoid_: Merge, deployment
+### Core validation
 
-**Compatibility Workflow**:
-A Reusable Workflow retained for existing scaffold-v2 callers while new consumers use the smaller staged workflows.
-_Avoid_: Legacy workflow
+- `fast-validation.yml`
+- `integration-validation.yml`
+- `e2e-validation.yml`
+- `storybook-validation.yml`
+- `link-validation.yml`
+- `performance-validation.yml`
 
-**Scaffold Contract**:
-The sibling `monorepo` scaffold-family contract that this repository aligns with where relevant, without overriding this repository's released Workflow Contracts.
+### Delivery
 
-## Reusable Workflows
+- `deploy-pages.yml`
+- `package-publish.yml`
 
-**Fast Validation**:
-The Reusable Workflow for formatting, linting, typechecking, builds, and unit tests that should finish early in pull request feedback.
+### Advanced
 
-**Integration Validation**:
-The Reusable Workflow for service checks, database checks, migration checks, package checks, and integration test suites.
+- `external-pull.yml`
+- `release-template.yml`
+- `stage-validation.yml`
+- `promote-branches.yml`
 
-**E2E Validation**:
-The Reusable Workflow for browser, desktop, mobile, Electron, Tauri, or Playwright-style end-to-end validation.
+### Compatibility only
 
-**Storybook Validation**:
-The Reusable Workflow for Storybook builds, interaction tests, accessibility checks, and visual validation.
+- `validate-repo.yml`
 
-**Link Validation**:
-The Reusable Workflow for crawling local or deployed sites to find broken links, missing assets, and fragment anchor failures.
+`validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` are repository-local Caller Workflows used to validate this repository itself.
 
-**Performance Validation**:
-The Reusable Workflow for slower performance-oriented checks such as Unlighthouse, benchmarks, bundle size, API reports, and normalized metrics.
+## Compatibility policy
 
-**Deploy Pages**:
-The Reusable Workflow for building and deploying a GitHub Pages artifact.
+`workflow-standard-v1.3` is frozen. Do not move the tag, publish `workflow-standard-v1.4`, or create a monolithic `workflow-standard-v2` merely to evolve current capabilities.
 
-**External Pull**:
-The Reusable Workflow for notifying an external deployment host to pull the current repository ref and SHA.
-
-**Package Publish**:
-The Reusable Workflow for ordinary npm-compatible registry or Cargo package publication.
-
-**Release Template**:
-The Reusable Workflow skeleton for repository-specific release flows that need validation, build, publish, and artifact upload commands.
-
-**Stage Validation**:
-The Reusable Workflow for running a command selected by Stage.
-
-**Promote Branches**:
-The Reusable Workflow for Branch Promotion between maintained branches.
-
-**Validate Repo**:
-The Compatibility Workflow for existing scaffold-v2 repositories that still use the older combined validation surface.
+Breaking changes on `main` are allowed when they establish the thinner capability model because existing consumers remain protected by their immutable v1.3 pin. New consumers of the capability line should use immutable commit SHAs until a deliberate capability-specific release exists.
