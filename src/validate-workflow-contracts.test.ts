@@ -91,7 +91,9 @@ jobs:
     runs-on: ubuntu-latest
 `);
 
-    expect(errors).toContain(".github/workflows/custom.yml job second must declare explicit permissions");
+    expect(errors).toContain(
+      ".github/workflows/custom.yml job second must declare explicit permissions",
+    );
   });
 
   test("keeps the released v1.3 compatibility snapshot explicit", () => {
