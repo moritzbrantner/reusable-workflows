@@ -17,8 +17,8 @@ type CompatibilitySnapshot = {
 };
 
 type WorkflowFile = {
-  on?: { workflow_call?: unknown };
-  true?: { workflow_call?: unknown };
+  on?: unknown;
+  true?: unknown;
   jobs?: Record<string, { permissions?: Record<string, unknown> }>;
 };
 
@@ -40,7 +40,9 @@ function readWorkflow(source: string): WorkflowFile {
 }
 
 function isCallable(workflow: WorkflowFile): boolean {
-  return Boolean(workflow.on?.workflow_call ?? workflow.true?.workflow_call);
+  return [workflow.on, workflow.true].some(
+    (triggers) => isRecord(triggers) && "workflow_call" in triggers,
+  );
 }
 
 export function validateWorkflowContractsState(state: ValidationState): string[] {
