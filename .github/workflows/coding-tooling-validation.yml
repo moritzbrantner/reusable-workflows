@@ -1,0 +1,116 @@
+name: Coding Tooling Validation
+
+on:
+  workflow_call:
+    inputs:
+      tier:
+        description: Validation tier declared by coding-tooling or the consumer repository.
+        required: true
+        type: string
+      component:
+        description: Optional component name or repository-relative path.
+        required: false
+        type: string
+        default: ""
+      config:
+        description: Repository-relative coding-tooling configuration path.
+        required: false
+        type: string
+        default: .coding-tooling.json
+      strict:
+        description: Fail when a selected coding-tooling capability is unavailable.
+        required: false
+        type: boolean
+        default: true
+      install_mode:
+        description: Let coding-tooling install supported consumer dependencies or skip installation.
+        required: false
+        type: string
+        default: auto
+      report_path:
+        description: Repository-relative path for the machine-readable coding-tooling report.
+        required: false
+        type: string
+        default: .artifacts/coding-tooling/report.json
+      timeout_minutes:
+        description: Maximum job runtime.
+        required: false
+        type: number
+        default: 30
+      artifact_retention_days:
+        description: Retention period for the coding-tooling report artifact.
+        required: false
+        type: number
+        default: 7
+    outputs:
+      artifact_name:
+        description: Name of the uploaded coding-tooling report artifact.
+        value: ${{ jobs.coding-tooling.outputs.artifact_name }}
+      report_path:
+        description: Repository-relative path used for the coding-tooling JSON report.
+        value: ${{ jobs.coding-tooling.outputs.report_path }}
+      outcome:
+        description: Outcome of the coding-tooling Action before failure propagation.
+        value: ${{ jobs.coding-tooling.outputs.outcome }}
+
+jobs:
+  coding-tooling:
+    name: Coding Tooling Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    outputs:
+      artifact_name: ${{ steps.report.outputs.artifact_name }}
+      report_path: ${{ steps.report.outputs.report_path }}
+      outcome: ${{ steps.tooling.outcome }}
+    steps:
+      - name: Check out consumer repository
+        uses: actions/checkout@v6
+
+      - name: Run coding-tooling
+        id: tooling
+        continue-on-error: true
+        uses: moritzbrantner/coding-tooling@1e231f2e96345c200e45f68a126ade5d61e73e40
+        with:
+          tier: ${{ inputs.tier }}
+          component: ${{ inputs.component }}
+          config: ${{ inputs.config }}
+          report-path: ${{ inputs.report_path }}
+          strict: ${{ inputs.strict }}
+          install-mode: ${{ inputs.install_mode }}
+
+      - name: Define report metadata
+        id: report
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          echo "artifact_name=coding-tooling-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+          echo "report_path=${{ inputs.report_path }}" >> "$GITHUB_OUTPUT"
+
+      - name: Write validation summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo "## coding-tooling validation"
+            echo
+            echo "- Tier: \`${{ inputs.tier }}\`"
+            echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
+            echo "- coding-tooling revision: \`1e231f2e96345c200e45f68a126ade5d61e73e40\`"
+            echo "- Report path: \`${{ inputs.report_path }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coding-tooling report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.report.outputs.artifact_name }}
+          path: ${{ inputs.report_path }}
+          if-no-files-found: warn
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Propagate coding-tooling failure
+        if: ${{ steps.tooling.outcome != 'success' }}
+        shell: bash
+        run: exit 1

@@ -115,4 +115,36 @@ jobs:
       "contracts/workflows.json must remain the frozen workflow-standard-v1.3 snapshot",
     );
   });
+
+  test("requires an immutable coding-tooling Action pin", () => {
+    const codingToolingWorkflow = `
+on:
+  workflow_call:
+    inputs:
+      tier:
+        required: true
+        type: string
+jobs:
+  coding-tooling:
+    permissions:
+      contents: read
+    steps:
+      - uses: moritzbrantner/coding-tooling@main
+`;
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml coding-tooling-validation.yml",
+        "CONTEXT.md": "fast-validation.yml coding-tooling-validation.yml",
+      },
+      compatibilitySnapshot,
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+        ".github/workflows/coding-tooling-validation.yml": codingToolingWorkflow,
+      },
+    });
+
+    expect(errors).toContain(
+      "coding-tooling-validation.yml must pin moritzbrantner/coding-tooling to an exact commit SHA",
+    );
+  });
 });
