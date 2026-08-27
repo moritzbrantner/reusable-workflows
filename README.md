@@ -36,11 +36,14 @@ source development -> local validation -> done
                                        -> optional release qualification -> publish
 ```
 
+Using `coding-tooling-validation.yml` in hosted CI does not change this rule. The same `coding-tooling run --tier ...` semantics remain directly usable locally; GitHub is only another execution environment.
+
 ## Current capabilities
 
 ### Core validation
 
-- `fast-validation.yml` — thin fail-fast adapter. The repository owns one validation command; the workflow owns checkout, runtime setup, installation, timeout, permissions, and execution.
+- `fast-validation.yml` — universal thin adapter around one repository-owned validation command. This is the public/generic fallback.
+- `coding-tooling-validation.yml` — preferred semantic validation adapter for private consumer repositories that can access `moritzbrantner/coding-tooling`. It runs a declared tier and uploads the machine-readable report.
 - `integration-validation.yml` — optional service, migration, package, and integration validation.
 - `e2e-validation.yml` — optional browser, desktop, mobile, or application-level validation.
 - `storybook-validation.yml` — optional component documentation and browser-backed component checks.
@@ -65,11 +68,11 @@ source development -> local validation -> done
 
 The local caller workflows `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` exercise this repository itself; they are not part of the reusable capability API.
 
-## Fast validation: next-generation shape
+## Validation choices
 
-`fast-validation.yml` is the first capability moved to the thinner model on `main`.
+### Generic / public consumers
 
-The repository decides what "fast validation" means and exposes that as one command. For example:
+`fast-validation.yml` accepts one repository-owned command:
 
 ```yaml
 jobs:
@@ -82,7 +85,34 @@ jobs:
       command: bun run validate:fast
 ```
 
-The workflow deliberately does not have separate `format_command`, `lint_command`, `typecheck_command`, `build_command`, or `unit_test_command` inputs on the new capability line. Those distinctions belong to repository tooling. Existing v1.3 callers keep the old interface by remaining pinned to `workflow-standard-v1.3`.
+The workflow deliberately does not have separate format, lint, typecheck, build, and unit-test inputs on the new capability line. Those distinctions belong to repository tooling.
+
+### Private consumers using coding-tooling
+
+For repositories that have GitHub Actions access to the private `moritzbrantner/coding-tooling` repository, prefer the semantic adapter:
+
+```yaml
+jobs:
+  fast:
+    permissions:
+      contents: read
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@<immutable-sha>
+    with:
+      tier: fast
+      strict: true
+```
+
+The hosted run delegates to the same deterministic interface used locally:
+
+```bash
+coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/report.json --json
+```
+
+`coding-tooling-validation.yml` pins the private Action to an exact commit, uploads its JSON report even when validation fails where possible, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
+
+This repository is public, so its own smoke workflow cannot execute the private Action. The adapter is syntax/contract validated here and should be exercised by private consumers that have access to `coding-tooling`.
+
+Existing v1.3 callers keep the old interfaces by remaining pinned to `workflow-standard-v1.3`.
 
 ## Contracts and generated metadata
 
@@ -109,7 +139,7 @@ This avoids maintaining inputs, defaults, secrets, outputs, and permissions twic
 Keep these in the caller or repository rather than growing reusable workflow inputs:
 
 - concurrency policy;
-- the exact validation command and semantic test tiers;
+- semantic tier definitions and repository capability commands;
 - source-workspace layout;
 - local-only dependency resolution;
 - profiler thresholds and benchmark interpretation;
@@ -120,7 +150,7 @@ Reusable workflows should mainly own GitHub-specific mechanics such as checkout,
 
 ## Dependency updates
 
-Dependency automation is a separate concern from workflow architecture. Dependabot or Renovate may propose updates, while repository-owned validation determines whether those updates are acceptable. See `DEPENDENCY_UPDATES.md`.
+Dependency automation is a separate concern from workflow architecture. Dependabot or Renovate may propose updates, while repository-owned validation determines whether those updates are acceptable. Private consumers may use `coding-tooling-validation.yml` with a `dependency-update` tier; public consumers can run equivalent repository-owned commands through the generic workflows. See `DEPENDENCY_UPDATES.md`.
 
 ## Repository validation
 
@@ -131,4 +161,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises the callable workflows with minimal commands. Expensive app-level validation remains optional and should not be used to define the workflow contract itself.
+`Smoke Reusable Workflows` exercises the public callable workflows with minimal commands. The private `coding-tooling-validation.yml` adapter is intentionally not called from this public repository.
