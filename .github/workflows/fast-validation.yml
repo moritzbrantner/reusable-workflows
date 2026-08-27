@@ -4,89 +4,34 @@ on:
   workflow_call:
     inputs:
       working_directory:
+        description: Repository-relative directory in which setup and validation run.
         required: false
         type: string
         default: "."
       node_version:
+        description: Node.js version to install. Empty disables Node setup.
         required: false
         type: string
         default: "24"
       bun_version:
+        description: Bun version to install. Empty disables Bun setup.
         required: false
         type: string
         default: "1.3.14"
       install_command:
+        description: Repository-owned dependency/setup command. Empty skips setup.
         required: false
         type: string
         default: "bun install --frozen-lockfile"
-      pre_command:
-        required: false
+      command:
+        description: Repository-owned fast validation command.
+        required: true
         type: string
-        default: ""
-      format_command:
-        required: false
-        type: string
-        default: ""
-      lint_command:
-        required: false
-        type: string
-        default: ""
-      typecheck_command:
-        required: false
-        type: string
-        default: ""
-      build_command:
-        required: false
-        type: string
-        default: ""
-      unit_test_command:
-        required: false
-        type: string
-        default: ""
-      test_command:
-        required: false
-        type: string
-        default: ""
-      post_command:
-        required: false
-        type: string
-        default: ""
       timeout_minutes:
+        description: Maximum job runtime.
         required: false
         type: number
         default: 20
-      cache_bun:
-        required: false
-        type: boolean
-        default: true
-      bun_cache_dependency_path:
-        required: false
-        type: string
-        default: "**/bun.lock"
-      cache_node:
-        required: false
-        type: boolean
-        default: false
-      npm_cache_dependency_path:
-        required: false
-        type: string
-        default: "**/package-lock.json"
-      cache_cargo:
-        required: false
-        type: boolean
-        default: false
-      cargo_cache_dependency_path:
-        required: false
-        type: string
-        default: "**/Cargo.lock"
-      concurrency_group:
-        required: false
-        type: string
-        default: ""
-      cancel_in_progress:
-        required: false
-        type: boolean
-        default: true
     secrets:
       node_auth_token:
         required: false
@@ -101,9 +46,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-    concurrency:
-      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-fast-validation', github.workflow, github.ref) }}
-      cancel-in-progress: ${{ inputs.cancel_in_progress }}
     defaults:
       run:
         shell: bash
@@ -126,64 +68,9 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
 
-      - name: Cache Bun
-        if: ${{ inputs.cache_bun }}
-        uses: actions/cache@v5
-        with:
-          path: ~/.bun/install/cache
-          key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
-          restore-keys: |
-            ${{ runner.os }}-bun-
-
-      - name: Cache npm
-        if: ${{ inputs.cache_node }}
-        uses: actions/cache@v5
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
-          restore-keys: |
-            ${{ runner.os }}-npm-
-
-      - name: Cache Cargo
-        if: ${{ inputs.cache_cargo }}
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles(inputs.cargo_cache_dependency_path) }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
       - name: Install dependencies
         if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
 
-      - name: Run pre-command
-        if: ${{ inputs.pre_command != '' }}
-        run: ${{ inputs.pre_command }}
-
-      - name: Check formatting
-        if: ${{ inputs.format_command != '' }}
-        run: ${{ inputs.format_command }}
-
-      - name: Lint
-        if: ${{ inputs.lint_command != '' }}
-        run: ${{ inputs.lint_command }}
-
-      - name: Typecheck
-        if: ${{ inputs.typecheck_command != '' }}
-        run: ${{ inputs.typecheck_command }}
-
-      - name: Build
-        if: ${{ inputs.build_command != '' }}
-        run: ${{ inputs.build_command }}
-
-      - name: Run unit tests
-        if: ${{ inputs.unit_test_command != '' || inputs.test_command != '' }}
-        run: ${{ inputs.unit_test_command || inputs.test_command }}
-
-      - name: Run post-command
-        if: ${{ always() && inputs.post_command != '' }}
-        run: ${{ inputs.post_command }}
+      - name: Run repository validation
+        run: ${{ inputs.command }}

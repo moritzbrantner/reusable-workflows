@@ -4,20 +4,18 @@ on:
   push:
     paths:
       - ".github/workflows/**"
-      - "contracts/workflows.json"
+      - "scripts/generate-workflow-manifest.ts"
       - "scripts/validate-workflow-contracts.ts"
       - "scripts/workflow-catalog-data.ts"
       - "src/app/workflowCatalog.ts"
-      - "src/workflow-contracts.test.ts"
       - "src/validate-workflow-contracts.test.ts"
   pull_request:
     paths:
       - ".github/workflows/**"
-      - "contracts/workflows.json"
+      - "scripts/generate-workflow-manifest.ts"
       - "scripts/validate-workflow-contracts.ts"
       - "scripts/workflow-catalog-data.ts"
       - "src/app/workflowCatalog.ts"
-      - "src/workflow-contracts.test.ts"
       - "src/validate-workflow-contracts.test.ts"
   workflow_dispatch:
 
@@ -37,11 +35,7 @@ jobs:
       node_version: ""
       bun_version: ""
       install_command: ""
-      format_command: "echo smoke format"
-      lint_command: "echo smoke lint"
-      typecheck_command: "echo smoke typecheck"
-      build_command: "echo smoke build"
-      unit_test_command: "echo smoke unit"
+      command: "echo smoke fast validation"
 
   integration-validation:
     needs: fast-validation

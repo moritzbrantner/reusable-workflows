@@ -1,74 +1,27 @@
-# SCAFFOLD_ALIGNMENT.md
+# Scaffold Alignment
 
-## Source of truth
+This repository no longer defines a workflow family that every scaffold should reproduce.
 
-The normative Scaffold Contract lives in `monorepo/SCAFFOLD_V2.md`. This repository is authoritative for released reusable Workflow Contracts after they are implemented, validated, documented, and tagged here.
+Scaffolds should expose repository-owned commands first and may then add whichever GitHub Workflow Capabilities are useful for that template.
 
-## Repo role
+## Default guidance
 
-`reusable-workflows` owns the shared GitHub Actions Workflow Contracts consumed by maintained Consumer Repositories, including scaffold-family repos.
+A new scaffold may start with only `fast-validation.yml`. Add integration, e2e, Storybook, link, performance, deployment, or publication capabilities only when the generated repository actually needs them.
 
-## What is local vs shared
+Caller workflows own repository policy such as triggers, concurrency, path filters, and which capabilities are required checks.
 
-Local:
+## Source-first repositories
 
-- reusable workflow YAML implementations
-- workflow validation for this repository
-- release tags such as `scaffold-v2-initial`
-- release tags such as `workflow-standard-v1.3`
-- the Contract Manifest in `contracts/workflows.json`
+Scaffolds that support sibling-source or development-mode dependencies must keep that mode independent of GitHub-hosted publication and private cross-repository checkout. The local/source path is authoritative for development; hosted workflows are optional adapters.
 
-Shared:
+## Compatibility
 
-- Scaffold Contract expectations documented in `monorepo/REUSABLE_WORKFLOWS.md`
-- consumer-facing pinned refs used by maintained repos
+`workflow-standard-v1.3` remains immutable for existing scaffold-v2 consumers. `validate-repo.yml` is compatibility-only and should not be emitted by new scaffolds.
 
-## Update path
+There is no planned monolithic `workflow-standard-v2`. New scaffold changes should compose independent capabilities and pin immutable revisions.
 
-1. Land Scaffold Contract changes in `monorepo` when the change starts from scaffold-family expectations.
-2. Implement the Workflow Contract changes here and validate with `actionlint`.
-3. Update the Contract Manifest in `contracts/workflows.json`.
-4. Run `bun run validate:contracts`.
-5. Tag a new reusable-workflows release.
-6. Adopt the new tag in consumer repos through normal PRs.
+## Contract ownership
 
-## What must not drift
+The current `.github/workflows/*.yml` files own their callable interfaces. `contracts/workflows.json` is the frozen v1.3 compatibility snapshot, not a second source of truth for `main`.
 
-- workflow input/output contract for `validate-repo.yml`
-- workflow input/output contract for `promote-branches.yml`
-- workflow input/output contract for `package-publish.yml`
-- workflow input/output contract for `release-template.yml`
-- workflow input/output contract for `external-pull.yml`
-- pinned tag history referenced by maintained repos
-- staged workflow contract for `workflow-standard-v1.3`
-- `fast-validation.yml`
-- `integration-validation.yml`
-- `e2e-validation.yml`
-- `storybook-validation.yml`
-- `link-validation.yml`
-- `performance-validation.yml`
-- `deploy-pages.yml`
-- `external-pull.yml`
-- `package-publish.yml`
-- `stage-validation.yml`
-- `validate-repo.yml`
-
-## Future v2 alignment
-
-`workflow-standard-v1.3` keeps repeated common inputs because they are part of the released Workflow
-Contract. The reference app reports 79 unique input names separately from 279 workflow-specific
-input slots to make that distinction visible.
-
-A future `workflow-standard-v2` may reduce the slot count below 200 by removing `validate-repo.yml`
-from the main standard, moving concurrency to Caller Workflows, replacing cache booleans with empty
-cache dependency paths, removing `artifact_name_suffix`, consolidating Playwright setup into
-`install_playwright_browsers`, and requiring callers to put `xvfb-run` directly in commands that
-need it. Those changes must not be backported into `workflow-standard-v1.3`.
-
-## Config references
-
-- `.platform-upgrader.json`: not applicable yet for this non-app repo
-- `.github/workflows/*.yml`
-- `contracts/workflows.json`
-- `scripts/validate-workflow-contracts.ts`
-- `README.md`
+Use `bun run contracts:generate` when current capability metadata is needed.
