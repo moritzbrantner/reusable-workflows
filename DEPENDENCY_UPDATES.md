@@ -21,6 +21,8 @@ Dependency pull requests should run the same repository-owned validation used fo
 
 The updater does not define completion and should not rewrite application code merely because a check failed. A concrete incompatibility can instead become normal agent-assisted migration work.
 
+Private repositories that use `coding-tooling` may express this evidence as a `dependency-update` tier and run it through `coding-tooling-validation.yml`. This keeps the semantic tier identical between local execution and GitHub qualification. Public repositories can run equivalent repository-owned commands through the generic workflow capabilities.
+
 ## Renovate defaults
 
 A future shared Renovate preset should be conservative:
@@ -32,7 +34,7 @@ A future shared Renovate preset should be conservative:
 - allow an opt-in aged patch-automerge policy only after the relevant checks are stable;
 - keep runtime and security-sensitive updates reviewable unless a repository chooses a narrower policy.
 
-This policy does not require a private `coding-tooling` GitHub Action. Local/source validation and hosted dependency qualification remain independent.
+The private `coding-tooling` Action is an optional qualification mechanism, not a prerequisite for dependency automation. Local/source validation, the updater, and hosted qualification remain separable layers.
 
 ## Benchmark evidence
 
