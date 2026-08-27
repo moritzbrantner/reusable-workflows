@@ -2,38 +2,71 @@ import { describe, expect, test } from "vitest";
 
 import { validateWorkflowContractsState } from "../scripts/validate-workflow-contracts";
 
-const docs = {
-  "README.md": "workflow-standard-v1.3 custom.yml",
-  "SCAFFOLD_ALIGNMENT.md": "workflow-standard-v1.3 custom.yml",
-};
+const fastWorkflow = `
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        required: false
+        type: string
+        default: "."
+      node_version:
+        required: false
+        type: string
+        default: "24"
+      bun_version:
+        required: false
+        type: string
+        default: "1.3.14"
+      install_command:
+        required: false
+        type: string
+        default: "bun install --frozen-lockfile"
+      command:
+        required: true
+        type: string
+      timeout_minutes:
+        required: false
+        type: number
+        default: 20
+jobs:
+  fast-validation:
+    permissions:
+      contents: read
+      packages: read
+`;
 
-const matchingContract = {
-  ".github/workflows/custom.yml": {
-    inputs: {},
-    permissions: {
-      contents: "read",
+const compatibilitySnapshot = {
+  workflow_standard: "workflow-standard-v1.3",
+  workflows: {
+    ".github/workflows/fast-validation.yml": {
+      inputs: {
+        format_command: {},
+        unit_test_command: {},
+      },
     },
   },
 };
 
-function validateWorkflowSource(source: string) {
+function validate(customWorkflow: string) {
   return validateWorkflowContractsState({
-    docs,
-    repoWorkflowPaths: [".github/workflows/custom.yml"],
-    workflowStandard: "workflow-standard-v1.3",
-    workflows: matchingContract,
+    docs: {
+      "README.md": "fast-validation.yml custom.yml",
+      "CONTEXT.md": "fast-validation.yml custom.yml",
+    },
+    compatibilitySnapshot,
     workflowSources: {
-      ".github/workflows/custom.yml": source,
+      ".github/workflows/fast-validation.yml": fastWorkflow,
+      ".github/workflows/custom.yml": customWorkflow,
     },
   });
 }
 
-describe("workflow contract validator", () => {
-  test("accepts matching permissions across every job", () => {
-    const errors = validateWorkflowSource(`
+describe("workflow capability validator", () => {
+  test("accepts callable workflows with explicit permissions", () => {
+    const errors = validate(`
 on:
   workflow_call:
-    inputs: {}
 jobs:
   first:
     permissions:
@@ -46,31 +79,10 @@ jobs:
     expect(errors).toEqual([]);
   });
 
-  test("fails when a later job declares extra permissions", () => {
-    const errors = validateWorkflowSource(`
+  test("fails when a callable job omits explicit permissions", () => {
+    const errors = validate(`
 on:
   workflow_call:
-    inputs: {}
-jobs:
-  first:
-    permissions:
-      contents: read
-  second:
-    permissions:
-      contents: read
-      issues: write
-`);
-
-    expect(errors).toContain(
-      "Permission contract drift in .github/workflows/custom.yml job second",
-    );
-  });
-
-  test("fails when a later job omits documented permissions", () => {
-    const errors = validateWorkflowSource(`
-on:
-  workflow_call:
-    inputs: {}
 jobs:
   first:
     permissions:
@@ -80,7 +92,59 @@ jobs:
 `);
 
     expect(errors).toContain(
-      "Permission contract drift in .github/workflows/custom.yml job second",
+      ".github/workflows/custom.yml job second must declare explicit permissions",
+    );
+  });
+
+  test("keeps the released v1.3 compatibility snapshot explicit", () => {
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml",
+        "CONTEXT.md": "fast-validation.yml",
+      },
+      compatibilitySnapshot: {
+        workflow_standard: "workflow-standard-v2",
+        workflows: compatibilitySnapshot.workflows,
+      },
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+      },
+    });
+
+    expect(errors).toContain(
+      "contracts/workflows.json must remain the frozen workflow-standard-v1.3 snapshot",
+    );
+  });
+
+  test("requires an immutable coding-tooling Action pin", () => {
+    const codingToolingWorkflow = `
+on:
+  workflow_call:
+    inputs:
+      tier:
+        required: true
+        type: string
+jobs:
+  coding-tooling:
+    permissions:
+      contents: read
+    steps:
+      - uses: moritzbrantner/coding-tooling@main
+`;
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml coding-tooling-validation.yml",
+        "CONTEXT.md": "fast-validation.yml coding-tooling-validation.yml",
+      },
+      compatibilitySnapshot,
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+        ".github/workflows/coding-tooling-validation.yml": codingToolingWorkflow,
+      },
+    });
+
+    expect(errors).toContain(
+      "coding-tooling-validation.yml must pin moritzbrantner/coding-tooling to an exact commit SHA",
     );
   });
 });

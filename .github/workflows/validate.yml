@@ -54,11 +54,7 @@ jobs:
       contents: read
       packages: read
     with:
-      format_command: "bun run format:check"
-      lint_command: "bun run lint"
-      typecheck_command: "bun run check-types"
-      build_command: "bun run build"
-      unit_test_command: "bun run test:unit && bun run validate:contracts && bun run size:check:dist"
+      command: "bun run validate:fast"
 
   e2e-validation:
     needs: [app-validation, actionlint]
