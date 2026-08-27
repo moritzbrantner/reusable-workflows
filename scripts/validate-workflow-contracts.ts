@@ -29,6 +29,8 @@ export type ValidationState = {
 };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
+const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -77,6 +79,13 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
         errors.push(`${relativePath} job ${jobId} must declare explicit permissions`);
       }
     }
+  }
+
+  const codingToolingSource = state.workflowSources[codingToolingWorkflowPath];
+  if (codingToolingSource && !immutableCodingToolingUse.test(codingToolingSource)) {
+    errors.push(
+      "coding-tooling-validation.yml must pin moritzbrantner/coding-tooling to an exact commit SHA",
+    );
   }
 
   const fastInputs = Object.keys(
