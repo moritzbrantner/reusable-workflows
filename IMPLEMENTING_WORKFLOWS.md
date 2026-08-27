@@ -2,15 +2,23 @@
 
 Adopt only the GitHub-hosted capabilities a repository currently needs. Local development and repository-owned validation come first.
 
-## 1. Establish a repository command
+## 1. Establish local validation
 
-Before adding a reusable workflow, make the desired check runnable from the repository itself. A fast validation command should be deterministic and usable locally, for example `bun run validate:fast`, `cargo test`, `dotnet test`, or a `coding-tooling` tier exposed through a repository script.
+Before adding a reusable workflow, make the desired check runnable from the repository itself.
 
-The hosted workflow should not become the only place where validation semantics exist.
+For a generic repository this may be `bun run validate:fast`, `cargo test`, or `dotnet test`. For repositories using `coding-tooling`, prefer a semantic tier that is usable directly by humans and agents:
 
-## 2. Add the smallest useful capability
+```bash
+coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/report.json --json
+```
 
-For most repositories, begin with `fast-validation.yml` only:
+The hosted workflow should never become the only place where validation semantics exist.
+
+## 2. Choose the smallest hosted adapter
+
+### Generic or public repository
+
+Use `fast-validation.yml` around one repository-owned command:
 
 ```yaml
 name: Validate
@@ -34,7 +42,37 @@ jobs:
       command: bun run validate:fast
 ```
 
-Caller-owned concurrency is intentional. The reusable capability should not invent a repository-wide concurrency policy.
+### Private repository using coding-tooling
+
+If the private consumer has GitHub Actions access to `moritzbrantner/coding-tooling`, prefer `coding-tooling-validation.yml`:
+
+```yaml
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fast:
+    permissions:
+      contents: read
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@<immutable-sha>
+    with:
+      tier: fast
+      strict: true
+```
+
+The adapter checks out the consumer, invokes an exact-pinned `coding-tooling` Action, uploads `.artifacts/coding-tooling/report.json` by default, writes a job summary, and propagates the tooling result. Tier contents remain in `coding-tooling` defaults or the consumer's `.coding-tooling.json`.
+
+The `coding-tooling` Action is private. Public consumers should use `fast-validation.yml` or other public command-driven capabilities instead.
+
+Caller-owned concurrency is intentional. Reusable capabilities should not invent a repository-wide concurrency policy.
 
 ## 3. Add capabilities only when evidence requires them
 
@@ -54,9 +92,9 @@ There is no required adoption profile and no requirement to assemble these into 
 
 Hosted CI does not need to reconstruct every sibling-source workspace.
 
-If a repository uses exact sibling sources during development, validate those relationships locally with repository tooling. Do not introduce package publication, private Action access, or credential-dependent remote source checkout merely so a GitHub runner can imitate the local workspace.
+If a repository uses exact sibling sources during development, validate those relationships locally with repository tooling. The presence of `coding-tooling-validation.yml` does not change that boundary: do not introduce package publication or credential-dependent remote source checkout merely so a GitHub runner can imitate the local workspace.
 
-CI can still verify the repository in the contexts it legitimately supports. Release qualification may separately verify published dependency paths when publication becomes relevant.
+CI can still run a tier that is valid for its isolated checkout. Release qualification may separately verify published dependency paths when publication becomes relevant.
 
 ## 5. Publication is opt-in
 
@@ -67,9 +105,9 @@ Recommended shape:
 ```text
 local/source development
         |
-        +-> repository validation
+        +-> coding-tooling / repository validation
         |
-        +-> optional GitHub validation
+        +-> optional GitHub reproduction
         |
         `-> optional release qualification -> publication
 ```
@@ -96,4 +134,4 @@ bun run contracts:generate
 
 ## Dependency automation
 
-Renovate or Dependabot proposes dependency changes; repository-owned validation qualifies them. Keep one updater responsible for a given ecosystem and do not couple dependency automation to private hosted `coding-tooling` access. See `DEPENDENCY_UPDATES.md`.
+Renovate or Dependabot proposes dependency changes; repository-owned validation qualifies them. Keep one updater responsible for a given ecosystem. Private consumers may use `coding-tooling-validation.yml` with a `dependency-update` tier; this is a validation choice, not a dependency on the updater itself. See `DEPENDENCY_UPDATES.md`.
