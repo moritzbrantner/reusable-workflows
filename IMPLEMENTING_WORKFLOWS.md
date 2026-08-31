@@ -2,6 +2,24 @@
 
 Adopt only the GitHub-hosted capabilities a repository currently needs. Local development and repository-owned validation come first.
 
+## Start by separating validation from lifecycle
+
+A validation capability says what is checked. A validation tier/depth composes deterministic capabilities into a repository-owned command such as `fast`, `standard`, `deep`, or `release`. A lifecycle says when the caller runs that command.
+
+Keep the direction of ownership explicit:
+
+```text
+repository and coding-tooling define capabilities + tiers
+        |
+        +--> humans and coding agents locally
+        |
+        `--> reusable workflow adapter on GitHub
+                 |
+                 `--> caller selects pull request, main, nightly, or release timing
+```
+
+This lets local agents and hosted CI run the same deterministic tier. `nightly`, `beta`/release candidate, and stable are normally lifecycle/release concepts, not extra validation capabilities.
+
 ## 1. Establish local validation
 
 Before adding a reusable workflow, make the desired check runnable from the repository itself.
@@ -74,7 +92,22 @@ The `coding-tooling` Action is private. Public consumers should use `fast-valida
 
 Caller-owned concurrency is intentional. Reusable capabilities should not invent a repository-wide concurrency policy.
 
-## 3. Add capabilities only when evidence requires them
+## 3. Choose lifecycle timing in the caller
+
+Lifecycle guidance is progressive rather than prescriptive:
+
+```text
+local agent handoff -> fast
+pull request        -> fast, optionally affected or deeper checks
+main                -> normal confidence suite
+nightly             -> expensive or deep checks
+release candidate   -> qualify an exact commit or artifact
+stable release      -> publish or promote that qualified immutable candidate
+```
+
+The names above are not required tier names or a branching strategy. Prefer exact commit/artifact qualification and promotion over a required long-lived branch chain. Put triggers, schedules, concurrency, path filters, and required-check policy in the caller workflow.
+
+## 4. Add capabilities only when evidence requires them
 
 Possible additions are independent:
 
@@ -86,9 +119,9 @@ Possible additions are independent:
 - `deploy-pages.yml` for GitHub Pages;
 - `package-publish.yml` for explicit package publication.
 
-There is no required adoption profile and no requirement to assemble these into a single standard pipeline.
+The semantic workflows above remain usable, especially for existing consumers. For new architecture, prefer exposing repository or `coding-tooling` semantics through the preferred core adapters instead of widening their YAML interfaces. There is no required adoption profile and no requirement to assemble these into a single standard pipeline.
 
-## 4. Keep source-first work local when appropriate
+## 5. Keep source-first work local when appropriate
 
 Hosted CI does not need to reconstruct every sibling-source workspace.
 
@@ -96,7 +129,7 @@ If a repository uses exact sibling sources during development, validate those re
 
 CI can still run a tier that is valid for its isolated checkout. Release qualification may separately verify published dependency paths when publication becomes relevant.
 
-## 5. Publication is opt-in
+## 6. Publication is opt-in
 
 `package-publish.yml` and `release-template.yml` are terminal capabilities. A repository must be able to continue normal source development when publication is unavailable.
 
@@ -121,6 +154,8 @@ Do not migrate those callers just to keep up with `main`. Migrate when the thinn
 ## Advanced capabilities
 
 Use `stage-validation.yml`, `promote-branches.yml`, `external-pull.yml`, and `release-template.yml` only when the repository actually has those operational requirements. They are not part of a default repository setup.
+
+`stage-validation.yml` is specialized legacy support for a consumer that already maps branch/stage names to commands; do not use it to establish the normal lifecycle architecture. `promote-branches.yml` is an advanced option for genuine promotion-branch users, not a requirement for moving a qualified release candidate to stable.
 
 ## Contract metadata
 

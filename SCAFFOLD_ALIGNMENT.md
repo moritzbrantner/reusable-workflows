@@ -8,7 +8,9 @@ Scaffolds should expose repository-owned commands first and may then add whichev
 
 A new scaffold may start with only `fast-validation.yml`. Add integration, e2e, Storybook, link, performance, deployment, or publication capabilities only when the generated repository actually needs them.
 
-Caller workflows own repository policy such as triggers, concurrency, path filters, and which capabilities are required checks.
+The scaffold owns deterministic commands and tiers/depth; the caller workflow owns lifecycle policy such as triggers, schedules, concurrency, path filters, and which capabilities are required checks. A tiny scaffold may use local validation only, while a mature application can add deeper `main` or nightly checks, release qualification, and publication without changing workflow standards.
+
+Treat nightly, beta/release-candidate, and stable as lifecycle/release states rather than mandatory validation capabilities. Prefer qualifying an exact commit or artifact and promoting that immutable candidate over requiring a promotion-branch chain. `stage-validation.yml` and `promote-branches.yml` are specialized support for consumers that already need those structures, not scaffold defaults.
 
 ## Source-first repositories
 

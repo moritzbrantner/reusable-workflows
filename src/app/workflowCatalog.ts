@@ -82,12 +82,13 @@ const workflowDetails = [
   {
     file: ".github/workflows/fast-validation.yml",
     title: "Fast Validation",
-    summary: "Formatting, linting, typechecking, builds, and unit tests for tight PR feedback.",
+    summary: "Thin generic adapter for one repository-owned validation command.",
     role: "Reusable Workflow",
-    useWhen: "Use this workflow for the checks that should complete first on every pull request.",
+    useWhen:
+      "Use this workflow when a generic consumer needs GitHub to run an existing repository-owned command.",
     responsibilities: [
-      "Installs Bun, Node, and optional Cargo cache paths as requested by inputs.",
-      "Runs format, lint, typecheck, build, unit test, pre, and post commands when provided.",
+      "Installs the requested Bun and Node runtimes before running one caller-provided command.",
+      "Leaves capability composition and tier/depth semantics in repository tooling.",
       "Keeps package registry access explicit through read-only package permissions and optional auth secrets.",
     ],
     icon: CheckCircle2,
@@ -222,13 +223,14 @@ const workflowDetails = [
   {
     file: ".github/workflows/stage-validation.yml",
     title: "Stage Validation",
-    summary: "Stage-specific branch checks for develop, nightly, beta, staging, and production.",
+    summary:
+      "Specialized legacy adapter for consumers with an existing stage/branch command model.",
     role: "Reusable Workflow",
     useWhen:
-      "Use this workflow when branch or deployment stage should select a different validation command.",
+      "Use this workflow only when an existing consumer genuinely needs a stage/branch command selector.",
     responsibilities: [
       "Maps the requested stage to develop, nightly, beta, staging, or production commands.",
-      "Keeps stage-specific validation in one Reusable Workflow.",
+      "Preserves an existing specialized interface rather than defining the preferred lifecycle model.",
       "Supports artifacts for stage checks that produce diagnostics.",
     ],
     icon: GitBranch,
@@ -303,7 +305,7 @@ const workflowGraphNodes = [
   {
     id: "fast-validation",
     label: "Fast Validation",
-    description: "Format, lint, typecheck, build, and unit tests.",
+    description: "Thin generic adapter for one repository-owned validation command.",
     group: "Reusable Workflow",
     x: 320,
     y: 0,
@@ -375,7 +377,7 @@ const workflowGraphNodes = [
   {
     id: "stage-validation",
     label: "Stage Validation",
-    description: "Branch-stage checks for develop through production.",
+    description: "Specialized legacy stage/branch command selector.",
     group: "Reusable Workflow",
     x: 664,
     y: 136,

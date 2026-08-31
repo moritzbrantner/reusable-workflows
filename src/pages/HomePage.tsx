@@ -45,10 +45,11 @@ export function HomePage() {
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero__content">
             <p className="eyebrow">{workflowContracts.workflow_standard}</p>
-            <h1 id="hero-title">Shared CI and release Workflow Contracts for maintained repos.</h1>
+            <h1 id="hero-title">Optional hosted workflow capabilities for maintained repos.</h1>
             <p className="hero__lede">
-              A React-built reference for the Reusable Workflows that power validation, deployment,
-              release, Stage Validation, and compatibility flows across the repo family.
+              A React-built reference for reusable adapters that support repository-owned
+              validation, delivery, release, and compatibility flows without defining a lifecycle
+              standard.
             </p>
             <div className="hero__actions" aria-label="Repository resources">
               <a
@@ -112,10 +113,10 @@ export function HomePage() {
           </div>
           <div className="copy">
             <p>
-              The repository keeps one Contract Manifest in <code>contracts/workflows.json</code>{" "}
-              and validates it against the Reusable Workflow YAML. Consumers pin Release Tags such
-              as <code>workflow-standard-v1.3</code> and opt into only the Lifecycle Steps they
-              need.
+              <code>contracts/workflows.json</code> is the frozen compatibility snapshot for{" "}
+              <code>workflow-standard-v1.3</code>. Current workflow interfaces come from their YAML;
+              consumers select only the hosted capabilities they need and own their lifecycle
+              timing.
             </p>
             <p>
               The app is deployed through this repository's own <code>deploy-pages.yml</code>

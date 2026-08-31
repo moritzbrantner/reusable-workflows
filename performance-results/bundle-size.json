@@ -1,12 +1,12 @@
 {
   "budgetBytes": 430080,
-  "budgetUsagePercent": 94.6,
+  "budgetUsagePercent": 94.8,
   "cssBudgetBytes": 122880,
   "cssBudgetUsagePercent": 18.5,
   "cssBytes": 22731,
   "cssWarningThresholdBytes": 110592,
   "cssWithinBudget": true,
-  "jsBytes": 406796,
+  "jsBytes": 407804,
   "warningThresholdBytes": 387072,
   "withinBudget": true
 }

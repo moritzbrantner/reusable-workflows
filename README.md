@@ -14,6 +14,63 @@ The intended ownership boundary is:
 
 A repository can use one workflow, several workflows, or none of them. Adoption is progressive rather than profile- or standard-driven.
 
+## Validation architecture
+
+Keep three separate decisions separate:
+
+1. A **validation capability** describes what is checked: linting, unit tests, integration checks, browser E2E, accessibility, benchmarks, and so on.
+2. A **validation tier** (or depth) composes deterministic capabilities into the confidence a repository wants, such as `fast`, `standard`, `deep`, or `release`. Tier names and composition belong to `coding-tooling` defaults or the consumer's repository configuration.
+3. A **repository lifecycle** decides when a tier runs: local agent handoff, pull request, `main`, nightly, release candidate, or stable release. The caller owns this policy.
+
+```text
+coding-agent-conventions
+        |
+        | engineering policy
+        v
+consumer repository
+  conventions.json / .conventions/
+  .coding-tooling.json
+        |
+        v
+coding-tooling
+  capabilities + repository tiers
+        |
+        +--> humans / coding agents locally
+        |
+        `--> reusable-workflows GitHub adapter
+                 |
+                 `--> caller-owned lifecycle triggers
+```
+
+The preferred shape lets an agent and hosted CI run the same deterministic tier. A generic consumer can make the same choice with one repository-owned command through `fast-validation.yml`; no GitHub workflow defines the repository's validation semantics.
+
+### Lifecycle and release guidance
+
+The following is recommended guidance, not a required branch strategy or workflow profile:
+
+```text
+local agent handoff -> fast
+pull request        -> fast, optionally affected or deeper checks
+main                -> normal confidence suite
+nightly             -> expensive or deep checks
+release candidate   -> qualify an exact commit or artifact
+stable release      -> publish or promote the qualified immutable candidate
+```
+
+`nightly`, `beta`, release candidate, and stable are normally lifecycle or release concepts, not deterministic test capabilities. Prefer qualifying and promoting an exact commit or artifact instead of requiring a long-lived `develop -> nightly -> beta -> staging -> production` branch chain.
+
+### Progressive adoption
+
+- Tiny or experimental repositories may validate locally and use no hosted CI.
+- Small repositories can run a `fast` tier on pull requests.
+- Normal repositories can add deeper checks on `main`.
+- Important applications can add E2E/accessibility checks and nightly deep validation.
+- Performance-sensitive repositories can add benchmark or profiling evidence.
+- Released packages and products can add release qualification and publication.
+- Advanced production systems can add matrices or environments only where evidence requires them.
+
+Each maturity step composes capabilities and tiers; it never requires a different workflow standard or profile family.
+
 ## Compatibility release
 
 `workflow-standard-v1.3` is frozen as the compatibility release for existing consumers. Its tag remains immutable and its historical contract snapshot remains in `contracts/workflows.json`.
@@ -40,27 +97,32 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 
 ## Current capabilities
 
-### Core validation
+### Preferred core validation
 
 - `fast-validation.yml` — universal thin adapter around one repository-owned validation command. This is the public/generic fallback.
 - `coding-tooling-validation.yml` — preferred semantic validation adapter for private consumer repositories that can access `moritzbrantner/coding-tooling`. It runs a declared tier and uploads the machine-readable report.
+
+### Specialized / transitional validation
+
 - `integration-validation.yml` — optional service, migration, package, and integration validation.
 - `e2e-validation.yml` — optional browser, desktop, mobile, or application-level validation.
 - `storybook-validation.yml` — optional component documentation and browser-backed component checks.
 - `link-validation.yml` — optional site/link validation.
 - `performance-validation.yml` — optional remote execution and evidence transport for performance checks. Performance semantics should live in repository tooling or `runtime-profiler`, not in GitHub-specific policy.
 
+These semantic workflows remain callable for existing consumers. New architecture should prefer repository or `coding-tooling` capability semantics expressed through the preferred core adapters instead of expanding these YAML interfaces.
+
 ### Delivery
 
 - `deploy-pages.yml` — GitHub Pages deployment.
 - `package-publish.yml` — explicit npm/Cargo publication. Publication is never a prerequisite for source development.
 
-### Advanced / optional
+### Specialized / legacy lifecycle and release support
 
 - `external-pull.yml` — notify an external deployment host.
 - `release-template.yml` — repository-specific release skeleton.
-- `stage-validation.yml` — stage/branch-specific validation.
-- `promote-branches.yml` — exact tested-SHA branch promotion.
+- `stage-validation.yml` — specialized legacy support for consumers that already select commands from a stage/branch model. It is not the preferred lifecycle abstraction.
+- `promote-branches.yml` — advanced exact-tested-SHA branch promotion for consumers that genuinely use promotion branches. It is not a default release architecture.
 
 ### Compatibility only
 
