@@ -1,0 +1,22 @@
+name: Toolchain Refresh
+
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  toolchain-refresh:
+    permissions:
+      contents: write
+      pull-requests: write
+      packages: read
+    uses: moritzbrantner/reusable-workflows/.github/workflows/toolchain-refresh.yml@<immutable-reusable-workflows-sha>
+    with:
+      platform_upgrader_ref: d3b39cabb610629e1aac89f1116eec7786da6dcf
+      full_gate_command: "bun run verify"
+    secrets:
+      platform_upgrader_token: ${{ secrets.PLATFORM_UPGRADER_TOKEN }}
