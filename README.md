@@ -123,6 +123,7 @@ These semantic workflows remain callable for existing consumers. New architectur
 - `release-template.yml` — repository-specific release skeleton.
 - `stage-validation.yml` — specialized legacy support for consumers that already select commands from a stage/branch model. It is not the preferred lifecycle abstraction.
 - `promote-branches.yml` — advanced exact-tested-SHA branch promotion for consumers that genuinely use promotion branches. It is not a default release architecture.
+- `toolchain-refresh.yml` — scheduled environment-v1 maintenance adapter that proposes exact current-stable toolchain pins and delegates acceptance to the consumer repository's full gate.
 
 ### Compatibility only
 
@@ -214,6 +215,35 @@ Reusable workflows should mainly own GitHub-specific mechanics such as checkout,
 
 Dependency automation is a separate concern from workflow architecture. Dependabot or Renovate may propose updates, while repository-owned validation determines whether those updates are acceptable. Private consumers may use `coding-tooling-validation.yml` with a `dependency-update` tier; public consumers can run equivalent repository-owned commands through the generic workflows. See `DEPENDENCY_UPDATES.md`.
 
+## Toolchain freshness
+
+`toolchain-refresh.yml` is deliberately separate from normal package dependency automation. It operates only on exact repository-native environment toolchain pins supported by `platform-upgrader`.
+
+The reusable workflow requires:
+
+- `contents: write` and `pull-requests: write` so it can maintain one bot-owned upgrade branch/PR or compatibility-hold branch/PR;
+- `packages: read` for consumer environments that restore GitHub Packages;
+- an exact 40-character `platform_upgrader_ref` rather than a moving branch/tag;
+- `platform_upgrader_token`, a secret with read access to the private `moritzbrantner/platform-upgrader` repository;
+- a consumer-owned `full_gate_command` that defines acceptance;
+- environment-v1 adoption (`.repository-environment.toml` plus `scripts/codex-environment.sh`).
+
+The caller owns schedule and concurrency. A typical caller runs daily and may also expose `workflow_dispatch`; see `examples/toolchain-refresh-caller.yml`.
+
+The flow is:
+
+1. resolve current stable toolchains through the pinned upgrader;
+2. no-op when all supported pins are current or covered by a merged compatibility hold;
+3. install the candidate environment and run any repository-owned metadata update hook;
+4. run the repository-owned full deterministic gate;
+5. on success, clear superseded holds and create/update `automation/toolchain-refresh` as one explicit exact-pin PR;
+6. on failure, restore the accepted revision, close any stale upgrade PR, record only the candidate compatibility hold, and create/update `automation/toolchain-compatibility-hold`;
+7. if a compatibility-hold PR is already open, defer additional scheduled evaluation until that PR is resolved.
+
+The workflow never writes `latest`, `stable`, `*`, or another floating build input. An exact candidate is accepted only through the consumer's gate.
+
+Because `GITHUB_TOKEN`-authored pushes/PRs do not recursively trigger normal workflow events, consumers whose branch protection requires a fresh PR check suite may later choose a dedicated automation token/GitHub App for publication. The candidate full gate still runs before the refresh PR is created.
+
 ## Repository validation
 
 For this repository:
@@ -223,4 +253,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises the public callable workflows with minimal commands. The private `coding-tooling-validation.yml` adapter is intentionally not called from this public repository.
+`Smoke Reusable Workflows` exercises the public callable workflows with minimal commands. The private `coding-tooling-validation.yml` and `toolchain-refresh.yml` adapters are intentionally not called from this public repository because they require access to private sibling tooling.
