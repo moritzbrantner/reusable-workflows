@@ -1,0 +1,35 @@
+name: Format Repository Pages
+
+on:
+  push:
+    branches:
+      - feat/repository-pages-dashboard
+    paths:
+      - "repository-pages/**"
+      - ".github/workflows/format-repository-pages.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: feat/repository-pages-dashboard
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - run: bun install --frozen-lockfile
+      - run: bun x oxfmt --write repository-pages
+      - name: Commit formatting
+        run: |
+          if git diff --quiet -- repository-pages; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add repository-pages
+          git commit -m "style: format repository Pages sources"
+          git push origin HEAD:feat/repository-pages-dashboard
