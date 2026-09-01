@@ -48,6 +48,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  formatter-baseline-diff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - run: bun install --frozen-lockfile
+      - name: Show exact formatter repair
+        shell: bash
+        run: |
+          bun run format
+          git diff -- docs/agents/triage-labels.md
+          git reset --hard HEAD
+
   app-validation:
     uses: ./.github/workflows/fast-validation.yml
     permissions:
