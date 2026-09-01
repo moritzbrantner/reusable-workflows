@@ -198,14 +198,15 @@ export default function HomePage() {
   const pulls = pullsQuery.data ?? [];
   const issues = (issuesQuery.data ?? []).filter((issue) => !issue.pull_request).slice(0, 5);
   const runs = runsQuery.data?.workflow_runs ?? [];
-  const error = [
-    repoQuery.error,
-    commitsQuery.error,
-    releasesQuery.error,
-    pullsQuery.error,
-    issuesQuery.error,
-    runsQuery.error,
-  ].find((candidate): candidate is Error => candidate instanceof Error) ?? null;
+  const error =
+    [
+      repoQuery.error,
+      commitsQuery.error,
+      releasesQuery.error,
+      pullsQuery.error,
+      issuesQuery.error,
+      runsQuery.error,
+    ].find((candidate): candidate is Error => candidate instanceof Error) ?? null;
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-5 py-10 sm:px-8 lg:px-10">
@@ -216,7 +217,8 @@ export default function HomePage() {
             {repo?.full_name ?? repository}
           </h1>
           <p className="mt-3 max-w-2xl text-base leading-7 text-zinc-400">
-            {repo?.description ?? "A compact view of the repository state, recent work, and published outputs."}
+            {repo?.description ??
+              "A compact view of the repository state, recent work, and published outputs."}
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -287,9 +289,12 @@ export default function HomePage() {
               >
                 {firstLine(latestCommit.commit.message)}
               </a>
-              <p className="mt-3 font-mono text-xs text-zinc-500">{latestCommit.sha.slice(0, 12)}</p>
+              <p className="mt-3 font-mono text-xs text-zinc-500">
+                {latestCommit.sha.slice(0, 12)}
+              </p>
               <p className="mt-2 text-sm text-zinc-400">
-                {latestCommit.commit.author?.name ?? "Unknown author"} · {formatDate(latestCommit.commit.author?.date)}
+                {latestCommit.commit.author?.name ?? "Unknown author"} ·{" "}
+                {formatDate(latestCommit.commit.author?.date)}
               </p>
             </div>
           ) : (
@@ -309,8 +314,12 @@ export default function HomePage() {
                   target="_blank"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <span className="truncate text-sm font-medium text-zinc-200">{run.name ?? "Workflow"}</span>
-                    <span className="shrink-0 text-xs text-zinc-500">{run.conclusion ?? run.status}</span>
+                    <span className="truncate text-sm font-medium text-zinc-200">
+                      {run.name ?? "Workflow"}
+                    </span>
+                    <span className="shrink-0 text-xs text-zinc-500">
+                      {run.conclusion ?? run.status}
+                    </span>
                   </div>
                   <p className="mt-1 truncate text-xs text-zinc-500">
                     {run.event} · {run.head_branch ?? "no branch"} · {formatDate(run.updated_at)}
@@ -329,7 +338,10 @@ export default function HomePage() {
           {releases.length ? (
             <div className="space-y-5">
               {releases.map((release) => (
-                <article className="border-b border-zinc-800 pb-5 last:border-0 last:pb-0" key={release.id}>
+                <article
+                  className="border-b border-zinc-800 pb-5 last:border-0 last:pb-0"
+                  key={release.id}
+                >
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <a
                       className="font-medium text-zinc-100 hover:underline"
@@ -340,7 +352,8 @@ export default function HomePage() {
                       {release.name || release.tag_name}
                     </a>
                     <span className="text-xs text-zinc-500">
-                      {release.prerelease ? "Prerelease" : "Release"} · {formatDate(release.published_at)}
+                      {release.prerelease ? "Prerelease" : "Release"} ·{" "}
+                      {formatDate(release.published_at)}
                     </span>
                   </div>
                   {release.assets.length ? (
@@ -356,14 +369,17 @@ export default function HomePage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="mt-2 text-xs text-zinc-500">No downloadable assets on this release.</p>
+                    <p className="mt-2 text-xs text-zinc-500">
+                      No downloadable assets on this release.
+                    </p>
                   )}
                 </article>
               ))}
             </div>
           ) : (
             <p className="text-sm leading-6 text-zinc-500">
-              No GitHub releases are published yet. This page will surface release assets automatically when they appear.
+              No GitHub releases are published yet. This page will surface release assets
+              automatically when they appear.
             </p>
           )}
         </Panel>
@@ -413,7 +429,8 @@ export default function HomePage() {
       </div>
 
       <footer className="mt-8 border-t border-zinc-800 pt-5 text-xs leading-5 text-zinc-600">
-        Static Next.js export. Repository data is read from GitHub when this page is opened and cached briefly in the browser.
+        Static Next.js export. Repository data is read from GitHub when this page is opened and
+        cached briefly in the browser.
       </footer>
     </main>
   );
