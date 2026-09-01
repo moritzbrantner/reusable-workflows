@@ -41,7 +41,7 @@ An optional immutable ref published for one or more compatible capability change
 Machine-readable metadata derived from the current workflow YAML. Inputs, secrets, outputs, defaults, and permissions are not manually duplicated as an authoritative contract.
 
 **Advanced Capability**  
-A capability such as branch promotion, existing stage validation, external deployment notification, or custom release automation that is useful only when a repository actually needs that structure. It is not a default lifecycle model.
+A capability such as branch promotion, existing stage validation, external deployment notification, custom release automation, or scheduled toolchain refresh that is useful only when a repository actually needs that structure. It is not a default lifecycle model.
 
 ## Ownership rules
 
@@ -53,6 +53,7 @@ A capability such as branch promotion, existing stage validation, external deplo
 6. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
 7. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
 8. Concurrency policy belongs in Caller Workflows unless a GitHub API requires capability-local serialization.
+9. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
 
 ## Capability classes
 
@@ -84,8 +85,11 @@ These workflows remain callable, but new design should prefer repository or `cod
 - `release-template.yml`
 - `stage-validation.yml`
 - `promote-branches.yml`
+- `toolchain-refresh.yml`
 
 `stage-validation.yml` is specialized legacy support for an existing branch/stage model, not the preferred lifecycle abstraction. `promote-branches.yml` remains available for consumers that genuinely use promotion branches, not as the default release path. Nightly, beta/release-candidate, and stable normally describe lifecycle or release state rather than deterministic validation capabilities.
+
+`toolchain-refresh.yml` is a maintenance capability for environment-v1 consumers. A caller-owned schedule invokes an immutable workflow ref and an immutable `platform-upgrader` ref. The workflow proposes exact native toolchain pins, prepares the candidate repository environment, delegates acceptance to the consumer-owned full gate, reuses one upgrade branch/PR on success, and restores accepted pins plus publishes a compatibility-hold PR on failure. It never owns semantic validation or floating version policy.
 
 ### Compatibility only
 
