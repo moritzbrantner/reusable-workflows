@@ -86,7 +86,7 @@ jobs:
           PY
 
       - name: Align Oxlint with convention enforcement
-        run: bun add --dev oxlint@1.80.0
+        run: bun add --dev oxlint@1.80.0 oxlint-tsgolint@7.0.2001
 
       - name: Normalize TypeScript type definitions
         run: |
@@ -150,9 +150,6 @@ jobs:
           }
           EOF
           bunx oxlint --config /tmp/ts-005.json . || true
-
-      - name: Remove accidental scratch branch
-        run: git push origin --delete noop-temp-ignore || true
 
       - name: Commit generated foundation files
         run: |
