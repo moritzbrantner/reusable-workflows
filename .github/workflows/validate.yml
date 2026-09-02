@@ -71,6 +71,7 @@ jobs:
     with:
       operation: run
       tier: fast
+      component: "."
       report_path: .artifacts/coding-tooling/fast.json
 
   e2e-validation:
