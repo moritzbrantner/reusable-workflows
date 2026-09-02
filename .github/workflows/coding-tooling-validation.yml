@@ -91,8 +91,28 @@ jobs:
         id: report
         if: ${{ always() }}
         shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REPORT_PATH: ${{ inputs.report_path }}
         run: |
-          echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+          artifact_name="coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          if [[ "$OPERATION" == "public-contract" && -f "$REPORT_PATH" ]]; then
+            summary_slug="$(node - "$REPORT_PATH" <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const summary = report?.data?.summary;
+          const schema = report?.data?.schemaVersion ?? report?.schemaVersion;
+          if (!summary || !Number.isInteger(schema)) process.exit(0);
+          const values = [summary.discovered, summary.verified, summary.unverified, summary.unsupported, summary.failedEvidence];
+          if (!values.every(Number.isInteger)) process.exit(0);
+          process.stdout.write(`v${schema}-d${summary.discovered}-vfy${summary.verified}-u${summary.unverified}-i${summary.unsupported}-f${summary.failedEvidence}`);
+          NODE
+            )"
+            if [[ -n "$summary_slug" ]]; then
+              artifact_name="coding-tooling-public-contract-${summary_slug}-${{ github.run_id }}-${{ github.run_attempt }}"
+            fi
+          fi
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
           echo "report_path=${{ inputs.report_path }}" >> "$GITHUB_OUTPUT"
 
       - name: Write validation summary
