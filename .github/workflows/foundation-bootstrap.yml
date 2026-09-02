@@ -110,6 +110,19 @@ jobs:
           echo "coding-tooling conformance exit: $status" >> "$GITHUB_STEP_SUMMARY"
           exit 0
 
+      - name: Show REACT-004 diagnostics
+        run: |
+          cat > /tmp/react-004.json <<'EOF'
+          {
+            "plugins": ["react"],
+            "rules": {
+              "react/no-deriving-state-in-effects": "error",
+              "react/set-state-in-effect": "error"
+            }
+          }
+          EOF
+          bunx oxlint --config /tmp/react-004.json . || true
+
       - name: Commit generated foundation files
         run: |
           git config user.name github-actions[bot]
