@@ -77,7 +77,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@fbef51fe5793c4177cd1e6ec3cd067e2cd3604f5
+        uses: moritzbrantner/coding-tooling@c5ea824243d5fa9a28d291a6cf870b7fc5a79ebe
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -98,6 +98,9 @@ jobs:
       - name: Write validation summary
         if: ${{ always() }}
         shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REPORT_PATH: ${{ inputs.report_path }}
         run: |
           {
             echo "## coding-tooling validation"
@@ -105,9 +108,30 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`fbef51fe5793c4177cd1e6ec3cd067e2cd3604f5\`"
+            echo "- coding-tooling revision: \`c5ea824243d5fa9a28d291a6cf870b7fc5a79ebe\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$OPERATION" == "public-contract" && -f "$REPORT_PATH" ]]; then
+            node - "$REPORT_PATH" <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const summary = report?.data?.summary;
+          if (!summary) process.exit(0);
+          const percent = Number.isFinite(summary.verifiedRatio)
+            ? `${(summary.verifiedRatio * 100).toFixed(1)}%`
+            : "unknown";
+          console.log("");
+          console.log("### Public contract");
+          console.log("");
+          console.log(`- Discovered: **${summary.discovered}**`);
+          console.log(`- Verified: **${summary.verified}** (${percent})`);
+          console.log(`- Unverified: **${summary.unverified}**`);
+          console.log(`- Incomplete discovery: **${summary.unsupported}**`);
+          console.log(`- Failed evidence: **${summary.failedEvidence}**`);
+          console.log(`- Strict ready: **${summary.strictReady ? "yes" : "no"}**`);
+          NODE
+          fi
 
       - name: Upload coding-tooling report
         if: ${{ always() }}
