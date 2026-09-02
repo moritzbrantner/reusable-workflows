@@ -53,7 +53,7 @@ test("keeps workflow connection navigation usable", async ({ page }) => {
 
 test("keeps dogfood navigation usable", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Validation" }).click();
+  await page.getByRole("link", { name: "Validation", exact: true }).click();
 
   await expect(page).toHaveURL(/#dogfood$/);
   await expect(
