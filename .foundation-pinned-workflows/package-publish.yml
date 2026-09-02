@@ -34,9 +34,10 @@ on:
         type: string
         default: ""
       rust_toolchain:
+        description: Exact Rust toolchain version for Cargo publication. Empty skips Rust setup.
         required: false
         type: string
-        default: "stable"
+        default: ""
       install_command:
         required: false
         type: string
@@ -198,6 +199,16 @@ jobs:
         run: |
           echo "::error::upload_artifacts_on must be one of: failure, always, never." >&2
           exit 1
+
+      - name: Validate Rust toolchain
+        if: ${{ inputs.package_manager == 'cargo' && inputs.rust_toolchain != '' }}
+        env:
+          RUST_TOOLCHAIN: ${{ inputs.rust_toolchain }}
+        run: |
+          if [[ ! "$RUST_TOOLCHAIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::rust_toolchain must be an exact semantic version such as 1.95.0, or empty to skip Rust setup." >&2
+            exit 2
+          fi
 
       - name: Set up Bun
         if: ${{ inputs.bun_version != '' }}
