@@ -87,6 +87,10 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
       "coding-tooling-validation.yml must pin moritzbrantner/coding-tooling to an exact commit SHA",
     );
   }
+  const codingToolingInputs = manifest.workflows[codingToolingWorkflowPath]?.inputs ?? {};
+  if (codingToolingSource && !("operation" in codingToolingInputs)) {
+    errors.push("coding-tooling-validation.yml must expose the coding-tooling operation input");
+  }
 
   const fastInputs = Object.keys(
     manifest.workflows[".github/workflows/fast-validation.yml"]?.inputs ?? {},
