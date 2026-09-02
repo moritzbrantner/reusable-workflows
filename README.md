@@ -101,6 +101,7 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 
 - `fast-validation.yml` — universal thin adapter around one repository-owned validation command. This is the public/generic fallback.
 - `coding-tooling-validation.yml` — preferred semantic validation adapter for private consumer repositories that can access `moritzbrantner/coding-tooling`. It runs a declared tier and uploads the machine-readable report.
+- `environment-v1-canary.yml` — environment integrity canary for environment-v1 consumers. It captures semantic identity before setup, runs the standard setup entrypoint, requires setup to leave tracked repository state unchanged, verifies the prepared environment earns the exact pre-setup fingerprint, and uploads both receipts.
 
 ### Specialized / transitional validation
 
@@ -174,6 +175,20 @@ coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/repor
 `coding-tooling-validation.yml` pins the private Action to an exact commit, uploads its JSON report even when validation fails where possible, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
 
 This repository is public, so its own smoke workflow cannot execute the private Action. The adapter is syntax/contract validated here and should be exercised by private consumers that have access to `coding-tooling`.
+
+### Environment-v1 integrity canary
+
+Environment-v1 consumers can add the canary independently of their normal validation tier:
+
+```yaml
+jobs:
+  environment:
+    permissions:
+      contents: read
+    uses: moritzbrantner/reusable-workflows/.github/workflows/environment-v1-canary.yml@<immutable-sha>
+```
+
+The canary deliberately uses the repository-standard `bash scripts/codex-environment.sh setup` entrypoint rather than accepting an arbitrary setup command. It treats setup as an idempotent reconstruction operation: tracked repository state must remain unchanged, and the prepared machine must verify against the semantic fingerprint captured before setup. The expected fingerprint and verification receipt are retained as short-lived evidence.
 
 Existing v1.3 callers keep the old interfaces by remaining pinned to `workflow-standard-v1.3`.
 
@@ -253,4 +268,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises the public callable workflows with minimal commands. The private `coding-tooling-validation.yml` and `toolchain-refresh.yml` adapters are intentionally not called from this public repository because they require access to private sibling tooling.
+`Smoke Reusable Workflows` exercises the public callable workflows with minimal commands. The private `coding-tooling-validation.yml`, `environment-v1-canary.yml`, and `toolchain-refresh.yml` adapters are intentionally not called from this public repository because they require access to private sibling tooling or consumer-owned environment-v1 state.
