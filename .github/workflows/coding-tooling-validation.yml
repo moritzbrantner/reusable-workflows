@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: "coding-tooling operation to execute: run or findings."
+        description: "coding-tooling operation to execute: run, findings, or public-contract."
         required: false
         type: string
         default: run
       tier:
-        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings.
+        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings and public-contract.
         required: false
         type: string
         default: fast
@@ -77,7 +77,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@fbef51fe5793c4177cd1e6ec3cd067e2cd3604f5
+        uses: moritzbrantner/coding-tooling@c5ea824243d5fa9a28d291a6cf870b7fc5a79ebe
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -91,13 +91,36 @@ jobs:
         id: report
         if: ${{ always() }}
         shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REPORT_PATH: ${{ inputs.report_path }}
         run: |
-          echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+          artifact_name="coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}"
+          if [[ "$OPERATION" == "public-contract" && -f "$REPORT_PATH" ]]; then
+            summary_slug="$(node - "$REPORT_PATH" <<'NODE'
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const summary = report?.data?.summary;
+          const schema = report?.data?.schemaVersion ?? report?.schemaVersion;
+          if (!summary || !Number.isInteger(schema)) process.exit(0);
+          const values = [summary.discovered, summary.verified, summary.unverified, summary.unsupported, summary.failedEvidence];
+          if (!values.every(Number.isInteger)) process.exit(0);
+          process.stdout.write(`v${schema}-d${summary.discovered}-vfy${summary.verified}-u${summary.unverified}-i${summary.unsupported}-f${summary.failedEvidence}`);
+          NODE
+            )"
+            if [[ -n "$summary_slug" ]]; then
+              artifact_name="coding-tooling-public-contract-${summary_slug}-${{ github.run_id }}-${{ github.run_attempt }}"
+            fi
+          fi
+          echo "artifact_name=$artifact_name" >> "$GITHUB_OUTPUT"
           echo "report_path=${{ inputs.report_path }}" >> "$GITHUB_OUTPUT"
 
       - name: Write validation summary
         if: ${{ always() }}
         shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REPORT_PATH: ${{ inputs.report_path }}
         run: |
           {
             echo "## coding-tooling validation"
@@ -105,9 +128,30 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`fbef51fe5793c4177cd1e6ec3cd067e2cd3604f5\`"
+            echo "- coding-tooling revision: \`c5ea824243d5fa9a28d291a6cf870b7fc5a79ebe\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$OPERATION" == "public-contract" && -f "$REPORT_PATH" ]]; then
+            node - "$REPORT_PATH" <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+          const summary = report?.data?.summary;
+          if (!summary) process.exit(0);
+          const percent = Number.isFinite(summary.verifiedRatio)
+            ? `${(summary.verifiedRatio * 100).toFixed(1)}%`
+            : "unknown";
+          console.log("");
+          console.log("### Public contract");
+          console.log("");
+          console.log(`- Discovered: **${summary.discovered}**`);
+          console.log(`- Verified: **${summary.verified}** (${percent})`);
+          console.log(`- Unverified: **${summary.unverified}**`);
+          console.log(`- Incomplete discovery: **${summary.unsupported}**`);
+          console.log(`- Failed evidence: **${summary.failedEvidence}**`);
+          console.log(`- Strict ready: **${summary.strictReady ? "yes" : "no"}**`);
+          NODE
+          fi
 
       - name: Upload coding-tooling report
         if: ${{ always() }}

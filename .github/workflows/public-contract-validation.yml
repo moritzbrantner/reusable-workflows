@@ -1,0 +1,38 @@
+name: Public Contract Validation
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: Repository-relative coding-tooling configuration path.
+        required: false
+        type: string
+        default: .coding-tooling.json
+      install_mode:
+        description: Let coding-tooling install supported consumer dependencies or skip installation.
+        required: false
+        type: string
+        default: auto
+      timeout_minutes:
+        description: Maximum job runtime.
+        required: false
+        type: number
+        default: 30
+      artifact_retention_days:
+        description: Retention period for the public-contract report artifact.
+        required: false
+        type: number
+        default: 7
+
+jobs:
+  public-contract:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/coding-tooling-validation.yml
+    with:
+      operation: public-contract
+      config: ${{ inputs.config }}
+      install_mode: ${{ inputs.install_mode }}
+      report_path: .artifacts/coding-tooling/public-contract.json
+      timeout_minutes: ${{ inputs.timeout_minutes }}
+      artifact_retention_days: ${{ inputs.artifact_retention_days }}
