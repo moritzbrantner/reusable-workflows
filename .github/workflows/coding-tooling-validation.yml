@@ -3,10 +3,16 @@ name: Coding Tooling Validation
 on:
   workflow_call:
     inputs:
-      tier:
-        description: Validation tier declared by coding-tooling or the consumer repository.
-        required: true
+      operation:
+        description: coding-tooling operation to execute: run or findings.
+        required: false
         type: string
+        default: run
+      tier:
+        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings.
+        required: false
+        type: string
+        default: fast
       component:
         description: Optional component name or repository-relative path.
         required: false
@@ -71,8 +77,9 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@1e231f2e96345c200e45f68a126ade5d61e73e40
+        uses: moritzbrantner/coding-tooling@c8682a4804397f82099bd7f567ac4a6e8a18658e
         with:
+          operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
           component: ${{ inputs.component }}
           config: ${{ inputs.config }}
@@ -85,7 +92,7 @@ jobs:
         if: ${{ always() }}
         shell: bash
         run: |
-          echo "artifact_name=coding-tooling-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
           echo "report_path=${{ inputs.report_path }}" >> "$GITHUB_OUTPUT"
 
       - name: Write validation summary
@@ -95,9 +102,10 @@ jobs:
           {
             echo "## coding-tooling validation"
             echo
+            echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`1e231f2e96345c200e45f68a126ade5d61e73e40\`"
+            echo "- coding-tooling revision: \`c8682a4804397f82099bd7f567ac4a6e8a18658e\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
