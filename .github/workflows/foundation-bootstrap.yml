@@ -1,0 +1,108 @@
+name: Foundation Bootstrap
+
+on:
+  push:
+    branches:
+      - chore/foundation-conformance
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out foundation branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: chore/foundation-conformance
+          fetch-depth: 0
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.0"
+
+      - name: Check out coding-tooling
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: moritzbrantner/coding-tooling
+          ref: 4524918dc26ad9eec85df43c7c11fb08aca6d054
+          path: .tooling/coding-tooling
+
+      - name: Check out coding-agent-conventions
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: moritzbrantner/coding-agent-conventions
+          ref: 8965e9274ec214146bfb18ed9ca1f8586b0617b8
+          path: .tooling/coding-agent-conventions
+
+      - name: Install coding-tooling dependencies
+        working-directory: .tooling/coding-tooling
+        run: bun install --frozen-lockfile
+
+      - name: Materialize convention snapshot
+        env:
+          CODING_AGENT_CONVENTIONS_ROOT: ${{ github.workspace }}/.tooling/coding-agent-conventions
+        run: bun .tooling/coding-tooling/src/cli.ts conventions update
+
+      - name: Pin external GitHub Actions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          replacements = {
+              "actions/checkout@v6": "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6",
+              "oven-sh/setup-bun@v2": "oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2",
+              "actions/setup-node@v6": "actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6",
+              "actions/cache@v5": "actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5",
+              "actions/upload-artifact@v7": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7",
+              "actions/configure-pages@v6": "actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6",
+              "actions/upload-pages-artifact@v5": "actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5",
+              "actions/deploy-pages@v5": "actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5",
+          }
+
+          for path in sorted(Path(".github/workflows").glob("*.yml")):
+              source = path.read_text()
+              updated = source
+              for old, new in replacements.items():
+                  updated = updated.replace(old, new)
+              if updated != source:
+                  path.write_text(updated)
+
+          external_use = re.compile(r"^\s*uses:\s+([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([^\s#]+)", re.MULTILINE)
+          problems = []
+          for path in sorted(Path(".github/workflows").glob("*.yml")):
+              source = path.read_text()
+              for action, ref in external_use.findall(source):
+                  if not re.fullmatch(r"[0-9a-f]{40}", ref):
+                      problems.append(f"{path}: {action}@{ref}")
+          if problems:
+              raise SystemExit("Unpinned external actions remain:\n" + "\n".join(problems))
+          PY
+
+      - name: Verify environment entrypoint
+        run: bash scripts/codex-environment.sh setup
+
+      - name: Verify installed conventions
+        env:
+          CODING_AGENT_CONVENTIONS_ROOT: ${{ github.workspace }}/.tooling/coding-agent-conventions
+        run: bun .tooling/coding-tooling/src/cli.ts conventions check
+
+      - name: Inspect repository conformance
+        env:
+          CODING_AGENT_CONVENTIONS_ROOT: ${{ github.workspace }}/.tooling/coding-agent-conventions
+        run: bun .tooling/coding-tooling/src/cli.ts conformance --json > /tmp/conformance.json
+
+      - name: Commit generated foundation files
+        run: |
+          rm -rf .tooling
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add conventions.lock.json .conventions .github/workflows
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "chore: materialize repository foundation"
+          git push origin HEAD:chore/foundation-conformance
