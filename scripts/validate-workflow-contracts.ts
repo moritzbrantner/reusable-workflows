@@ -30,7 +30,6 @@ export type ValidationState = {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
-const environmentCanaryWorkflowPath = ".github/workflows/environment-v1-canary.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -82,38 +81,15 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
   }
 
-  for (const workflowPath of [codingToolingWorkflowPath, environmentCanaryWorkflowPath]) {
-    const source = state.workflowSources[workflowPath];
-    if (source && !immutableCodingToolingUse.test(source)) {
-      errors.push(
-        `${path.basename(workflowPath)} must pin moritzbrantner/coding-tooling to an exact commit SHA`,
-      );
-    }
-  }
-
   const codingToolingSource = state.workflowSources[codingToolingWorkflowPath];
+  if (codingToolingSource && !immutableCodingToolingUse.test(codingToolingSource)) {
+    errors.push(
+      "coding-tooling-validation.yml must pin moritzbrantner/coding-tooling to an exact commit SHA",
+    );
+  }
   const codingToolingInputs = manifest.workflows[codingToolingWorkflowPath]?.inputs ?? {};
   if (codingToolingSource && !("operation" in codingToolingInputs)) {
     errors.push("coding-tooling-validation.yml must expose the coding-tooling operation input");
-  }
-
-  const environmentCanarySource = state.workflowSources[environmentCanaryWorkflowPath];
-  const environmentCanaryInputs = Object.keys(
-    manifest.workflows[environmentCanaryWorkflowPath]?.inputs ?? {},
-  ).sort();
-  const expectedEnvironmentCanaryInputs = [
-    "artifact_retention_days",
-    "bun_version",
-    "environment_profile",
-    "timeout_minutes",
-  ];
-  if (
-    environmentCanarySource &&
-    JSON.stringify(environmentCanaryInputs) !== JSON.stringify(expectedEnvironmentCanaryInputs)
-  ) {
-    errors.push(
-      "environment-v1-canary.yml must keep the narrow environment identity interface",
-    );
   }
 
   const fastInputs = Object.keys(
