@@ -61,22 +61,24 @@ export function AdoptionPage() {
               <ArrowLeft aria-hidden="true" />
               Reference home
             </a>
-            <p className="eyebrow">Adoption Tool</p>
-            <h1 id="adoption-title">Generate and audit Caller Workflows.</h1>
+            <p className="eyebrow">v1.3 Compatibility Tool</p>
+            <h1 id="adoption-title">Generate and audit frozen v1.3 Caller Workflows.</h1>
             <p className="hero__lede">
-              Select a common repository profile, generate starter caller workflow files, and audit
-              pasted workflow YAML for the adoption mistakes that usually slow down migration.
+              This tool preserves the historical <code>workflow-standard-v1.3</code> adoption path
+              for existing consumers. New repositories should prefer a repository-owned validation
+              command or <code>coding-tooling-validation.yml</code> and pin the current capability
+              line by immutable commit SHA.
             </p>
             <div className="workflow-hero__meta" aria-label="Adoption metadata">
               <Badge>{options.workflowRef}</Badge>
-              <Badge variant="secondary">{generatedWorkflows.length} generated files</Badge>
-              <Badge variant="outline">Warn by default</Badge>
+              <Badge variant="secondary">Compatibility generator</Badge>
+              <Badge variant="outline">{generatedWorkflows.length} generated files</Badge>
             </div>
           </div>
           <div className="workflow-hero__stats" aria-label="Adoption summary">
             <Stat className="signal-board__stat">
               <StatValue className="signal-board__stat-value">{adoptionProfiles.length}</StatValue>
-              <StatDescription className="signal-board__stat-description">Profiles</StatDescription>
+              <StatDescription className="signal-board__stat-description">v1.3 profiles</StatDescription>
             </Stat>
             <Stat className="signal-board__stat">
               <StatValue className="signal-board__stat-value">
@@ -97,16 +99,38 @@ export function AdoptionPage() {
           </div>
         </section>
 
+        <section className="section section--split" aria-labelledby="current-adoption-title">
+          <div>
+            <p className="eyebrow">Current Capability Line</p>
+            <h2 id="current-adoption-title">Do not use this generator as a new architecture template.</h2>
+          </div>
+          <div className="copy">
+            <p>
+              Current validation semantics belong in repository commands and <code>coding-tooling</code>.
+              GitHub-hosted validation should call one deterministic repository command through
+              <code>fast-validation.yml</code>, or delegate a declared tier through
+              <code>coding-tooling-validation.yml</code> when that private tooling is available.
+            </p>
+            <p>
+              The profiles below remain useful for auditing or maintaining repositories already
+              pinned to <code>workflow-standard-v1.3</code>. The frozen compatibility tag and manifest
+              should not be evolved to represent new capabilities.
+            </p>
+          </div>
+        </section>
+
         <section className="section adoption-layout" aria-labelledby="adoption-generator-title">
           <div>
-            <p className="eyebrow">Generator</p>
-            <h2 id="adoption-generator-title">Choose the consumer shape.</h2>
+            <p className="eyebrow">Compatibility Generator</p>
+            <h2 id="adoption-generator-title">Choose the existing v1.3 consumer shape.</h2>
           </div>
           <div className="adoption-tool-grid">
             <Card className="detail-card adoption-controls">
               <CardHeader>
                 <CardTitle>Profile</CardTitle>
-                <CardDescription>Starter workflows for the common repo shapes.</CardDescription>
+                <CardDescription>
+                  Historical starter workflows for repositories that intentionally remain on v1.3.
+                </CardDescription>
               </CardHeader>
               <CardContent className="adoption-controls__content">
                 <div aria-label="Profile" className="adoption-profile-grid" role="radiogroup">
@@ -200,9 +224,10 @@ export function AdoptionPage() {
             <Card className="detail-card adoption-output">
               <CardHeader>
                 <div>
-                  <CardTitle>Generated workflow YAML</CardTitle>
+                  <CardTitle>Generated v1.3 workflow YAML</CardTitle>
                   <CardDescription>
-                    Complete caller workflow files using explicit permissions and pinned refs.
+                    Complete compatibility caller workflow files using explicit permissions and the
+                    selected frozen ref.
                   </CardDescription>
                 </div>
                 <div className="chip-list">
@@ -231,15 +256,15 @@ export function AdoptionPage() {
 
         <section className="section adoption-layout" aria-labelledby="adoption-audit-title">
           <div>
-            <p className="eyebrow">Checker</p>
-            <h2 id="adoption-audit-title">Audit pasted workflow YAML.</h2>
+            <p className="eyebrow">Compatibility Checker</p>
+            <h2 id="adoption-audit-title">Audit existing v1.3 workflow YAML.</h2>
           </div>
           <div className="adoption-audit-grid">
             <Card className="detail-card adoption-audit-card">
               <CardHeader>
                 <CardTitle>Workflow YAML</CardTitle>
                 <CardDescription>
-                  The same checks are available from <code>bun run adoption:check</code>.
+                  The same compatibility checks are available from <code>bun run adoption:check</code>.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -247,7 +272,7 @@ export function AdoptionPage() {
                   aria-label="Workflow YAML to audit"
                   className="adoption-textarea"
                   onChange={(event) => setAuditYaml(event.target.value)}
-                  placeholder="Paste a caller workflow YAML file here."
+                  placeholder="Paste an existing v1.3 caller workflow YAML file here."
                   value={auditYaml}
                 />
               </CardContent>
@@ -257,7 +282,7 @@ export function AdoptionPage() {
               <CardHeader>
                 <CardTitle>Diagnostics</CardTitle>
                 <CardDescription>
-                  Warnings are migration guidance; parse failures are errors.
+                  Warnings are compatibility migration guidance; parse failures are errors.
                 </CardDescription>
               </CardHeader>
               <CardContent>
