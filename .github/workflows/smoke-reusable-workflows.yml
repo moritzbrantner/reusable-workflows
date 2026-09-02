@@ -39,6 +39,10 @@ jobs:
       install_command: ""
       command: "echo smoke fast validation"
 
+  public-contract-validation:
+    needs: fast-validation
+    uses: ./.github/workflows/public-contract-validation.yml
+
   repository-pages-build:
     needs: fast-validation
     runs-on: ubuntu-latest
