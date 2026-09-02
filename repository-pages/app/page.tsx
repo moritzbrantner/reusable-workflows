@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 const repository = process.env.NEXT_PUBLIC_REPOSITORY ?? "moritzbrantner/repository";
 const repositoryUrl = `https://github.com/${repository}`;
 
-interface Repository {
+type Repository = {
   name: string;
   full_name: string;
   html_url: string;
@@ -20,7 +20,7 @@ interface Repository {
   license: { spdx_id: string } | null;
 }
 
-interface Commit {
+type Commit = {
   sha: string;
   html_url: string;
   commit: {
@@ -32,14 +32,14 @@ interface Commit {
   };
 }
 
-interface ReleaseAsset {
+type ReleaseAsset = {
   id: number;
   name: string;
   browser_download_url: string;
   size: number;
 }
 
-interface Release {
+type Release = {
   id: number;
   name: string | null;
   tag_name: string;
@@ -49,7 +49,7 @@ interface Release {
   assets: ReleaseAsset[];
 }
 
-interface PullRequest {
+type PullRequest = {
   id: number;
   number: number;
   title: string;
@@ -58,7 +58,7 @@ interface PullRequest {
   updated_at: string;
 }
 
-interface Issue {
+type Issue = {
   id: number;
   number: number;
   title: string;
@@ -67,7 +67,7 @@ interface Issue {
   pull_request?: unknown;
 }
 
-interface WorkflowRun {
+type WorkflowRun = {
   id: number;
   name: string | null;
   html_url: string;
@@ -78,7 +78,7 @@ interface WorkflowRun {
   updated_at: string;
 }
 
-interface WorkflowRuns {
+type WorkflowRuns = {
   total_count: number;
   workflow_runs: WorkflowRun[];
 }
