@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: "coding-tooling operation to execute: run or findings."
+        description: "coding-tooling operation to execute: run, findings, or public-contract."
         required: false
         type: string
         default: run
       tier:
-        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings.
+        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings and public-contract.
         required: false
         type: string
         default: fast
