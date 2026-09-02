@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import workflowContracts from "../../contracts/workflows.json";
 import { formatValue } from "../app/formatters";
 import { homeHref, workflowHref } from "../app/routes";
-import { buildUsageSnippet, parsedWorkflowsByFile } from "../app/workflowCatalog";
+import { parsedWorkflowsByFile } from "../app/workflowCatalog";
 import type { ContractField, ParsedWorkflow } from "../app/types";
 import {
   Badge,
@@ -22,14 +22,17 @@ import {
 import { SiteHeader } from "../components/SiteHeader";
 
 export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
-  const contract = workflow.contract;
+  const compatibilityContract = workflow.contract;
+  const isReusableWorkflow = workflow.triggers.includes("workflow_call");
+  const workflowRole = isReusableWorkflow ? "Reusable Workflow" : "Caller Workflow";
   const dependencyWorkflows = workflow.dependencies
     .map((file) => parsedWorkflowsByFile.get(file))
     .filter((dependency): dependency is ParsedWorkflow => Boolean(dependency));
   const callerWorkflows = workflow.callers
     .map((file) => parsedWorkflowsByFile.get(file))
     .filter((caller): caller is ParsedWorkflow => Boolean(caller));
-  const showDependencyCard = workflow.role === "Caller Workflow" || dependencyWorkflows.length > 0;
+  const showDependencyCard = workflowRole === "Caller Workflow" || dependencyWorkflows.length > 0;
+  const usageSnippet = buildCurrentUsageSnippet(workflow, workflowRole);
 
   return (
     <>
@@ -39,15 +42,20 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
           <div className="workflow-hero__body">
             <a className="back-link" href={homeHref("workflows")}>
               <ArrowLeft aria-hidden="true" />
-              All workflows
+              All capabilities
             </a>
-            <p className="eyebrow">{workflow.role}</p>
+            <p className="eyebrow">{workflowRole}</p>
             <h1 id="workflow-title">{workflow.title}</h1>
             <p className="hero__lede">{workflow.summary}</p>
             <div className="workflow-hero__meta" aria-label="Workflow metadata">
               <Badge>{workflow.file}</Badge>
               <Badge variant="secondary">{workflow.yamlName}</Badge>
-              <Badge variant="outline">{workflowContracts.workflow_standard}</Badge>
+              <Badge variant="outline">Current main</Badge>
+              {compatibilityContract ? (
+                <Badge variant="outline">{workflowContracts.workflow_standard} snapshot</Badge>
+              ) : isReusableWorkflow ? (
+                <Badge variant="outline">Independent capability</Badge>
+              ) : null}
             </div>
           </div>
           <div className="workflow-hero__stats" aria-label={`${workflow.title} metrics`}>
@@ -69,9 +77,19 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
             </Stat>
             <Stat className="signal-board__stat">
               <StatValue className="signal-board__stat-value">
-                {Object.keys(contract?.inputs ?? {}).length}
+                {compatibilityContract
+                  ? Object.keys(compatibilityContract.inputs ?? {}).length
+                  : isReusableWorkflow
+                    ? "YAML"
+                    : "—"}
               </StatValue>
-              <StatDescription className="signal-board__stat-description">Inputs</StatDescription>
+              <StatDescription className="signal-board__stat-description">
+                {compatibilityContract
+                  ? "v1.3 inputs"
+                  : isReusableWorkflow
+                    ? "Current contract"
+                    : "Workflow call"}
+              </StatDescription>
             </Stat>
           </div>
         </section>
@@ -194,22 +212,47 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
         <section className="section workflow-page-grid" aria-labelledby="contract-title">
           <div>
             <p className="eyebrow">Contract</p>
-            <h2 id="contract-title">Contract surface, secrets, and permissions</h2>
+            <h2 id="contract-title">
+              {compatibilityContract ? "Frozen compatibility snapshot" : "Current contract source"}
+            </h2>
           </div>
-          {contract ? (
+          {compatibilityContract ? (
             <div className="workflow-detail-stack">
-              <ContractFields title="Inputs" fields={contract.inputs} />
-              <ContractFields title="Secrets" fields={contract.secrets ?? {}} />
-              <ContractFields title="Outputs" fields={contract.outputs ?? {}} />
-              <PermissionFields permissions={contract.permissions} />
+              <Card className="detail-card">
+                <CardHeader>
+                  <CardTitle>{workflowContracts.workflow_standard}</CardTitle>
+                  <CardDescription>Historical compatibility data, not the live main contract.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p>
+                    The structured fields below come from <code>contracts/workflows.json</code>, which
+                    is intentionally frozen. Consult the current workflow YAML for the live
+                    capability interface before adopting or changing a caller.
+                  </p>
+                </CardContent>
+              </Card>
+              <ContractFields title="Inputs" fields={compatibilityContract.inputs} />
+              <ContractFields title="Secrets" fields={compatibilityContract.secrets ?? {}} />
+              <ContractFields title="Outputs" fields={compatibilityContract.outputs ?? {}} />
+              <PermissionFields permissions={compatibilityContract.permissions} />
             </div>
           ) : (
             <Card className="detail-card">
               <CardContent>
-                <p>
-                  This is a local caller workflow. It is documented from the YAML source, but it is
-                  not part of <code>contracts/workflows.json</code>.
-                </p>
+                {isReusableWorkflow ? (
+                  <p>
+                    This is an independent current capability. Its <code>workflow_call</code> inputs,
+                    secrets, outputs, and job permissions are defined by the current YAML on
+                    <code>main</code>; it is intentionally absent from the frozen v1.3 compatibility
+                    manifest.
+                  </p>
+                ) : (
+                  <p>
+                    This is a repository-owned Caller Workflow. It has no reusable
+                    <code>workflow_call</code> contract; its current YAML defines lifecycle triggers
+                    and composition.
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}
@@ -218,7 +261,13 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
         <section className="section section--split" aria-labelledby="usage-title">
           <div>
             <p className="eyebrow">Usage</p>
-            <h2 id="usage-title">Reference snippet</h2>
+            <h2 id="usage-title">Current-line reference snippet</h2>
+            {isReusableWorkflow ? (
+              <p>
+                Pin an immutable commit SHA. Check the current YAML for capability-specific inputs;
+                do not infer the current interface from the frozen v1.3 snapshot.
+              </p>
+            ) : null}
           </div>
           <CodeBlock
             className="code-panel"
@@ -227,13 +276,27 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
             tabIndex={0}
           >
             <CodeBlockContent>
-              <CodeBlockCode>{buildUsageSnippet(workflow)}</CodeBlockCode>
+              <CodeBlockCode>{usageSnippet}</CodeBlockCode>
             </CodeBlockContent>
           </CodeBlock>
         </section>
       </main>
     </>
   );
+}
+
+function buildCurrentUsageSnippet(
+  workflow: ParsedWorkflow,
+  workflowRole: "Reusable Workflow" | "Caller Workflow",
+) {
+  if (workflowRole === "Caller Workflow") {
+    return `# ${workflow.file}\n# This is a repository-owned Caller Workflow.\n# It invokes:\n${
+      workflow.dependencies.map((dependency) => `# - ${dependency}`).join("\n") ||
+      "# - no invoked Reusable Workflows"
+    }`;
+  }
+
+  return `jobs:\n  ${workflow.slug}:\n    permissions:\n      contents: read\n    uses: moritzbrantner/reusable-workflows/${workflow.file}@<immutable-sha>\n    with:\n      # pass inputs from the current workflow YAML`;
 }
 
 function RelationshipCard({
