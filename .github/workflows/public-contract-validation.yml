@@ -42,7 +42,7 @@ on:
 jobs:
   public-contract:
     name: Public Contract
-    uses: ./.github/workflows/coding-tooling-validation.yml
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@fa1edde7eabfe3a825691688caf1278b89094a15
     with:
       operation: public-contract
       config: ${{ inputs.config }}
