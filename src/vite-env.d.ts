@@ -7,7 +7,6 @@ declare module "virtual:workflow-catalog-data" {
     string,
     {
       jobs: ParsedJob[];
-      source: string;
       triggers: string[];
       yamlName: string;
     }
