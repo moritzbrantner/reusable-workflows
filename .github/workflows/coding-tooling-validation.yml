@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: coding-tooling operation to execute: run or findings.
+        description: "coding-tooling operation to execute: run or findings."
         required: false
         type: string
         default: run
