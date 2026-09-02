@@ -1,0 +1,45 @@
+name: Prune Workflow Source
+
+on:
+  push:
+    branches:
+      - chore/foundation-conformance
+
+permissions:
+  contents: write
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: chore/foundation-conformance
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile
+      - name: Remove unused workflow source field
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/app/workflowCatalog.ts")
+          source = path.read_text()
+          for old in ("    source: string;\n", "    source: workflow.source,\n"):
+              if old not in source:
+                  raise SystemExit(f"expected source field not found: {old!r}")
+              source = source.replace(old, "", 1)
+          path.write_text(source)
+          PY
+          bun run format
+      - name: Commit source pruning
+        run: |
+          if git diff --quiet -- src/app/workflowCatalog.ts; then
+            exit 0
+          fi
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/app/workflowCatalog.ts
+          git commit -m "perf: remove unused workflow source payload"
+          git push origin HEAD:chore/foundation-conformance
