@@ -129,9 +129,30 @@ jobs:
         run: bun "$RUNNER_TEMP/coding-tooling/src/cli.ts" conventions check
 
       - name: Verify repository conformance
+        id: conformance
+        continue-on-error: true
         env:
           CODING_AGENT_CONVENTIONS_ROOT: ${{ runner.temp }}/coding-agent-conventions
         run: bun "$RUNNER_TEMP/coding-tooling/src/cli.ts" conformance --json
+
+      - name: Show TS-005 diagnostics
+        if: ${{ steps.conformance.outcome != 'success' }}
+        run: |
+          cat > /tmp/ts-005.json <<'EOF'
+          {
+            "options": { "typeAware": true },
+            "rules": {
+              "typescript/switch-exhaustiveness-check": [
+                "error",
+                { "considerDefaultExhaustiveForUnions": false }
+              ]
+            }
+          }
+          EOF
+          bunx oxlint --config /tmp/ts-005.json . || true
+
+      - name: Remove accidental scratch branch
+        run: git push origin --delete noop-temp-ignore || true
 
       - name: Commit generated foundation files
         run: |
@@ -143,3 +164,7 @@ jobs:
           fi
           git commit -m "chore: materialize repository foundation"
           git push origin HEAD:chore/foundation-conformance
+
+      - name: Require clean conformance
+        if: ${{ steps.conformance.outcome != 'success' }}
+        run: exit 1
