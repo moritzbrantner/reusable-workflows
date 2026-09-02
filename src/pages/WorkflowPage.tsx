@@ -221,12 +221,14 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
               <Card className="detail-card">
                 <CardHeader>
                   <CardTitle>{workflowContracts.workflow_standard}</CardTitle>
-                  <CardDescription>Historical compatibility data, not the live main contract.</CardDescription>
+                  <CardDescription>
+                    Historical compatibility data, not the live main contract.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p>
-                    The structured fields below come from <code>contracts/workflows.json</code>, which
-                    is intentionally frozen. Consult the current workflow YAML for the live
+                    The structured fields below come from <code>contracts/workflows.json</code>,
+                    which is intentionally frozen. Consult the current workflow YAML for the live
                     capability interface before adopting or changing a caller.
                   </p>
                 </CardContent>
@@ -241,8 +243,8 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
               <CardContent>
                 {isReusableWorkflow ? (
                   <p>
-                    This is an independent current capability. Its <code>workflow_call</code> inputs,
-                    secrets, outputs, and job permissions are defined by the current YAML on
+                    This is an independent current capability. Its <code>workflow_call</code>{" "}
+                    inputs, secrets, outputs, and job permissions are defined by the current YAML on
                     <code>main</code>; it is intentionally absent from the frozen v1.3 compatibility
                     manifest.
                   </p>

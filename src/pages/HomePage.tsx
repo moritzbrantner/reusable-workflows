@@ -39,7 +39,9 @@ export function HomePage() {
         <section className="hero" aria-labelledby="hero-title">
           <div className="hero__content">
             <p className="eyebrow">Independent capability line</p>
-            <h1 id="hero-title">Thin GitHub adapters for repository-owned validation and delivery.</h1>
+            <h1 id="hero-title">
+              Thin GitHub adapters for repository-owned validation and delivery.
+            </h1>
             <p className="hero__lede">
               Repository commands and coding-tooling own deterministic semantics. These workflows
               reproduce selected checks, evidence transport, deployment, publication, and
@@ -206,8 +208,8 @@ export function HomePage() {
                   <h3>Progressive validation</h3>
                   <p>
                     Pull requests start with the generic fast adapter. Main and explicitly labeled
-                    PRs add E2E, Storybook, link, and performance validation, including Unlighthouse,
-                    benchmarks, bundle budgets, and normalized metrics.
+                    PRs add E2E, Storybook, link, and performance validation, including
+                    Unlighthouse, benchmarks, bundle budgets, and normalized metrics.
                   </p>
                 </CardContent>
               </Card>
@@ -231,7 +233,8 @@ export function HomePage() {
                   <Globe2 aria-hidden="true" />
                   <h3>Pages deploy</h3>
                   <p>
-                    Default-branch pushes build the React reference app and publish <code>dist/</code>
+                    Default-branch pushes build the React reference app and publish{" "}
+                    <code>dist/</code>
                     through the <code>deploy-pages.yml</code> Reusable Workflow.
                   </p>
                 </CardContent>
@@ -288,7 +291,9 @@ export function HomePage() {
               Keep <code>{workflowContracts.workflow_standard}</code> and its historical contract
               snapshot immutable.
             </li>
-            <li>Run contract validation, app verification, actionlint, and focused smoke coverage.</li>
+            <li>
+              Run contract validation, app verification, actionlint, and focused smoke coverage.
+            </li>
             <li>Confirm affected consumer evidence before broad rollout.</li>
             <li>
               Consumers pin an immutable commit SHA until an intentional capability-specific release

@@ -227,9 +227,7 @@ test("renders workflow detail pages with dependencies and contract data", async 
   await expect(
     page.getByRole("table", { name: "Inputs contract fields" }).getByText("artifact_path"),
   ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Current-line reference snippet" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Current-line reference snippet" })).toBeVisible();
 });
 
 test("links every workflow to a clean path route", async ({ page }) => {

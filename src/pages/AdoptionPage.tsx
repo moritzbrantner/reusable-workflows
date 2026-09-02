@@ -78,7 +78,9 @@ export function AdoptionPage() {
           <div className="workflow-hero__stats" aria-label="Adoption summary">
             <Stat className="signal-board__stat">
               <StatValue className="signal-board__stat-value">{adoptionProfiles.length}</StatValue>
-              <StatDescription className="signal-board__stat-description">v1.3 profiles</StatDescription>
+              <StatDescription className="signal-board__stat-description">
+                v1.3 profiles
+              </StatDescription>
             </Stat>
             <Stat className="signal-board__stat">
               <StatValue className="signal-board__stat-value">
@@ -102,19 +104,22 @@ export function AdoptionPage() {
         <section className="section section--split" aria-labelledby="current-adoption-title">
           <div>
             <p className="eyebrow">Current Capability Line</p>
-            <h2 id="current-adoption-title">Do not use this generator as a new architecture template.</h2>
+            <h2 id="current-adoption-title">
+              Do not use this generator as a new architecture template.
+            </h2>
           </div>
           <div className="copy">
             <p>
-              Current validation semantics belong in repository commands and <code>coding-tooling</code>.
-              GitHub-hosted validation should call one deterministic repository command through
+              Current validation semantics belong in repository commands and{" "}
+              <code>coding-tooling</code>. GitHub-hosted validation should call one deterministic
+              repository command through
               <code>fast-validation.yml</code>, or delegate a declared tier through
               <code>coding-tooling-validation.yml</code> when that private tooling is available.
             </p>
             <p>
               The profiles below remain useful for auditing or maintaining repositories already
-              pinned to <code>workflow-standard-v1.3</code>. The frozen compatibility tag and manifest
-              should not be evolved to represent new capabilities.
+              pinned to <code>workflow-standard-v1.3</code>. The frozen compatibility tag and
+              manifest should not be evolved to represent new capabilities.
             </p>
           </div>
         </section>
@@ -264,7 +269,8 @@ export function AdoptionPage() {
               <CardHeader>
                 <CardTitle>Workflow YAML</CardTitle>
                 <CardDescription>
-                  The same compatibility checks are available from <code>bun run adoption:check</code>.
+                  The same compatibility checks are available from{" "}
+                  <code>bun run adoption:check</code>.
                 </CardDescription>
               </CardHeader>
               <CardContent>
