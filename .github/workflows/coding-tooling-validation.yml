@@ -77,7 +77,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@c8682a4804397f82099bd7f567ac4a6e8a18658e
+        uses: moritzbrantner/coding-tooling@20afb614772346991b3e7ac60b5857ecab5472e3
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -105,7 +105,7 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`c8682a4804397f82099bd7f567ac4a6e8a18658e\`"
+            echo "- coding-tooling revision: \`20afb614772346991b3e7ac60b5857ecab5472e3\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
