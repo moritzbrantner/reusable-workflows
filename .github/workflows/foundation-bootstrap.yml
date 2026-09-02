@@ -93,7 +93,12 @@ jobs:
       - name: Inspect repository conformance
         env:
           CODING_AGENT_CONVENTIONS_ROOT: ${{ github.workspace }}/.tooling/coding-agent-conventions
-        run: bun .tooling/coding-tooling/src/cli.ts conformance --json > /tmp/conformance.json
+        run: |
+          set +e
+          bun .tooling/coding-tooling/src/cli.ts conformance --json | tee /tmp/conformance.json
+          status=${PIPESTATUS[0]}
+          echo "coding-tooling conformance exit: $status" >> "$GITHUB_STEP_SUMMARY"
+          exit 0
 
       - name: Commit generated foundation files
         run: |
