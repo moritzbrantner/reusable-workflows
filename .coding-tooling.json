@@ -2,13 +2,7 @@
   "schemaVersion": 1,
   "profile": "repository-foundation-v1",
   "tiers": {
-    "fast": [
-      "format:check",
-      "lint",
-      "typecheck",
-      "build",
-      "test:unit"
-    ],
+    "fast": ["format:check", "lint", "typecheck", "build", "test:unit"],
     "full": [
       "format:check",
       "lint",
@@ -24,13 +18,7 @@
       "benchmark"
     ]
   },
-  "requiredCapabilities": [
-    "format:check",
-    "lint",
-    "typecheck",
-    "build",
-    "test:unit"
-  ],
+  "requiredCapabilities": ["format:check", "lint", "typecheck", "build", "test:unit"],
   "optionalCapabilities": [
     "test:integration",
     "test:e2e",

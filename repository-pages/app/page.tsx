@@ -18,7 +18,7 @@ type Repository = {
   open_issues_count: number;
   updated_at: string;
   license: { spdx_id: string } | null;
-}
+};
 
 type Commit = {
   sha: string;
@@ -30,14 +30,14 @@ type Commit = {
       date: string;
     } | null;
   };
-}
+};
 
 type ReleaseAsset = {
   id: number;
   name: string;
   browser_download_url: string;
   size: number;
-}
+};
 
 type Release = {
   id: number;
@@ -47,7 +47,7 @@ type Release = {
   published_at: string | null;
   prerelease: boolean;
   assets: ReleaseAsset[];
-}
+};
 
 type PullRequest = {
   id: number;
@@ -56,7 +56,7 @@ type PullRequest = {
   html_url: string;
   draft: boolean;
   updated_at: string;
-}
+};
 
 type Issue = {
   id: number;
@@ -65,7 +65,7 @@ type Issue = {
   html_url: string;
   updated_at: string;
   pull_request?: unknown;
-}
+};
 
 type WorkflowRun = {
   id: number;
@@ -76,12 +76,12 @@ type WorkflowRun = {
   conclusion: string | null;
   head_branch: string | null;
   updated_at: string;
-}
+};
 
 type WorkflowRuns = {
   total_count: number;
   workflow_runs: WorkflowRun[];
-}
+};
 
 async function githubJson<T>(path: string): Promise<T> {
   const response = await fetch(`https://api.github.com/repos/${repository}${path}`, {
