@@ -11,13 +11,13 @@ export function SiteHeader() {
           <span>Reusable Workflows</span>
         </a>
         <nav className="nav" aria-label="Primary navigation">
-          <a href={homeHref("standard")}>Standard</a>
-          <a href={homeHref("connections")}>Connections</a>
-          <a href={homeHref("workflows")}>Workflows</a>
-          <a href={homeHref("dogfood")}>Dogfood</a>
-          <a href={adoptionHref()}>Adoption</a>
+          <a href={homeHref("standard")}>Architecture</a>
+          <a href={homeHref("connections")}>Dogfood graph</a>
+          <a href={homeHref("workflows")}>Capabilities</a>
+          <a href={homeHref("dogfood")}>Validation</a>
+          <a href={adoptionHref()}>v1.3 compatibility</a>
           <a href={metricsHref()}>Metrics</a>
-          <a href={homeHref("release")}>Release</a>
+          <a href={homeHref("release")}>Refs</a>
         </nav>
       </div>
     </header>
