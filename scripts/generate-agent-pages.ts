@@ -1,3 +1,5 @@
+/* eslint-disable no-console */
+
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -5,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
   generateCapabilityManifest,
   readRepositoryWorkflowSources,
-} from "./generate-workflow-manifest.ts";
+} from "./generate-workflow-manifest";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
