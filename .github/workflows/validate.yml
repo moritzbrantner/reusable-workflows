@@ -56,6 +56,23 @@ jobs:
     with:
       command: "bun run validate:fast"
 
+  coding-tooling-findings:
+    uses: ./.github/workflows/coding-tooling-validation.yml
+    permissions:
+      contents: read
+    with:
+      operation: findings
+      report_path: .artifacts/coding-tooling/findings.json
+
+  coding-tooling-fast:
+    uses: ./.github/workflows/coding-tooling-validation.yml
+    permissions:
+      contents: read
+    with:
+      operation: run
+      tier: fast
+      report_path: .artifacts/coding-tooling/fast.json
+
   e2e-validation:
     needs: [app-validation, actionlint]
     if: >-
