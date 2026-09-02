@@ -23,7 +23,6 @@ type WorkflowCatalogData = Record<
   string,
   {
     jobs: ParsedJob[];
-    source: string;
     triggers: string[];
     yamlName: string;
   }
@@ -607,7 +606,6 @@ function parseWorkflow(
   return {
     ...metadata,
     slug: slugFromFile(file),
-    source: workflow.source,
     yamlName: workflow.yamlName || metadata.title,
     triggers: workflow.triggers,
     jobs: workflow.jobs,

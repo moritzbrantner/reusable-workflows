@@ -31,13 +31,7 @@ export function workflowCatalogDataPlugin(rootDir = process.cwd()): Plugin {
 
           this.addWatchFile(workflowPath);
 
-          return [
-            file,
-            {
-              ...parseWorkflowForCatalog(source),
-              source,
-            },
-          ];
+          return [file, parseWorkflowForCatalog(source)];
         }),
       );
 

@@ -7,6 +7,7 @@ const isCi = Boolean(process.env.CI);
 
 export default defineConfig({
   testDir: "tests/e2e",
+  testMatch: "**/*.e2e.ts",
   fullyParallel: true,
   retries: isCi ? 2 : 0,
   reporter: [["list"]],
