@@ -6,7 +6,7 @@
   "packageManager": "bun@1.4.0",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
-    "build": "vite build",
+    "build": "vite build && bun scripts/generate-agent-pages.ts",
     "preview": "vite preview",
     "storybook": "storybook dev --host 127.0.0.1 --port 6006",
     "storybook:build": "storybook build --quiet -o storybook-static",
