@@ -28,6 +28,9 @@ Caller-owned policy for when a tier runs: local/agent handoff, pull request, `ma
 **Coding Tooling Adapter**  
 `coding-tooling-validation.yml`, an optional hosted adapter that invokes the private `coding-tooling` Action for eligible private Consumer Repositories. `coding-tooling` owns tier and capability semantics; this repository owns only the GitHub execution wrapper and report transport.
 
+**Environment Integrity Canary**  
+`environment-v1-canary.yml`, a hosted environment-v1 adapter that captures semantic identity before setup, runs the standard repository setup entrypoint, requires setup to be idempotent over tracked state, verifies the prepared machine against the exact pre-setup identity, and transports short-lived evidence. Environment semantics remain owned by environment-v1 and `coding-tooling`.
+
 **Source-first development**  
 Development against repository sources, including exact sibling sources where appropriate, without requiring package publication or hosted cross-repository access as a prerequisite.
 
@@ -48,12 +51,13 @@ A capability such as branch promotion, existing stage validation, external deplo
 1. Workflow YAML owns the current hosted interface.
 2. Consumer repositories and `coding-tooling` own semantic validation commands, tiers/depth, and source-workspace behavior; caller workflows own lifecycle timing.
 3. `coding-tooling-validation.yml` may reproduce a `coding-tooling` tier on GitHub for eligible private consumers, but GitHub access is never a prerequisite for the local path.
-4. `fast-validation.yml` remains the universal command adapter for consumers that do not or cannot use the private Action.
-5. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport execution and evidence.
-6. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
-7. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
-8. Concurrency policy belongs in Caller Workflows unless a GitHub API requires capability-local serialization.
-9. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
+4. `environment-v1-canary.yml` owns only the hosted pre/setup/post evidence sequence. It must use the standard environment-v1 setup entrypoint and must not redefine environment identity or repair consumer state.
+5. `fast-validation.yml` remains the universal command adapter for consumers that do not or cannot use the private Action.
+6. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport execution and evidence.
+7. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
+8. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
+9. Concurrency policy belongs in Caller Workflows unless a GitHub API requires capability-local serialization.
+10. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
 
 ## Capability classes
 
@@ -61,8 +65,9 @@ A capability such as branch promotion, existing stage validation, external deplo
 
 - `fast-validation.yml`
 - `coding-tooling-validation.yml`
+- `environment-v1-canary.yml`
 
-`coding-tooling-validation.yml` is preferred for private consumers that already use `coding-tooling`; it delegates a consumer-owned tier to the private Action and uploads the resulting JSON report. `fast-validation.yml` is the thin generic command adapter. This public repository cannot execute the private Action itself, so the adapter is not part of the local smoke fanout.
+`coding-tooling-validation.yml` is preferred for private consumers that already use `coding-tooling`; it delegates a consumer-owned tier to the private Action and uploads the resulting JSON report. `fast-validation.yml` is the thin generic command adapter. `environment-v1-canary.yml` is independent of validation depth: it checks that environment construction preserves repository identity and reproduces the semantic environment it was given. This public repository cannot execute private consumer-specific paths itself, so those adapters are validated here and dogfooded by eligible consumers.
 
 ### Specialized / transitional validation
 
