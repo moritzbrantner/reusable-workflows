@@ -85,6 +85,50 @@ jobs:
               (destination / path.name).write_text(source)
           PY
 
+      - name: Harden package publish Rust toolchain input
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path(".foundation-pinned-workflows/package-publish.yml")
+          source = path.read_text()
+          old_default = '''      rust_toolchain:
+                  required: false
+                  type: string
+                  default: "stable"
+          '''
+          new_default = '''      rust_toolchain:
+                  description: Exact Rust toolchain version for Cargo publication. Empty skips Rust setup.
+                  required: false
+                  type: string
+                  default: ""
+          '''
+          if old_default not in source:
+              raise SystemExit("rust_toolchain input anchor not found")
+          source = source.replace(old_default, new_default, 1)
+
+          anchor = '''      - name: Set up Bun
+                  if: ${{ inputs.bun_version != '' }}
+          '''
+          validation = '''      - name: Validate Rust toolchain
+                  if: ${{ inputs.package_manager == 'cargo' && inputs.rust_toolchain != '' }}
+                  env:
+                    RUST_TOOLCHAIN: ${{ inputs.rust_toolchain }}
+                  run: |
+                    if [[ ! "$RUST_TOOLCHAIN" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+                      echo "::error::rust_toolchain must be an exact semantic version such as 1.95.0, or empty to skip Rust setup." >&2
+                      exit 2
+                    fi
+
+                - name: Set up Bun
+                  if: ${{ inputs.bun_version != '' }}
+          '''
+          if anchor not in source:
+              raise SystemExit("Set up Bun anchor not found")
+          source = source.replace(anchor, validation, 1)
+          path.write_text(source)
+          PY
+
       - name: Align Oxlint with convention enforcement
         run: bun add --dev oxlint@1.80.0 oxlint-tsgolint@7.0.2001
 
@@ -134,22 +178,6 @@ jobs:
         env:
           CODING_AGENT_CONVENTIONS_ROOT: ${{ runner.temp }}/coding-agent-conventions
         run: bun "$RUNNER_TEMP/coding-tooling/src/cli.ts" conformance --json
-
-      - name: Show TS-005 diagnostics
-        if: ${{ steps.conformance.outcome != 'success' }}
-        run: |
-          cat > /tmp/ts-005.json <<'EOF'
-          {
-            "options": { "typeAware": true },
-            "rules": {
-              "typescript/switch-exhaustiveness-check": [
-                "error",
-                { "considerDefaultExhaustiveForUnions": false }
-              ]
-            }
-          }
-          EOF
-          bunx oxlint --config /tmp/ts-005.json . || true
 
       - name: Commit generated foundation files
         run: |
