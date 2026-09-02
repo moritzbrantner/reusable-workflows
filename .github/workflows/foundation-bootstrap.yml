@@ -88,6 +88,31 @@ jobs:
       - name: Align Oxlint with convention enforcement
         run: bun add --dev oxlint@1.80.0
 
+      - name: Normalize TypeScript type definitions
+        run: |
+          cat > /tmp/ts-003.json <<'EOF'
+          {
+            "plugins": ["typescript"],
+            "rules": {
+              "typescript/consistent-type-definitions": ["error", "type"]
+            }
+          }
+          EOF
+          bunx oxlint --config /tmp/ts-003.json --fix repository-pages/app/page.tsx
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/app/metricsCatalog.ts")
+          source = path.read_text()
+          old = "declare global {\n  interface Window {"
+          new = "declare global {\n  // oxlint-disable-next-line typescript/consistent-type-definitions -- Window augmentation requires declaration merging.\n  interface Window {"
+          if new not in source:
+              if old not in source:
+                  raise SystemExit("Window augmentation anchor not found")
+              source = source.replace(old, new, 1)
+              path.write_text(source)
+          PY
+
       - name: Verify environment entrypoint
         run: bash scripts/codex-environment.sh setup
 
@@ -103,34 +128,16 @@ jobs:
           CODING_AGENT_CONVENTIONS_ROOT: ${{ runner.temp }}/coding-agent-conventions
         run: bun "$RUNNER_TEMP/coding-tooling/src/cli.ts" conventions check
 
-      - name: Inspect repository conformance
+      - name: Verify repository conformance
         env:
           CODING_AGENT_CONVENTIONS_ROOT: ${{ runner.temp }}/coding-agent-conventions
-        run: |
-          set +e
-          bun "$RUNNER_TEMP/coding-tooling/src/cli.ts" conformance --json | tee /tmp/conformance.json
-          status=${PIPESTATUS[0]}
-          echo "coding-tooling conformance exit: $status" >> "$GITHUB_STEP_SUMMARY"
-          exit 0
-
-      - name: Show REACT-004 diagnostics
-        run: |
-          cat > /tmp/react-004.json <<'EOF'
-          {
-            "plugins": ["react"],
-            "rules": {
-              "react/no-deriving-state-in-effects": "error",
-              "react/set-state-in-effect": "error"
-            }
-          }
-          EOF
-          bunx oxlint --config /tmp/react-004.json . || true
+        run: bun "$RUNNER_TEMP/coding-tooling/src/cli.ts" conformance --json
 
       - name: Commit generated foundation files
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add conventions.lock.json .conventions .env.example .foundation-pinned-workflows package.json bun.lock
+          git add conventions.lock.json .conventions .env.example .foundation-pinned-workflows package.json bun.lock repository-pages/app/page.tsx src/app/metricsCatalog.ts
           if git diff --cached --quiet; then
             exit 0
           fi
