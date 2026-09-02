@@ -1,0 +1,169 @@
+name: Validate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+      - labeled
+      - unlabeled
+  workflow_dispatch:
+    inputs:
+      run_full_validation:
+        description: "Run all validation jobs."
+        required: false
+        type: boolean
+        default: false
+      run_e2e:
+        description: "Run E2E validation."
+        required: false
+        type: boolean
+        default: false
+      run_storybook:
+        description: "Run Storybook validation."
+        required: false
+        type: boolean
+        default: false
+      run_link_validation:
+        description: "Run link validation."
+        required: false
+        type: boolean
+        default: false
+      run_performance:
+        description: "Run performance validation."
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app-validation:
+    uses: ./.github/workflows/fast-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      command: "bun run validate:fast"
+
+  e2e-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:e2e')))
+      }}
+    uses: ./.github/workflows/e2e-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      build_command: "bun run build"
+      install_playwright: true
+      install_playwright_browsers: chromium
+      e2e_command: "bunx playwright test"
+      artifact_paths: |
+        playwright-report
+        test-results
+
+  storybook-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_storybook)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:storybook')))
+      }}
+    uses: ./.github/workflows/storybook-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      pre_command: "bun run build"
+      storybook_build_command: "bun run storybook:build"
+      storybook_test_command: "bun run test:storybook"
+      accessibility_command: "bun run test:a11y:dist"
+      visual_command: "bun run test:visual:dist"
+      install_playwright: true
+      install_playwright_browsers: chromium
+      artifact_paths: |
+        storybook-static
+        playwright-report
+        test-results
+
+  link-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_link_validation)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:links')))
+      }}
+    uses: ./.github/workflows/link-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      build_command: "bun run build"
+      start_command: "bun run preview -- --host 127.0.0.1 --port 4173"
+      link_check_url: "http://127.0.0.1:4173"
+      link_check_command: >
+        bunx linkinator@7.6.1 "$LINK_CHECK_URL" --recurse --check-fragments
+        --retry-errors --retry-errors-count 2 --timeout 15000
+        --skip "^mailto:" --skip "^tel:" --skip "^javascript:" --skip "^data:"
+        --skip "^https?://(?!(127\\.0\\.0\\.1|localhost)(:[0-9]+)?(/|$))"
+      artifact_paths: |
+        link-check-results
+        linkinator-report.json
+
+  performance-validation:
+    needs: [app-validation, actionlint]
+    if: >-
+      ${{
+        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
+      }}
+    uses: ./.github/workflows/performance-validation.yml
+    permissions:
+      contents: read
+      packages: read
+    with:
+      build_command: "bun scripts/run-measured-build.ts"
+      unlighthouse_command: "bun scripts/run-unlighthouse.mjs"
+      benchmark_command: "bun run bench"
+      bundle_size_command: "bun run size:check:dist"
+      api_report_command: "bun run api:check"
+      metrics_command: "bun scripts/write-current-build-metrics.ts"
+      artifact_paths: |
+        .unlighthouse
+        unlighthouse-reports
+        benchmark-results
+        performance-results
+      summary_paths: |
+        benchmark-results/*.md
+        performance-results/current-build.md
+      upload_artifacts_on: ${{ github.event_name == 'pull_request' && 'failure' || 'always' }}
+
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Check workflow files
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color

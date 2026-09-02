@@ -1,0 +1,38 @@
+name: Deploy Docs Pages
+
+on:
+  workflow_run:
+    workflows:
+      - Validate
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+  packages: read
+
+concurrency:
+  group: docs-pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-pages:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
+      packages: read
+    uses: ./.github/workflows/deploy-pages.yml
+    with:
+      build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build"
+      timeout_minutes: 10
+      concurrency_group: docs-pages
+      cancel_in_progress: false

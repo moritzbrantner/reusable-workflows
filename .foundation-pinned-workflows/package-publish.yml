@@ -1,0 +1,368 @@
+name: Package Publish
+
+on:
+  workflow_call:
+    outputs:
+      artifact_name:
+        description: "Failure or requested artifact name for this package publish job."
+        value: ${{ jobs.package-publish.outputs.artifact_name }}
+      publish_status:
+        description: "Outcome of the publish command step: success, failure, skipped, or cancelled."
+        value: ${{ jobs.package-publish.outputs.publish_status }}
+    inputs:
+      package_manager:
+        required: true
+        type: string
+      working_directory:
+        required: false
+        type: string
+        default: "."
+      publish_enabled:
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        required: false
+        type: boolean
+        default: false
+      node_version:
+        required: false
+        type: string
+        default: "24"
+      bun_version:
+        required: false
+        type: string
+        default: ""
+      rust_toolchain:
+        required: false
+        type: string
+        default: "stable"
+      install_command:
+        required: false
+        type: string
+        default: ""
+      pre_publish_command:
+        required: false
+        type: string
+        default: ""
+      validate_command:
+        required: false
+        type: string
+        default: ""
+      build_command:
+        required: false
+        type: string
+        default: ""
+      publish_command:
+        required: false
+        type: string
+        default: ""
+      post_publish_command:
+        required: false
+        type: string
+        default: ""
+      npm_registry_url:
+        required: false
+        type: string
+        default: "https://registry.npmjs.org"
+      npm_scope:
+        required: false
+        type: string
+        default: ""
+      npm_access:
+        required: false
+        type: string
+        default: ""
+      npm_tag:
+        required: false
+        type: string
+        default: ""
+      npm_provenance:
+        required: false
+        type: boolean
+        default: true
+      cargo_registry:
+        required: false
+        type: string
+        default: ""
+      cargo_package:
+        required: false
+        type: string
+        default: ""
+      cargo_locked:
+        required: false
+        type: boolean
+        default: true
+      cache_bun:
+        required: false
+        type: boolean
+        default: false
+      bun_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/bun.lock"
+      cache_node:
+        required: false
+        type: boolean
+        default: true
+      npm_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/package-lock.json"
+      cache_cargo:
+        required: false
+        type: boolean
+        default: true
+      cargo_cache_dependency_path:
+        required: false
+        type: string
+        default: "**/Cargo.lock"
+      artifact_paths:
+        required: false
+        type: string
+        default: ""
+      upload_artifacts_on:
+        required: false
+        type: string
+        default: "failure"
+      artifact_retention_days:
+        required: false
+        type: number
+        default: 14
+      artifact_name_suffix:
+        required: false
+        type: string
+        default: ""
+      timeout_minutes:
+        required: false
+        type: number
+        default: 45
+      concurrency_group:
+        required: false
+        type: string
+        default: ""
+      cancel_in_progress:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      NPM_TOKEN:
+        required: false
+      node_auth_token:
+        required: false
+      GH_PACKAGES_TOKEN:
+        required: false
+      CARGO_REGISTRY_TOKEN:
+        required: false
+
+jobs:
+  package-publish:
+    name: Package Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    outputs:
+      artifact_name: ${{ steps.artifact-name.outputs.name }}
+      publish_status: ${{ steps.publish-command.outcome }}
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+    concurrency:
+      group: ${{ inputs.concurrency_group != '' && inputs.concurrency_group || format('{0}-{1}-{2}-package-publish', github.workflow, github.ref, inputs.package_manager) }}
+      cancel-in-progress: ${{ inputs.cancel_in_progress }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working_directory }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN || secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set artifact name
+        id: artifact-name
+        run: echo "name=package-publish-${{ inputs.package_manager }}-artifacts${{ inputs.artifact_name_suffix }}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate package manager
+        if: ${{ inputs.package_manager != 'npm' && inputs.package_manager != 'cargo' }}
+        run: |
+          echo "::error::package_manager must be one of: npm, cargo." >&2
+          exit 1
+
+      - name: Validate artifact upload mode
+        if: ${{ inputs.upload_artifacts_on != 'failure' && inputs.upload_artifacts_on != 'always' && inputs.upload_artifacts_on != 'never' }}
+        run: |
+          echo "::error::upload_artifacts_on must be one of: failure, always, never." >&2
+          exit 1
+
+      - name: Set up Bun
+        if: ${{ inputs.bun_version != '' }}
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ inputs.bun_version }}
+
+      - name: Set up Node.js
+        if: ${{ inputs.package_manager == 'npm' && inputs.node_version != '' && inputs.npm_scope == '' }}
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ inputs.node_version }}
+          registry-url: ${{ inputs.npm_registry_url }}
+
+      - name: Set up Node.js with scope
+        if: ${{ inputs.package_manager == 'npm' && inputs.node_version != '' && inputs.npm_scope != '' }}
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ inputs.node_version }}
+          registry-url: ${{ inputs.npm_registry_url }}
+          scope: ${{ inputs.npm_scope }}
+
+      - name: Set up Rust
+        if: ${{ inputs.package_manager == 'cargo' && inputs.rust_toolchain != '' }}
+        env:
+          RUST_TOOLCHAIN: ${{ inputs.rust_toolchain }}
+        run: |
+          rustup toolchain install "${RUST_TOOLCHAIN}" --profile minimal
+          rustup default "${RUST_TOOLCHAIN}"
+        working-directory: .
+
+      - name: Cache Bun
+        if: ${{ inputs.cache_bun }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Cache npm
+        if: ${{ inputs.package_manager == 'npm' && inputs.cache_node }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
+      - name: Cache Cargo
+        if: ${{ inputs.package_manager == 'cargo' && inputs.cache_cargo }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles(inputs.cargo_cache_dependency_path) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install dependencies
+        if: ${{ inputs.install_command != '' }}
+        run: ${{ inputs.install_command }}
+
+      - name: Run pre-publish command
+        if: ${{ inputs.pre_publish_command != '' }}
+        run: ${{ inputs.pre_publish_command }}
+
+      - name: Validate package
+        if: ${{ inputs.validate_command != '' }}
+        run: ${{ inputs.validate_command }}
+
+      - name: Build package
+        if: ${{ inputs.build_command != '' }}
+        run: ${{ inputs.build_command }}
+
+      - name: Verify publish credentials
+        if: ${{ inputs.publish_enabled }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package_manager }}
+          NPM_REGISTRY_URL: ${{ inputs.npm_registry_url }}
+          NPM_PUBLIC_REGISTRY_TOKEN_PRESENT: ${{ (secrets.NPM_TOKEN != '' || secrets.node_auth_token != '') && 'true' || 'false' }}
+        run: |
+          if [ "${PACKAGE_MANAGER}" = "npm" ] && [ "${NPM_REGISTRY_URL}" = "https://registry.npmjs.org" ] && [ "${NPM_PUBLIC_REGISTRY_TOKEN_PRESENT}" != "true" ]; then
+            echo "::error::NPM_TOKEN or node_auth_token is required to publish to the public npm registry." >&2
+            exit 1
+          fi
+
+          if [ "${PACKAGE_MANAGER}" = "cargo" ] && [ -z "${CARGO_REGISTRY_TOKEN:-}" ]; then
+            echo "::error::CARGO_REGISTRY_TOKEN is required to publish Cargo packages." >&2
+            exit 1
+          fi
+
+      - name: Run publish command
+        id: publish-command
+        if: ${{ inputs.publish_enabled }}
+        env:
+          PACKAGE_MANAGER: ${{ inputs.package_manager }}
+          PUBLISH_COMMAND: ${{ inputs.publish_command }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          NPM_ACCESS: ${{ inputs.npm_access }}
+          NPM_TAG: ${{ inputs.npm_tag }}
+          NPM_PROVENANCE: ${{ inputs.npm_provenance }}
+          CARGO_LOCKED: ${{ inputs.cargo_locked }}
+          CARGO_REGISTRY: ${{ inputs.cargo_registry }}
+          CARGO_PACKAGE: ${{ inputs.cargo_package }}
+        run: |
+          if [ -n "${PUBLISH_COMMAND}" ]; then
+            eval "${PUBLISH_COMMAND}"
+            exit
+          fi
+
+          if [ "${PACKAGE_MANAGER}" = "npm" ]; then
+            args=(publish)
+
+            if [ "${NPM_PROVENANCE}" = "true" ]; then
+              args+=(--provenance)
+            fi
+
+            if [ -n "${NPM_ACCESS}" ]; then
+              args+=(--access "${NPM_ACCESS}")
+            fi
+
+            if [ -n "${NPM_TAG}" ]; then
+              args+=(--tag "${NPM_TAG}")
+            fi
+
+            if [ "${DRY_RUN}" = "true" ]; then
+              args+=(--dry-run)
+            fi
+
+            npm "${args[@]}"
+            exit
+          fi
+
+          args=(publish)
+
+          if [ "${CARGO_LOCKED}" = "true" ]; then
+            args+=(--locked)
+          fi
+
+          if [ -n "${CARGO_REGISTRY}" ]; then
+            args+=(--registry "${CARGO_REGISTRY}")
+          fi
+
+          if [ -n "${CARGO_PACKAGE}" ]; then
+            args+=(-p "${CARGO_PACKAGE}")
+          fi
+
+          if [ "${DRY_RUN}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+
+          cargo "${args[@]}"
+
+      - name: Upload package publish artifacts
+        if: ${{ inputs.artifact_paths != '' && (inputs.upload_artifacts_on == 'always' || (failure() && inputs.upload_artifacts_on == 'failure')) }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.artifact-name.outputs.name }}
+          path: ${{ inputs.artifact_paths }}
+          if-no-files-found: ignore
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Run post-publish command
+        if: ${{ always() && inputs.post_publish_command != '' }}
+        run: ${{ inputs.post_publish_command }}
