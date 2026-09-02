@@ -1,11 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 const workflowSlugs = [
+  "coding-tooling-validation",
   "deploy-docs-pages",
   "deploy-pages",
   "e2e-validation",
   "external-pull",
   "fast-validation",
+  "format-repository-pages",
   "integration-validation",
   "link-validation",
   "package-publish",
@@ -15,6 +17,7 @@ const workflowSlugs = [
   "smoke-reusable-workflows",
   "stage-validation",
   "storybook-validation",
+  "toolchain-refresh",
   "validate",
   "validate-repo",
 ];
@@ -23,11 +26,13 @@ test("renders the reusable workflow reference page", async ({ page }) => {
   await page.goto("/");
 
   await expect(
-    page.getByRole("heading", { name: /shared ci and release workflow contracts/i }),
+    page.getByRole("heading", {
+      name: "Thin GitHub adapters for repository-owned validation and delivery.",
+    }),
   ).toBeVisible();
-  await expect(page.locator(".hero").getByText("workflow-standard-v1")).toBeVisible();
+  await expect(page.locator(".hero").getByText("Independent capability line")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Every workflow has a reference page." }),
+    page.getByRole("heading", { name: "Current YAML is the capability source of truth." }),
   ).toBeVisible();
   await expect(page.getByRole("img", { name: "Caller Workflow connection graph" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Deploy Pages" })).toBeVisible();
@@ -35,7 +40,7 @@ test("renders the reusable workflow reference page", async ({ page }) => {
 
 test("keeps workflow connection navigation usable", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Connections" }).click();
+  await page.getByRole("link", { name: "Dogfood graph" }).click();
 
   await expect(page).toHaveURL(/#connections$/);
   const graph = page.locator('[data-slot="dependency-graph"]');
@@ -48,11 +53,11 @@ test("keeps workflow connection navigation usable", async ({ page }) => {
 
 test("keeps dogfood navigation usable", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Dogfood" }).click();
+  await page.getByRole("link", { name: "Validation" }).click();
 
   await expect(page).toHaveURL(/#dogfood$/);
   await expect(
-    page.getByRole("heading", { name: /uses its own workflow contracts/i }),
+    page.getByRole("heading", { name: /exercises the same boundaries it recommends/i }),
   ).toBeVisible();
 });
 
@@ -78,11 +83,11 @@ test("links the home metrics summary to KPI definitions", async ({ page }) => {
   ).toBeVisible();
 });
 
-test("renders the adoption generator and checker", async ({ page }) => {
+test("renders the compatibility adoption generator and checker", async ({ page }) => {
   await page.goto("/adoption");
 
   await expect(
-    page.getByRole("heading", { name: "Generate and audit Caller Workflows." }),
+    page.getByRole("heading", { name: "Generate and audit frozen v1.3 Caller Workflows." }),
   ).toBeVisible();
   await expect(page.getByLabel("Generated workflow YAML")).toContainText(
     "fast-validation.yml@workflow-standard-v1.3",
