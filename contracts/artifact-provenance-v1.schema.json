@@ -5,14 +5,22 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "source", "artifact", "qualification"],
   "properties": {
-    "schemaVersion": {"const": 1},
+    "schemaVersion": {
+      "const": 1
+    },
     "source": {
       "type": "object",
       "additionalProperties": false,
       "required": ["repository", "sha"],
       "properties": {
-        "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
-        "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+        "repository": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
       }
     },
     "artifact": {
@@ -20,8 +28,14 @@
       "additionalProperties": false,
       "required": ["name", "digest"],
       "properties": {
-        "name": {"type": "string", "minLength": 1},
-        "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
       }
     },
     "qualification": {
@@ -29,9 +43,18 @@
       "additionalProperties": false,
       "required": ["workflowRef", "runId", "runAttempt"],
       "properties": {
-        "workflowRef": {"type": "string", "minLength": 1},
-        "runId": {"type": "string", "pattern": "^[0-9]+$"},
-        "runAttempt": {"type": "integer", "minimum": 1}
+        "workflowRef": {
+          "type": "string",
+          "minLength": 1
+        },
+        "runId": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "runAttempt": {
+          "type": "integer",
+          "minimum": 1
+        }
       }
     }
   }
