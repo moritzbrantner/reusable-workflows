@@ -1,0 +1,126 @@
+name: Environment v1 Canary
+
+on:
+  workflow_call:
+    inputs:
+      environment_profile:
+        description: Semantic environment fingerprint profile.
+        required: false
+        type: string
+        default: default
+      bun_version:
+        description: Bun version used to execute coding-tooling.
+        required: false
+        type: string
+        default: 1.4.0
+      timeout_minutes:
+        description: Maximum canary job runtime.
+        required: false
+        type: number
+        default: 30
+      artifact_retention_days:
+        description: Retention period for expected/verified environment evidence.
+        required: false
+        type: number
+        default: 7
+    outputs:
+      artifact_name:
+        description: Name of the uploaded environment evidence artifact.
+        value: ${{ jobs.environment-canary.outputs.artifact_name }}
+      expected_fingerprint:
+        description: Semantic fingerprint captured before environment setup.
+        value: ${{ jobs.environment-canary.outputs.expected_fingerprint }}
+
+jobs:
+  environment-canary:
+    name: Environment v1 Canary
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    outputs:
+      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
+      expected_fingerprint: ${{ steps.expected.outputs.fingerprint }}
+    steps:
+      - name: Check out consumer repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Capture expected semantic fingerprint
+        uses: moritzbrantner/coding-tooling@81da4fbbdbe75a8937716cbab0b9a47c447269e8
+        with:
+          operation: environment-fingerprint
+          environment-profile: ${{ inputs.environment_profile }}
+          report-path: .artifacts/environment/expected.json
+          bun-version: ${{ inputs.bun_version }}
+          install-mode: none
+
+      - name: Read expected semantic fingerprint
+        id: expected
+        shell: bash
+        run: |
+          set -euo pipefail
+          fingerprint="$(python3 - <<'PY'
+          import json
+          with open('.artifacts/environment/expected.json', encoding='utf-8') as handle:
+              report = json.load(handle)
+          print(report['data']['fingerprint'])
+          PY
+          )"
+          test -n "$fingerprint"
+          printf 'fingerprint=%s\n' "$fingerprint" >> "$GITHUB_OUTPUT"
+          printf 'EXPECTED_ENVIRONMENT_FINGERPRINT=%s\n' "$fingerprint" >> "$GITHUB_ENV"
+
+      - name: Prepare declared environment
+        shell: bash
+        run: bash scripts/codex-environment.sh setup
+
+      - name: Require setup to be idempotent over tracked state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code -- .
+          git diff --cached --exit-code -- .
+
+      - name: Verify prepared environment earns expected fingerprint
+        uses: moritzbrantner/coding-tooling@81da4fbbdbe75a8937716cbab0b9a47c447269e8
+        with:
+          operation: environment-verify
+          environment-profile: ${{ inputs.environment_profile }}
+          report-path: .artifacts/environment/receipt.json
+          bun-version: ${{ inputs.bun_version }}
+          install-mode: none
+
+      - name: Compare expected and verified identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+
+          expected = os.environ['EXPECTED_ENVIRONMENT_FINGERPRINT']
+          with open('.artifacts/environment/receipt.json', encoding='utf-8') as handle:
+              receipt = json.load(handle)
+
+          assert receipt['status'] == 'passed', receipt
+          assert receipt['data']['expectedFingerprint'] == expected, receipt
+          assert receipt['data']['verifiedFingerprint'] == expected, receipt
+          PY
+
+      - name: Define evidence metadata
+        id: metadata
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          echo "artifact_name=environment-v1-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload environment evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.metadata.outputs.artifact_name }}
+          path: .artifacts/environment/*.json
+          if-no-files-found: warn
+          retention-days: ${{ inputs.artifact_retention_days }}
