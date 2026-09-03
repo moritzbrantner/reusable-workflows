@@ -112,7 +112,7 @@ jobs:
           {
             echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}"
             echo "report_path=$REPORT_PATH"
-            echo "receipt_artifact_name=execution-receipt-coding-tooling-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_artifact_name=execution-receipt-coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
             echo "receipt_path=.artifacts/reusable-workflows/coding-tooling-validation-receipt.json"
             echo "source_sha=$source_sha"
           } >> "$GITHUB_OUTPUT"
