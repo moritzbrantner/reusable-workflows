@@ -31,6 +31,9 @@ Caller-owned policy for when a tier runs: local/agent handoff, pull request, `ma
 **Coding Tooling Adapter**  
 `coding-tooling-validation.yml`, an optional hosted adapter that invokes `coding-tooling`. `coding-tooling` owns tier, operation, capability, and report semantics; this repository owns only the GitHub execution wrapper and report transport.
 
+**Coding Tooling Score History Adapter**  
+`coding-tooling-score-history.yml`, an optional persistent-evidence adapter. It captures a consumer-owned validation tier, delegates score production plus history attribution to one immutable `coding-tooling` revision, and transports the resulting `history.json` through a reserved data-only branch. It does not own score formulas, detector weights, thresholds, release policy, or cross-repository ranking.
+
 **Public Contract Adapter**  
 `public-contract-validation.yml`, a deliberately thin wrapper around the coding-tooling adapter. It standardizes the canonical `.artifacts/coding-tooling/public-contract.json` artifact path while leaving public-surface discovery, evidence meaning, verification policy, and test-framework choices outside this repository.
 
@@ -61,15 +64,16 @@ A capability such as branch promotion, existing stage validation, external deplo
 2. Consumer repositories and `coding-tooling` own semantic validation commands, tiers/depth, public-contract evidence, and source-workspace behavior; caller workflows own lifecycle timing.
 3. `command-validation.yml` is the generic hosted seam for repository-owned setup and validation commands. It must remain runtime-neutral and must not grow framework/test-kind inputs.
 4. `coding-tooling-validation.yml` may reproduce a `coding-tooling` operation or tier on GitHub, but GitHub access is never a prerequisite for the local path.
-5. `public-contract-validation.yml` standardizes report transport and location only; it must not reimplement public-surface or evidence semantics.
-6. `environment-v1-canary.yml` owns only the hosted pre/setup/post evidence sequence. It must use the standard environment-v1 setup entrypoint and must not redefine environment identity or repair consumer state.
-7. `fast-validation.yml` remains callable as the existing Node/Bun convenience adapter. Its interface stays stable, but it is no longer the general runtime-neutral abstraction.
-8. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport execution and evidence.
-9. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
-10. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
-11. `release-qualification.yml` may bind repository-owned qualification/build commands to one exact source SHA and retain the resulting artifact/receipt; release policy and publication remain outside the capability.
-12. Concurrency policy belongs in Caller Workflows unless a GitHub API requires capability-local serialization.
-13. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
+5. `coding-tooling-score-history.yml` may serialize persistent score evidence, but score definition, attribution, retention semantics, and tombstones remain owned by `coding-tooling`; the adapter must not add quality thresholds or merge/release policy.
+6. `public-contract-validation.yml` standardizes report transport and location only; it must not reimplement public-surface or evidence semantics.
+7. `environment-v1-canary.yml` owns only the hosted pre/setup/post evidence sequence. It must use the standard environment-v1 setup entrypoint and must not redefine environment identity or repair consumer state.
+8. `fast-validation.yml` remains callable as the existing Node/Bun convenience adapter. Its interface stays stable, but it is no longer the general runtime-neutral abstraction.
+9. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport execution and evidence.
+10. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
+11. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
+12. `release-qualification.yml` may bind repository-owned qualification/build commands to one exact source SHA and retain the resulting artifact/receipt; release policy and publication remain outside the capability.
+13. Concurrency policy belongs in Caller Workflows unless a GitHub API or persistent evidence writer requires capability-local serialization.
+14. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
 
 ## Capability classes
 
@@ -77,11 +81,12 @@ A capability such as branch promotion, existing stage validation, external deplo
 
 - `command-validation.yml`
 - `coding-tooling-validation.yml`
+- `coding-tooling-score-history.yml`
 - `public-contract-validation.yml`
 - `environment-v1-canary.yml`
 - `fast-validation.yml`
 
-`command-validation.yml` is the preferred generic/public adapter and delegates both preparation and validation meaning to repository-owned commands. `coding-tooling-validation.yml` delegates consumer-owned semantic operations and tiers to `coding-tooling` and uploads the resulting JSON report. Both emit Execution Receipt v1. `public-contract-validation.yml` specializes only the operation and canonical artifact path for public-contract measurement. `fast-validation.yml` retains its existing Node/Bun convenience interface without becoming the general abstraction. `environment-v1-canary.yml` is independent of validation depth: it checks that environment construction preserves repository identity and reproduces the semantic environment it was given. The repository smoke fanout dogfoods the generic command adapter and public-contract wrapper; environment-v1 remains a consumer-owned canary because it requires the consumer's declared setup entrypoint and semantic identity.
+`command-validation.yml` is the preferred generic/public adapter and delegates both preparation and validation meaning to repository-owned commands. `coding-tooling-validation.yml` delegates consumer-owned semantic operations and tiers to `coding-tooling` and uploads the resulting JSON report. Both emit Execution Receipt v1. `coding-tooling-score-history.yml` is independent of blocking validation: it records the selected tier as descriptive evidence, preserves ordinary failed verification as a lower score, and reserves a serialized data-only history branch while delegating exact score-history semantics to `coding-tooling`. `public-contract-validation.yml` specializes only the operation and canonical artifact path for public-contract measurement. `fast-validation.yml` retains its existing Node/Bun convenience interface without becoming the general abstraction. `environment-v1-canary.yml` is independent of validation depth: it checks that environment construction preserves repository identity and reproduces the semantic environment it was given. The repository smoke fanout dogfoods the generic command adapter and public-contract wrapper; environment-v1 remains a consumer-owned canary because it requires the consumer's declared setup entrypoint and semantic identity. Persistent score history is dogfooded from the repository's main-branch validation caller.
 
 ### Specialized / transitional validation
 
