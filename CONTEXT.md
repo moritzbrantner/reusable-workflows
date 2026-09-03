@@ -34,6 +34,9 @@ Caller-owned policy for when a tier runs: local/agent handoff, pull request, `ma
 **Environment Integrity Canary**  
 `environment-v1-canary.yml`, a hosted environment-v1 adapter that captures semantic identity before setup, runs the standard repository setup entrypoint, requires setup to be idempotent over tracked state, verifies the prepared machine against the exact pre-setup identity, and transports short-lived evidence. Environment semantics remain owned by environment-v1 and `coding-tooling`.
 
+**Release Qualification Adapter**  
+`release-qualification.yml`, a hosted adapter that qualifies one exact consumer commit through repository-owned commands, builds the candidate once, and transports the artifact plus a receipt containing its source identity and upload digest. It does not publish, deploy, version, or make the release decision.
+
 **Source-first development**  
 Development against repository sources, including exact sibling sources where appropriate, without requiring package publication or hosted cross-repository access as a prerequisite.
 
@@ -60,8 +63,9 @@ A capability such as branch promotion, existing stage validation, external deplo
 7. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport execution and evidence.
 8. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
 9. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
-10. Concurrency policy belongs in Caller Workflows unless a GitHub API requires capability-local serialization.
-11. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
+10. `release-qualification.yml` may bind repository-owned qualification/build commands to one exact source SHA and retain the resulting artifact/receipt; release policy and publication remain outside the capability.
+11. Concurrency policy belongs in Caller Workflows unless a GitHub API requires capability-local serialization.
+12. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
 
 ## Capability classes
 
@@ -83,6 +87,12 @@ A capability such as branch promotion, existing stage validation, external deplo
 - `performance-validation.yml`
 
 These workflows remain callable, but new design should prefer repository or `coding-tooling` semantics through the preferred core adapters rather than growing their GitHub-specific interfaces.
+
+### Release qualification
+
+- `release-qualification.yml`
+
+The qualification capability checks out the exact caller-supplied source SHA, runs repository-owned qualification and build commands, uploads the built candidate once, and records the source SHA plus artifact digest in its receipt. A publisher or deployment capability should consume that qualified artifact rather than rebuild the candidate.
 
 ### Delivery
 
