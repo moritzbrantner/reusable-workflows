@@ -114,6 +114,12 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 
 These semantic workflows remain callable for existing consumers. New architecture should prefer repository or `coding-tooling` capability semantics expressed through the preferred core adapters instead of expanding these YAML interfaces.
 
+### Release qualification
+
+- `release-qualification.yml` — qualifies one exact consumer commit, runs repository-owned qualification and build commands, uploads the built artifact once, and emits a machine-readable receipt containing the source SHA and uploaded artifact digest.
+
+Qualification does not publish, deploy, choose a version, or decide whether a release should happen. Those remain separate caller-owned lifecycle decisions. A later publication or deployment step should consume the already-qualified immutable artifact rather than rebuilding it.
+
 ### Delivery
 
 - `deploy-pages.yml` — GitHub Pages deployment.
@@ -279,4 +285,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including the public-contract wrapper and its canonical report artifact. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling.
+`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including the public-contract wrapper, its canonical report artifact, and release qualification of the exact PR head with a retained artifact/receipt pair. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling.

@@ -1,0 +1,226 @@
+name: Release Qualification
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact 40-character consumer commit SHA to qualify.
+        required: true
+        type: string
+      working_directory:
+        description: Repository-relative directory in which setup, qualification, and build commands run.
+        required: false
+        type: string
+        default: "."
+      setup_command:
+        description: Optional repository-owned environment/setup command.
+        required: false
+        type: string
+        default: ""
+      qualification_command:
+        description: Repository-owned deterministic release qualification command.
+        required: true
+        type: string
+      build_command:
+        description: Repository-owned command that builds the artifact to preserve.
+        required: true
+        type: string
+      artifact_paths:
+        description: Newline-separated repository-relative paths for the qualified artifact.
+        required: true
+        type: string
+      timeout_minutes:
+        description: Maximum qualification job runtime.
+        required: false
+        type: number
+        default: 45
+      artifact_retention_days:
+        description: Retention period for the qualified artifact and qualification receipt.
+        required: false
+        type: number
+        default: 14
+    outputs:
+      artifact_name:
+        description: Name of the uploaded qualified artifact.
+        value: ${{ jobs.release-qualification.outputs.artifact_name }}
+      artifact_digest:
+        description: SHA-256 digest reported by actions/upload-artifact for the qualified artifact archive.
+        value: ${{ jobs.release-qualification.outputs.artifact_digest }}
+      receipt_artifact_name:
+        description: Name of the uploaded qualification receipt artifact.
+        value: ${{ jobs.release-qualification.outputs.receipt_artifact_name }}
+      receipt_path:
+        description: Repository-relative qualification receipt path.
+        value: ${{ jobs.release-qualification.outputs.receipt_path }}
+      outcome:
+        description: Qualification outcome before final failure propagation.
+        value: ${{ jobs.release-qualification.outputs.outcome }}
+
+jobs:
+  release-qualification:
+    name: Release Qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working_directory }}
+    outputs:
+      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
+      artifact_digest: ${{ steps.artifact.outputs.artifact-digest }}
+      receipt_artifact_name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+      receipt_path: ${{ steps.metadata.outputs.receipt_path }}
+      outcome: ${{ steps.status.outputs.outcome }}
+    steps:
+      - name: Validate exact source identity
+        id: source
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::source_sha must be an exact 40-character commit SHA." >&2
+            exit 2
+          fi
+
+      - name: Check out exact consumer commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Verify checked-out commit
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Prepare repository environment
+        id: setup
+        if: ${{ inputs.setup_command != '' }}
+        run: ${{ inputs.setup_command }}
+
+      - name: Run release qualification
+        id: qualification
+        continue-on-error: true
+        run: ${{ inputs.qualification_command }}
+
+      - name: Build qualified artifact once
+        id: build
+        if: ${{ steps.qualification.outcome == 'success' }}
+        continue-on-error: true
+        run: ${{ inputs.build_command }}
+
+      - name: Define qualification metadata
+        id: metadata
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          short_sha="${SOURCE_SHA:0:12}"
+          {
+            echo "artifact_name=release-qualification-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_artifact_name=release-qualification-receipt-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_path=.artifacts/release-qualification/receipt.json"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload qualified artifact
+        id: artifact
+        if: ${{ steps.qualification.outcome == 'success' && steps.build.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.metadata.outputs.artifact_name }}
+          path: ${{ inputs.artifact_paths }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Determine qualification outcome
+        id: status
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SOURCE_OUTCOME: ${{ steps.source.outcome }}
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          QUALIFICATION_OUTCOME: ${{ steps.qualification.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
+        run: |
+          set -euo pipefail
+          outcome=failure
+          if [[ "$SOURCE_OUTCOME" == "success" ]] \
+            && [[ "$SETUP_OUTCOME" == "success" || "$SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$QUALIFICATION_OUTCOME" == "success" ]] \
+            && [[ "$BUILD_OUTCOME" == "success" ]] \
+            && [[ "$ARTIFACT_OUTCOME" == "success" ]]; then
+            outcome=success
+          fi
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+      - name: Write qualification receipt
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          QUALIFICATION_OUTCOME: ${{ steps.qualification.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
+          ARTIFACT_NAME: ${{ steps.metadata.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+          QUALIFIED: ${{ steps.status.outputs.outcome == 'success' && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$RECEIPT_PATH")"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          receipt = {
+              "schemaVersion": 1,
+              "kind": "reusable-workflows/release-qualification",
+              "capability": {"name": "release-qualification", "version": 1},
+              "source": {
+                  "repository": os.environ["GITHUB_REPOSITORY"],
+                  "sha": os.environ["SOURCE_SHA"],
+              },
+              "result": {
+                  "qualified": os.environ["QUALIFIED"] == "true",
+                  "setup": os.environ["SETUP_OUTCOME"],
+                  "qualification": os.environ["QUALIFICATION_OUTCOME"],
+                  "build": os.environ["BUILD_OUTCOME"],
+                  "artifactUpload": os.environ["ARTIFACT_OUTCOME"],
+              },
+              "artifact": {
+                  "name": os.environ["ARTIFACT_NAME"],
+                  "digest": os.environ.get("ARTIFACT_DIGEST") or None,
+              },
+              "run": {
+                  "id": os.environ["GITHUB_RUN_ID"],
+                  "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "callerWorkflowRef": os.environ.get("GITHUB_WORKFLOW_REF"),
+              },
+          }
+          path = Path(os.environ["RECEIPT_PATH"])
+          path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload qualification receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+          path: ${{ steps.metadata.outputs.receipt_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Propagate qualification failure
+        if: ${{ always() && steps.status.outputs.outcome != 'success' }}
+        working-directory: .
+        run: exit 1

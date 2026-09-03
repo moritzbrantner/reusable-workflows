@@ -148,6 +148,16 @@ jobs:
       e2e_command: "echo smoke e2e"
       artifact_paths: ""
 
+  release-qualification:
+    needs: fast-validation
+    uses: ./.github/workflows/release-qualification.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      qualification_command: "echo smoke release qualification"
+      build_command: "mkdir -p .artifacts/release-qualification-smoke && echo qualified > .artifacts/release-qualification-smoke/artifact.txt"
+      artifact_paths: .artifacts/release-qualification-smoke/artifact.txt
+      artifact_retention_days: 1
+
   release-template:
     needs: fast-validation
     uses: ./.github/workflows/release-template.yml
