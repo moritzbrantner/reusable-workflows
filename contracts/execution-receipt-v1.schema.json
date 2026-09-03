@@ -5,25 +5,15 @@
   "additionalProperties": false,
   "required": ["schemaVersion", "kind", "capability", "source", "result", "evidence", "run"],
   "properties": {
-    "schemaVersion": {
-      "const": 1
-    },
-    "kind": {
-      "const": "reusable-workflows/execution-receipt"
-    },
+    "schemaVersion": {"const": 1},
+    "kind": {"const": "reusable-workflows/execution-receipt"},
     "capability": {
       "type": "object",
       "additionalProperties": false,
       "required": ["name", "interfaceVersion"],
       "properties": {
-        "name": {
-          "type": "string",
-          "minLength": 1
-        },
-        "interfaceVersion": {
-          "type": "integer",
-          "minimum": 1
-        }
+        "name": {"type": "string", "minLength": 1},
+        "interfaceVersion": {"type": "integer", "minimum": 1}
       }
     },
     "source": {
@@ -31,14 +21,8 @@
       "additionalProperties": false,
       "required": ["repository", "sha"],
       "properties": {
-        "repository": {
-          "type": "string",
-          "pattern": "^[^/]+/[^/]+$"
-        },
-        "sha": {
-          "type": "string",
-          "pattern": "^[0-9a-f]{40}$"
-        }
+        "repository": {"type": "string", "pattern": "^[^/]+/[^/]+$"},
+        "sha": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
       }
     },
     "result": {
@@ -46,14 +30,10 @@
       "additionalProperties": false,
       "required": ["outcome", "steps"],
       "properties": {
-        "outcome": {
-          "enum": ["success", "failure", "cancelled", "skipped"]
-        },
+        "outcome": {"enum": ["success", "failure", "cancelled", "skipped"]},
         "steps": {
           "type": "object",
-          "additionalProperties": {
-            "enum": ["success", "failure", "cancelled", "skipped"]
-          }
+          "additionalProperties": {"enum": ["success", "failure", "cancelled", "skipped"]}
         }
       }
     },
@@ -64,28 +44,31 @@
         "additionalProperties": false,
         "required": ["role", "name", "path", "digest"],
         "properties": {
-          "role": {
-            "type": "string",
-            "minLength": 1
-          },
-          "name": {
-            "type": "string",
-            "minLength": 1
-          },
-          "path": {
-            "type": ["string", "null"]
-          },
+          "role": {"type": "string", "minLength": 1},
+          "name": {"type": "string", "minLength": 1},
+          "path": {"type": ["string", "null"]},
           "digest": {
             "oneOf": [
-              {
-                "type": "string",
-                "pattern": "^sha256:[0-9a-f]{64}$"
-              },
-              {
-                "type": "null"
-              }
+              {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+              {"type": "null"}
             ]
           }
+        }
+      }
+    },
+    "attestations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "predicateType", "id", "url", "subjectName", "subjectDigest"],
+        "properties": {
+          "role": {"type": "string", "minLength": 1},
+          "predicateType": {"type": "string", "minLength": 1},
+          "id": {"type": "string", "minLength": 1},
+          "url": {"type": "string", "minLength": 1},
+          "subjectName": {"type": "string", "minLength": 1},
+          "subjectDigest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
         }
       }
     },
@@ -94,17 +77,9 @@
       "additionalProperties": false,
       "required": ["id", "attempt", "callerWorkflowRef"],
       "properties": {
-        "id": {
-          "type": "string",
-          "pattern": "^[0-9]+$"
-        },
-        "attempt": {
-          "type": "integer",
-          "minimum": 1
-        },
-        "callerWorkflowRef": {
-          "type": ["string", "null"]
-        }
+        "id": {"type": "string", "pattern": "^[0-9]+$"},
+        "attempt": {"type": "integer", "minimum": 1},
+        "callerWorkflowRef": {"type": ["string", "null"]}
       }
     }
   }
