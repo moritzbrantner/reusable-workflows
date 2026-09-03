@@ -42,7 +42,7 @@ coding-tooling
                  `--> caller-owned lifecycle triggers
 ```
 
-The preferred shape lets an agent and hosted CI run the same deterministic tier. A generic consumer can make the same choice with one repository-owned command through `fast-validation.yml`; no GitHub workflow defines the repository's validation semantics.
+The preferred shape lets an agent and hosted CI run the same deterministic tier. A generic consumer can make the same choice with one repository-owned command through `command-validation.yml`; no GitHub workflow defines the repository's validation semantics.
 
 ### Lifecycle and release guidance
 
@@ -99,10 +99,11 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 
 ### Preferred core validation
 
-- `fast-validation.yml` — universal thin adapter around one repository-owned validation command. This is the public/generic fallback.
-- `coding-tooling-validation.yml` — semantic validation adapter that invokes `coding-tooling`, runs a declared operation/tier, and uploads its machine-readable report.
+- `command-validation.yml` — runtime-neutral adapter around one optional repository-owned setup command and one repository-owned validation command. It emits Execution Receipt v1 and is the preferred generic/public adapter on the independent capability line.
+- `coding-tooling-validation.yml` — semantic validation adapter that invokes `coding-tooling`, runs a declared operation/tier, and uploads its machine-readable report plus Execution Receipt v1.
 - `public-contract-validation.yml` — intentionally thin public-contract adapter. It fixes the canonical report path at `.artifacts/coding-tooling/public-contract.json` while leaving discovery, evidence semantics, and enforcement to `coding-tooling` and the consumer repository.
 - `environment-v1-canary.yml` — environment integrity canary for environment-v1 consumers. It captures semantic identity before setup, runs the standard setup entrypoint, requires setup to leave tracked repository state unchanged, verifies the prepared environment earns the exact pre-setup fingerprint, and uploads both receipts.
+- `fast-validation.yml` — existing Node/Bun convenience adapter around one repository-owned validation command. It remains callable and its interface stays stable, but new runtime-neutral integrations should prefer `command-validation.yml`.
 
 ### Specialized / transitional validation
 
@@ -116,7 +117,7 @@ These semantic workflows remain callable for existing consumers. New architectur
 
 ### Release qualification
 
-- `release-qualification.yml` — qualifies one exact consumer commit, runs repository-owned qualification and build commands, uploads the built artifact once, and emits a machine-readable receipt containing the source SHA and uploaded artifact digest.
+- `release-qualification.yml` — qualifies one exact consumer commit, runs repository-owned qualification and build commands, uploads the built artifact once, and emits Execution Receipt v1 containing the source SHA and uploaded artifact digest.
 
 Qualification does not publish, deploy, choose a version, or decide whether a release should happen. Those remain separate caller-owned lifecycle decisions. A later publication or deployment step should consume the already-qualified immutable artifact rather than rebuilding it.
 
@@ -143,20 +144,22 @@ The local caller workflows `validate.yml`, `deploy-docs-pages.yml`, and `smoke-r
 
 ### Generic / public consumers
 
-`fast-validation.yml` accepts one repository-owned command:
+`command-validation.yml` accepts only repository-owned setup and validation commands plus execution/receipt mechanics:
 
 ```yaml
 jobs:
   fast:
     permissions:
       contents: read
-      packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@<immutable-sha>
+    uses: moritzbrantner/reusable-workflows/.github/workflows/command-validation.yml@<immutable-sha>
     with:
+      setup_command: bun install --frozen-lockfile
       command: bun run validate:fast
 ```
 
-The workflow deliberately does not have separate format, lint, typecheck, build, and unit-test inputs on the new capability line. Those distinctions belong to repository tooling.
+The adapter deliberately has no Node, Bun, Rust, Python, .NET, framework, or test-kind inputs. A repository that needs environment preparation supplies its normal setup entrypoint, such as `bash scripts/codex-environment.sh setup`; the semantic validation command remains repository-owned. Separate format, lint, typecheck, build, and unit-test inputs belong in repository tooling, not this workflow.
+
+`fast-validation.yml` remains available for existing callers that want its built-in Node/Bun setup. Its interface is contract-locked and should not grow into the general validation abstraction.
 
 ### Consumers using coding-tooling
 
@@ -179,7 +182,7 @@ The hosted run delegates to the same deterministic interface used locally:
 coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/report.json --json
 ```
 
-`coding-tooling-validation.yml` pins the Action to an exact commit, uploads its JSON report even when validation fails where possible, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
+`coding-tooling-validation.yml` pins the Action to an exact commit, uploads its JSON report even when validation fails where possible, emits a shared execution receipt, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
 
 For public-contract measurement, consumers can instead call the narrower wrapper:
 
@@ -215,6 +218,8 @@ GitHub workflow YAML is the source of truth for the current capability interface
 
 `contracts/workflows.json` is retained only as the frozen `workflow-standard-v1.3` compatibility snapshot. It is no longer manually synchronized with `main`.
 
+`contracts/execution-receipt-v1.schema.json` defines the small common execution/evidence transport envelope used by current emitters. Native semantic reports remain authoritative; see `EXECUTION_RECEIPTS.md`.
+
 Current capability metadata is generated from `.github/workflows/*.yml`:
 
 ```bash
@@ -241,7 +246,7 @@ Keep these in the caller or repository rather than growing reusable workflow inp
 - agent/orchestrator behavior;
 - release decision policy.
 
-Reusable workflows should mainly own GitHub-specific mechanics such as checkout, runtime setup, permissions, timeouts, artifact transport, and deployment APIs.
+Reusable workflows should mainly own GitHub-specific mechanics such as checkout, runtime-neutral command execution, permissions, timeouts, evidence transport, and deployment APIs.
 
 ## Dependency updates
 
@@ -285,4 +290,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including the public-contract wrapper, its canonical report artifact, and release qualification of the exact PR head with a retained artifact/receipt pair. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling.
+`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, its canonical report artifact, and release qualification of the exact PR head with a retained artifact/receipt pair. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling.
