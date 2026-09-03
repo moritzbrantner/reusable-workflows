@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const workflowSlugs = [
   "coding-tooling-validation",
+  "command-validation",
   "deploy-docs-pages",
   "deploy-pages",
   "e2e-validation",
