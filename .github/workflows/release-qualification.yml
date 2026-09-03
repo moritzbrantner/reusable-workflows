@@ -8,12 +8,12 @@ on:
         required: true
         type: string
       working_directory:
-        description: Repository-relative directory in which setup, qualification, and build commands run.
+        description: Repository-relative directory in which bootstrap, qualification, and build commands run.
         required: false
         type: string
         default: "."
       setup_command:
-        description: Optional repository-owned environment/setup command.
+        description: Optional repository-owned bootstrap/setup command. For environment-v1 consumers it runs before the standard environment-v1 setup entrypoint.
         required: false
         type: string
         default: ""
@@ -111,13 +111,43 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 
-      - name: Prepare repository environment
-        id: setup
+      - name: Detect environment-v1 declaration
+        id: environment
+        working-directory: .
+        run: |
+          set -euo pipefail
+          detected=false
+          if [[ -f .repository-environment.toml && -f scripts/codex-environment.sh ]]; then
+            detected=true
+          fi
+          echo "detected=$detected" >> "$GITHUB_OUTPUT"
+
+      - name: Run repository bootstrap
+        id: bootstrap
         if: ${{ inputs.setup_command != '' }}
+        continue-on-error: true
         run: ${{ inputs.setup_command }}
+
+      - name: Run standard environment-v1 setup
+        id: environment-setup
+        if: ${{ steps.environment.outputs.detected == 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') }}
+        continue-on-error: true
+        working-directory: .
+        run: bash scripts/codex-environment.sh setup
+
+      - name: Verify environment-v1 preserves tracked state
+        id: environment-state
+        if: ${{ steps.environment-setup.outcome == 'success' }}
+        continue-on-error: true
+        working-directory: .
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
 
       - name: Run release qualification
         id: qualification
+        if: ${{ (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') && (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped') }}
         continue-on-error: true
         run: ${{ inputs.qualification_command }}
 
@@ -243,7 +273,9 @@ jobs:
         working-directory: .
         env:
           SOURCE_OUTCOME: ${{ steps.source.outcome }}
-          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
+          ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
+          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
           QUALIFICATION_OUTCOME: ${{ steps.qualification.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
@@ -254,7 +286,9 @@ jobs:
           set -euo pipefail
           outcome=failure
           if [[ "$SOURCE_OUTCOME" == "success" ]] \
-            && [[ "$SETUP_OUTCOME" == "success" || "$SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]] \
+            && [[ "$ENVIRONMENT_SETUP_OUTCOME" == "success" || "$ENVIRONMENT_SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$ENVIRONMENT_STATE_OUTCOME" == "success" || "$ENVIRONMENT_STATE_OUTCOME" == "skipped" ]] \
             && [[ "$QUALIFICATION_OUTCOME" == "success" ]] \
             && [[ "$BUILD_OUTCOME" == "success" ]] \
             && [[ "$ARTIFACT_OUTCOME" == "success" ]] \
@@ -270,7 +304,9 @@ jobs:
         working-directory: .
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
-          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
+          ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
+          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
           QUALIFICATION_OUTCOME: ${{ steps.qualification.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
@@ -340,7 +376,9 @@ jobs:
               "result": {
                   "outcome": os.environ["OUTCOME"],
                   "steps": {
-                      "setup": os.environ["SETUP_OUTCOME"],
+                      "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
+                      "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
+                      "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
                       "qualification": os.environ["QUALIFICATION_OUTCOME"],
                       "build": os.environ["BUILD_OUTCOME"],
                       "artifactUpload": os.environ["ARTIFACT_OUTCOME"],
