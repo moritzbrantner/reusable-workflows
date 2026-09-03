@@ -185,4 +185,30 @@ jobs:
       "coding-tooling-validation.yml must expose the coding-tooling operation input",
     );
   });
+
+  test("locks the execution receipt schema identity and core fields", () => {
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml",
+        "CONTEXT.md": "fast-validation.yml",
+      },
+      compatibilitySnapshot,
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+      },
+      executionReceiptSchema: {
+        required: ["schemaVersion"],
+        properties: {
+          schemaVersion: { const: 2 },
+          kind: { const: "other/receipt" },
+        },
+      },
+    });
+
+    expect(errors).toContain(
+      "execution receipt v1 schema must lock schemaVersion 1 and the shared receipt kind",
+    );
+    expect(errors).toContain("execution receipt v1 schema must require capability");
+    expect(errors).toContain("execution receipt v1 schema must require evidence");
+  });
 });
