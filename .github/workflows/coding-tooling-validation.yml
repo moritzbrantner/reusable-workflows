@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: "coding-tooling operation to execute: run or findings."
+        description: "coding-tooling operation to execute: run, findings, or public-contract."
         required: false
         type: string
         default: run
       tier:
-        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings.
+        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings and public-contract.
         required: false
         type: string
         default: fast
@@ -77,7 +77,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@fbef51fe5793c4177cd1e6ec3cd067e2cd3604f5
+        uses: moritzbrantner/coding-tooling@aec59451c4a1402636b16d09a6cf3e8be51e04af
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -98,6 +98,9 @@ jobs:
       - name: Write validation summary
         if: ${{ always() }}
         shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          REPORT_PATH: ${{ inputs.report_path }}
         run: |
           {
             echo "## coding-tooling validation"
@@ -105,9 +108,51 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`fbef51fe5793c4177cd1e6ec3cd067e2cd3604f5\`"
+            echo "- coding-tooling revision: \`aec59451c4a1402636b16d09a6cf3e8be51e04af\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$OPERATION" == "public-contract" && -f "$REPORT_PATH" ]]; then
+            node - "$REPORT_PATH" <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          try {
+            const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+            const summary = report?.data?.summary;
+            const schema = report?.data?.schemaVersion;
+            const integerFields = [
+              "discovered",
+              "verified",
+              "unverified",
+              "incompleteDiscovery",
+              "failedEvidence",
+              "unavailableEvidence",
+              "errorEvidence",
+            ];
+            if (schema !== 1 || !summary || !integerFields.every((field) => Number.isInteger(summary[field]))) {
+              throw new Error("unsupported public-contract report schema");
+            }
+            const percent = Number.isFinite(summary.verifiedRatio)
+              ? `${(summary.verifiedRatio * 100).toFixed(1)}%`
+              : "n/a";
+            console.log("");
+            console.log("### Public contract");
+            console.log("");
+            console.log(`- Discovered: **${summary.discovered}**`);
+            console.log(`- Verified: **${summary.verified}** (${percent})`);
+            console.log(`- Unverified: **${summary.unverified}**`);
+            console.log(`- Incomplete discovery: **${summary.incompleteDiscovery}**`);
+            console.log(`- Failed evidence: **${summary.failedEvidence}**`);
+            console.log(`- Unavailable evidence: **${summary.unavailableEvidence}**`);
+            console.log(`- Error evidence: **${summary.errorEvidence}**`);
+            console.log(`- Strict ready: **${summary.strictReady ? "yes" : "no"}**`);
+          } catch {
+            console.log("");
+            console.log("### Public contract");
+            console.log("");
+            console.log("- Summary: **unavailable**; inspect the preserved raw report artifact.");
+          }
+          NODE
+          fi
 
       - name: Upload coding-tooling report
         if: ${{ always() }}

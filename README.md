@@ -100,8 +100,8 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 ### Preferred core validation
 
 - `fast-validation.yml` — universal thin adapter around one repository-owned validation command. This is the public/generic fallback.
-- `coding-tooling-validation.yml` — preferred semantic validation adapter for private consumer repositories that can access `moritzbrantner/coding-tooling`. It runs a declared tier and uploads the machine-readable report.
-- `environment-v1-canary.yml` — environment integrity canary for environment-v1 consumers. It captures semantic identity before setup, runs the standard setup entrypoint, requires setup to leave tracked repository state unchanged, verifies the prepared environment earns the exact pre-setup fingerprint, and uploads both receipts.
+- `coding-tooling-validation.yml` — semantic validation adapter that invokes `coding-tooling`, runs a declared operation/tier, and uploads its machine-readable report.
+- `public-contract-validation.yml` — intentionally thin public-contract adapter. It fixes the canonical report path at `.artifacts/coding-tooling/public-contract.json` while leaving discovery, evidence semantics, and enforcement to `coding-tooling` and the consumer repository.
 
 ### Specialized / transitional validation
 
@@ -151,9 +151,9 @@ jobs:
 
 The workflow deliberately does not have separate format, lint, typecheck, build, and unit-test inputs on the new capability line. Those distinctions belong to repository tooling.
 
-### Private consumers using coding-tooling
+### Consumers using coding-tooling
 
-For repositories that have GitHub Actions access to the private `moritzbrantner/coding-tooling` repository, prefer the semantic adapter:
+For repositories that use `coding-tooling`, prefer the semantic adapter:
 
 ```yaml
 jobs:
@@ -172,23 +172,19 @@ The hosted run delegates to the same deterministic interface used locally:
 coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/report.json --json
 ```
 
-`coding-tooling-validation.yml` pins the private Action to an exact commit, uploads its JSON report even when validation fails where possible, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
+`coding-tooling-validation.yml` pins the Action to an exact commit, uploads its JSON report even when validation fails where possible, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
 
-This repository is public, so its own smoke workflow cannot execute the private Action. The adapter is syntax/contract validated here and should be exercised by private consumers that have access to `coding-tooling`.
-
-### Environment-v1 integrity canary
-
-Environment-v1 consumers can add the canary independently of their normal validation tier:
+For public-contract measurement, consumers can instead call the narrower wrapper:
 
 ```yaml
 jobs:
-  environment:
+  public-contract:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/environment-v1-canary.yml@<immutable-sha>
+    uses: moritzbrantner/reusable-workflows/.github/workflows/public-contract-validation.yml@<immutable-sha>
 ```
 
-The canary deliberately uses the repository-standard `bash scripts/codex-environment.sh setup` entrypoint rather than accepting an arbitrary setup command. It treats setup as an idempotent reconstruction operation: tracked repository state must remain unchanged, and the prepared machine must verify against the semantic fingerprint captured before setup. The expected fingerprint and verification receipt are retained as short-lived evidence.
+That wrapper runs `coding-tooling` public-contract verification and publishes `.artifacts/coding-tooling/public-contract.json`. The report protocol is the standard; repositories remain free to satisfy semantic capabilities with their native test frameworks.
 
 Existing v1.3 callers keep the old interfaces by remaining pinned to `workflow-standard-v1.3`.
 
@@ -228,7 +224,7 @@ Reusable workflows should mainly own GitHub-specific mechanics such as checkout,
 
 ## Dependency updates
 
-Dependency automation is a separate concern from workflow architecture. Dependabot or Renovate may propose updates, while repository-owned validation determines whether those updates are acceptable. Private consumers may use `coding-tooling-validation.yml` with a `dependency-update` tier; public consumers can run equivalent repository-owned commands through the generic workflows. See `DEPENDENCY_UPDATES.md`.
+Dependency automation is a separate concern from workflow architecture. Dependabot or Renovate may propose updates, while repository-owned validation determines whether those updates are acceptable. Consumers may use `coding-tooling-validation.yml` with a `dependency-update` tier; other consumers can run equivalent repository-owned commands through the generic workflows. See `DEPENDENCY_UPDATES.md`.
 
 ## Toolchain freshness
 
@@ -268,4 +264,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises the public callable workflows with minimal commands. The private `coding-tooling-validation.yml`, `environment-v1-canary.yml`, and `toolchain-refresh.yml` adapters are intentionally not called from this public repository because they require access to private sibling tooling or consumer-owned environment-v1 state.
+`Smoke Reusable Workflows` exercises the callable workflows with minimal commands, including the public-contract wrapper and its canonical report artifact. `toolchain-refresh.yml` remains excluded from the smoke fanout because it requires write operations and private sibling tooling.

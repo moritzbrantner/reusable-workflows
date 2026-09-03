@@ -13,6 +13,7 @@ const workflowSlugs = [
   "package-publish",
   "performance-validation",
   "promote-branches",
+  "public-contract-validation",
   "release-template",
   "smoke-reusable-workflows",
   "stage-validation",
