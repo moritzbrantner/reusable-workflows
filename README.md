@@ -101,6 +101,7 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 
 - `command-validation.yml` — runtime-neutral adapter around one optional repository-owned setup command and one repository-owned validation command. It emits Execution Receipt v1 and is the preferred generic/public adapter on the independent capability line.
 - `coding-tooling-validation.yml` — semantic validation adapter that invokes `coding-tooling`, runs a declared operation/tier, and uploads its machine-readable report plus Execution Receipt v1.
+- `coding-tooling-score-history.yml` — persistent score-evidence adapter. It captures one consumer-owned validation tier, asks an immutable `coding-tooling` revision to score it, and serializes the resulting history into a reserved data-only branch. Score formulas, fingerprints, attribution, retention, and tombstone semantics remain owned by `coding-tooling`.
 - `public-contract-validation.yml` — intentionally thin public-contract adapter. It fixes the canonical report path at `.artifacts/coding-tooling/public-contract.json` while leaving discovery, evidence semantics, and enforcement to `coding-tooling` and the consumer repository.
 - `environment-v1-canary.yml` — environment integrity canary for environment-v1 consumers. It captures semantic identity before setup, runs the standard setup entrypoint, requires setup to leave tracked repository state unchanged, verifies the prepared environment earns the exact pre-setup fingerprint, and uploads both receipts.
 - `fast-validation.yml` — existing Node/Bun convenience adapter around one repository-owned validation command. It remains callable and its interface stays stable, but new runtime-neutral integrations should prefer `command-validation.yml`.
@@ -183,6 +184,23 @@ coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/repor
 ```
 
 `coding-tooling-validation.yml` pins the Action to an exact commit, uploads its JSON report even when validation fails where possible, emits a shared execution receipt, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
+
+For persistent main-branch evidence, add the score-history adapter independently of the blocking validation job:
+
+```yaml
+permissions:
+  contents: write
+
+jobs:
+  score-history:
+    permissions:
+      contents: write
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-score-history.yml@<immutable-sha>
+    with:
+      tier: full
+```
+
+`coding-tooling-score-history.yml` treats the selected validation tier as descriptive evidence: ordinary validation failures are persisted as a lower score instead of making the snapshot disappear, while score-production failures publish an explicit tombstone and still fail the workflow. The `score-history` branch is reserved for `history.json`, reruns replace the same commit, writes are serialized per repository, and exact definition fingerprints determine whether adjacent points are comparable. Consumers should not add thresholds or release policy to this adapter.
 
 For public-contract measurement, consumers can instead call the narrower wrapper:
 
@@ -290,4 +308,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, its canonical report artifact, and release qualification of the exact PR head with a retained artifact/receipt pair. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling.
+`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, its canonical report artifact, and release qualification of the exact PR head with a retained artifact/receipt pair. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling. The main-branch `coding-tooling-score-history` job dogfoods persistent score publication against this repository with the fast tier.

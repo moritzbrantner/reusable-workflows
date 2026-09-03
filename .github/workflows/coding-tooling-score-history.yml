@@ -1,0 +1,193 @@
+name: Coding Tooling Score History
+
+on:
+  workflow_call:
+    inputs:
+      tier:
+        description: Consumer-owned coding-tooling validation tier captured as score evidence.
+        required: false
+        type: string
+        default: full
+      config:
+        description: Repository-relative coding-tooling configuration path.
+        required: false
+        type: string
+        default: .coding-tooling.json
+      strict:
+        description: Fail selected validation when a required coding-tooling capability is unavailable.
+        required: false
+        type: boolean
+        default: true
+      install_mode:
+        description: Let coding-tooling install supported consumer dependencies or skip installation.
+        required: false
+        type: string
+        default: auto
+      history_branch:
+        description: Reserved data-only branch used to persist history.json.
+        required: false
+        type: string
+        default: score-history
+      timeout_minutes:
+        description: Maximum history publication runtime.
+        required: false
+        type: number
+        default: 30
+
+concurrency:
+  group: coding-tooling-score-history-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Coding Tooling Score History
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: write
+    steps:
+      - name: Check out consumer repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+
+      - name: Capture repository verification
+        continue-on-error: true
+        uses: moritzbrantner/coding-tooling@01527f7be1607416bf9cc81a3a3e4d2bfb7355f2
+        with:
+          tier: ${{ inputs.tier }}
+          config: ${{ inputs.config }}
+          strict: ${{ inputs.strict }}
+          install-mode: ${{ inputs.install_mode }}
+          report-path: .artifacts/coding-tooling/history-run.json
+
+      - name: Produce repository score snapshot
+        id: score
+        if: ${{ always() }}
+        continue-on-error: true
+        uses: moritzbrantner/coding-tooling@01527f7be1607416bf9cc81a3a3e4d2bfb7355f2
+        with:
+          operation: score
+          validation-report: .artifacts/coding-tooling/history-run.json
+          report-path: .artifacts/coding-tooling/history-score.json
+          install-mode: none
+
+      - name: Check out score-history writer
+        if: ${{ always() }}
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: moritzbrantner/coding-tooling
+          ref: 01527f7be1607416bf9cc81a3a3e4d2bfb7355f2
+          path: .coding-tooling-source
+          persist-credentials: false
+
+      - name: Ensure history branch exists
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          history_branch="${{ inputs.history_branch }}"
+          git check-ref-format --branch "$history_branch" >/dev/null
+          if ! git ls-remote --exit-code --heads origin "$history_branch" >/dev/null 2>&1; then
+            git push origin "$GITHUB_SHA:refs/heads/$history_branch"
+          fi
+
+      - name: Check out history branch
+        if: ${{ always() }}
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.history_branch }}
+          path: .score-history
+          fetch-depth: 1
+
+      - name: Append score snapshot
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          commit_timestamp="$(git show -s --format=%cI "$GITHUB_SHA")"
+          validation_tier="${{ inputs.tier }}"
+          bun .coding-tooling-source/scripts/append-score-history.mjs \
+            --history .score-history/history.json \
+            --score .artifacts/coding-tooling/history-score.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" \
+            --timestamp "$commit_timestamp" \
+            --producer-commit "$GITHUB_SHA" \
+            --workflow-run-id "$GITHUB_RUN_ID" \
+            --workflow-run-attempt "$GITHUB_RUN_ATTEMPT" \
+            --validation-tier "$validation_tier"
+
+      - name: Publish history branch
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          history_branch="${{ inputs.history_branch }}"
+          git -C .score-history config user.name "github-actions[bot]"
+          git -C .score-history config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          unexpected="$(git -C .score-history ls-files | grep -vx 'history.json' || true)"
+          if [[ -n "$unexpected" ]]; then
+            cp .score-history/history.json "$RUNNER_TEMP/score-history.json"
+            git -C .score-history reset --hard
+            git -C .score-history clean -fdx
+            git -C .score-history checkout --orphan score-history-clean
+            git -C .score-history rm -rf .
+            cp "$RUNNER_TEMP/score-history.json" .score-history/history.json
+            git -C .score-history add history.json
+            git -C .score-history commit -m "score-history: isolate persistence branch"
+            git -C .score-history push --force origin "HEAD:$history_branch"
+          else
+            git -C .score-history add history.json
+            if ! git -C .score-history diff --cached --quiet; then
+              git -C .score-history commit -m "score-history: ${GITHUB_SHA:0:12}"
+              git -C .score-history push origin "HEAD:$history_branch"
+            fi
+          fi
+
+      - name: Verify data-only history branch
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tracked="$(git -C .score-history ls-files)"
+          if [[ "$tracked" != "history.json" ]]; then
+            echo "::error::Score history must track only history.json; found:"
+            printf '%s\n' "$tracked"
+            exit 1
+          fi
+
+      - name: Write score-history summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bun - "$GITHUB_STEP_SUMMARY" .score-history/history.json "$GITHUB_SHA" "${{ inputs.history_branch }}" <<'BUN'
+          import { readFileSync, appendFileSync } from "node:fs";
+
+          const [summaryPath, historyPath, commit, historyBranch] = process.argv.slice(2);
+          const history = JSON.parse(readFileSync(historyPath, "utf8"));
+          const entry = history.entries?.find((candidate) => candidate.commit === commit);
+          const lines = ["## coding-tooling score history", ""];
+          if (!entry) {
+            lines.push("- Snapshot: **unavailable**");
+          } else {
+            lines.push(`- Score: **${entry.score ?? "unavailable"}**`);
+            lines.push(`- Completeness: **${entry.completeness ?? "unavailable"}**`);
+            lines.push(`- Verification: **${entry.verification?.status ?? "unavailable"}**`);
+            lines.push(`- Definition: \`${entry.definitionFingerprint ?? "unavailable"}\``);
+            lines.push(`- History branch: \`${historyBranch}\``);
+          }
+          appendFileSync(summaryPath, `${lines.join("\n")}\n`, "utf8");
+          BUN
+
+      - name: Surface score production failure
+        if: ${{ steps.score.outcome == 'failure' }}
+        shell: bash
+        run: |
+          echo "::error::Repository score production failed; its error tombstone was published to ${{ inputs.history_branch }}."
+          exit 1
