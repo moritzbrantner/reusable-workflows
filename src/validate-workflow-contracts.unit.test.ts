@@ -186,7 +186,7 @@ jobs:
     );
   });
 
-  test("locks the execution receipt schema identity and core fields", () => {
+  test("locks the execution receipt schema identity and transport fields", () => {
     const errors = validateWorkflowContractsState({
       docs: {
         "README.md": "fast-validation.yml",
@@ -208,6 +208,33 @@ jobs:
     expect(errors).toContain("execution receipt v1 schema must lock schema version and kind");
     expect(errors).toContain("execution receipt v1 schema must require capability");
     expect(errors).toContain("execution receipt v1 schema must require evidence");
+    expect(errors).toContain(
+      "execution receipt v1 schema must define optional attestation transport metadata",
+    );
+  });
+
+  test("locks exact-source artifact provenance fields", () => {
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml",
+        "CONTEXT.md": "fast-validation.yml",
+      },
+      compatibilitySnapshot,
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+      },
+      artifactProvenanceSchema: {
+        required: ["schemaVersion"],
+        properties: {
+          schemaVersion: { const: 2 },
+        },
+      },
+    });
+
+    expect(errors).toContain("artifact provenance v1 schema must lock schema version 1");
+    expect(errors).toContain("artifact provenance v1 schema must require source");
+    expect(errors).toContain("artifact provenance v1 schema must require artifact");
+    expect(errors).toContain("artifact provenance v1 schema must require qualification");
   });
 
   test("keeps command validation runtime-neutral", () => {
