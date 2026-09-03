@@ -182,6 +182,7 @@ jobs:
           import os
           from pathlib import Path
 
+          digest = os.environ.get("ARTIFACT_DIGEST") or None
           receipt = {
               "schemaVersion": 1,
               "kind": "reusable-workflows/execution-receipt",
@@ -204,7 +205,7 @@ jobs:
                       "role": "qualified-artifact",
                       "name": os.environ["ARTIFACT_NAME"],
                       "path": None,
-                      "digest": os.environ.get("ARTIFACT_DIGEST") or None,
+                      "digest": f"sha256:{digest}" if digest else None,
                   }
               ],
               "run": {
