@@ -44,7 +44,7 @@ jobs:
     needs: fast-validation
     uses: ./.github/workflows/command-validation.yml
     with:
-      setup_command: "echo smoke generic setup"
+      setup_command: "npm install --global bun@1.4.0 && echo smoke generic bootstrap"
       command: "echo smoke generic validation"
       artifact_retention_days: 1
 
@@ -52,6 +52,7 @@ jobs:
     needs: fast-validation
     uses: ./.github/workflows/command-validation.yml
     with:
+      setup_command: "npm install --global bun@1.4.0"
       command: "echo smoke second generic validation"
       artifact_retention_days: 1
 
@@ -169,6 +170,7 @@ jobs:
     uses: ./.github/workflows/release-qualification.yml
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      setup_command: "npm install --global bun@1.4.0"
       qualification_command: "echo smoke release qualification"
       build_command: "mkdir -p .artifacts/release-qualification-smoke && echo qualified > .artifacts/release-qualification-smoke/artifact.txt"
       artifact_paths: .artifacts/release-qualification-smoke/artifact.txt
