@@ -122,9 +122,11 @@ jobs:
         run: |
           set -euo pipefail
           short_sha="${SOURCE_SHA:0:12}"
-          echo "artifact_name=release-qualification-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
-          echo "receipt_artifact_name=release-qualification-receipt-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
-          echo "receipt_path=.artifacts/release-qualification/receipt.json" >> "$GITHUB_OUTPUT"
+          {
+            echo "artifact_name=release-qualification-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_artifact_name=release-qualification-receipt-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_path=.artifacts/release-qualification/receipt.json"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Upload qualified artifact
         id: artifact
