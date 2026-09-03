@@ -148,7 +148,9 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
   }
 
-  const commandInputs = Object.keys(manifest.workflows[commandValidationWorkflowPath]?.inputs ?? {}).sort();
+  const commandInputs = Object.keys(
+    manifest.workflows[commandValidationWorkflowPath]?.inputs ?? {},
+  ).sort();
   if (state.workflowSources[commandValidationWorkflowPath]) {
     const expectedCommandInputs = [
       "artifact_retention_days",
