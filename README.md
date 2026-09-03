@@ -102,6 +102,7 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 - `fast-validation.yml` — universal thin adapter around one repository-owned validation command. This is the public/generic fallback.
 - `coding-tooling-validation.yml` — semantic validation adapter that invokes `coding-tooling`, runs a declared operation/tier, and uploads its machine-readable report.
 - `public-contract-validation.yml` — intentionally thin public-contract adapter. It fixes the canonical report path at `.artifacts/coding-tooling/public-contract.json` while leaving discovery, evidence semantics, and enforcement to `coding-tooling` and the consumer repository.
+- `environment-v1-canary.yml` — environment integrity canary for environment-v1 consumers. It captures semantic identity before setup, runs the standard setup entrypoint, requires setup to leave tracked repository state unchanged, verifies the prepared environment earns the exact pre-setup fingerprint, and uploads both receipts.
 
 ### Specialized / transitional validation
 
@@ -186,6 +187,20 @@ jobs:
 
 That wrapper runs `coding-tooling` public-contract verification and publishes `.artifacts/coding-tooling/public-contract.json`. The report protocol is the standard; repositories remain free to satisfy semantic capabilities with their native test frameworks.
 
+### Environment-v1 integrity canary
+
+Environment-v1 consumers can add the canary independently of their normal validation tier:
+
+```yaml
+jobs:
+  environment:
+    permissions:
+      contents: read
+    uses: moritzbrantner/reusable-workflows/.github/workflows/environment-v1-canary.yml@<immutable-sha>
+```
+
+The canary deliberately uses the repository-standard `bash scripts/codex-environment.sh setup` entrypoint rather than accepting an arbitrary setup command. It treats setup as an idempotent reconstruction operation: tracked repository state must remain unchanged, and the prepared machine must verify against the semantic fingerprint captured before setup. The expected fingerprint and verification receipt are retained as short-lived evidence.
+
 Existing v1.3 callers keep the old interfaces by remaining pinned to `workflow-standard-v1.3`.
 
 ## Contracts and generated metadata
@@ -264,4 +279,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises the callable workflows with minimal commands, including the public-contract wrapper and its canonical report artifact. `toolchain-refresh.yml` remains excluded from the smoke fanout because it requires write operations and private sibling tooling.
+`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including the public-contract wrapper and its canonical report artifact. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling.
