@@ -26,11 +26,15 @@ export type ValidationState = {
   docs: Record<string, string>;
   workflowSources: Record<string, string>;
   compatibilitySnapshot: CompatibilitySnapshot;
+  executionReceiptSchema?: unknown;
 };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
+const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
+const executionReceiptKind = "reusable-workflows/execution-receipt";
+const executionReceiptOutputs = ["receipt_artifact_name", "receipt_path"];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -47,6 +51,28 @@ function isCallable(workflow: WorkflowFile): boolean {
   );
 }
 
+function validateExecutionReceiptSchema(schema: unknown, errors: string[]) {
+  if (!isRecord(schema)) {
+    errors.push("contracts/execution-receipt-v1.schema.json must contain a JSON object");
+    return;
+  }
+
+  const properties = isRecord(schema.properties) ? schema.properties : {};
+  const kind = isRecord(properties.kind) ? properties.kind : {};
+  const schemaVersion = isRecord(properties.schemaVersion) ? properties.schemaVersion : {};
+
+  if (schemaVersion.const !== 1 || kind.const !== executionReceiptKind) {
+    errors.push("execution receipt v1 schema must lock schema version and kind");
+  }
+
+  const required = Array.isArray(schema.required) ? schema.required : [];
+  for (const field of ["capability", "source", "result", "evidence", "run"]) {
+    if (!required.includes(field)) {
+      errors.push(`execution receipt v1 schema must require ${field}`);
+    }
+  }
+}
+
 export function validateWorkflowContractsState(state: ValidationState): string[] {
   const errors: string[] = [];
   const manifest = generateCapabilityManifest(state.workflowSources);
@@ -60,6 +86,10 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     state.compatibilitySnapshot.workflows?.[".github/workflows/fast-validation.yml"]?.inputs ?? {};
   if (!("format_command" in compatibilityFast) || !("unit_test_command" in compatibilityFast)) {
     errors.push("workflow-standard-v1.3 fast-validation compatibility inputs must remain frozen");
+  }
+
+  if (state.executionReceiptSchema !== undefined) {
+    validateExecutionReceiptSchema(state.executionReceiptSchema, errors);
   }
 
   for (const [relativePath, source] of Object.entries(state.workflowSources)) {
@@ -90,6 +120,27 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   const codingToolingInputs = manifest.workflows[codingToolingWorkflowPath]?.inputs ?? {};
   if (codingToolingSource && !("operation" in codingToolingInputs)) {
     errors.push("coding-tooling-validation.yml must expose the coding-tooling operation input");
+  }
+
+  for (const workflowPath of [codingToolingWorkflowPath, releaseQualificationWorkflowPath]) {
+    const source = state.workflowSources[workflowPath];
+    if (!source) {
+      continue;
+    }
+
+    const outputs = manifest.workflows[workflowPath]?.outputs ?? {};
+    for (const output of executionReceiptOutputs) {
+      if (!(output in outputs)) {
+        errors.push(`${path.basename(workflowPath)} must expose receipt output ${output}`);
+      }
+    }
+
+    if (!source.includes(executionReceiptKind)) {
+      errors.push(`${path.basename(workflowPath)} must emit the shared execution receipt kind`);
+    }
+    if (!source.includes("Validate execution receipt contract")) {
+      errors.push(`${path.basename(workflowPath)} must validate its execution receipt`);
+    }
   }
 
   const fastInputs = Object.keys(
@@ -126,6 +177,9 @@ function readValidationState(): ValidationState {
   const compatibilitySnapshot = JSON.parse(
     readFileSync(path.join(root, "contracts", "workflows.json"), "utf8"),
   ) as CompatibilitySnapshot;
+  const executionReceiptSchema = JSON.parse(
+    readFileSync(path.join(root, "contracts", "execution-receipt-v1.schema.json"), "utf8"),
+  ) as unknown;
   const docs = Object.fromEntries(
     ["README.md", "CONTEXT.md"].map((docPath) => [
       docPath,
@@ -137,6 +191,7 @@ function readValidationState(): ValidationState {
     docs,
     workflowSources: readRepositoryWorkflowSources(),
     compatibilitySnapshot,
+    executionReceiptSchema,
   };
 }
 
@@ -148,7 +203,9 @@ export function main() {
     process.exit(1);
   }
 
-  console.log("Workflow capabilities are valid; v1.3 compatibility snapshot remains frozen.");
+  console.log(
+    "Workflow capabilities and execution receipt v1 are valid; v1.3 compatibility snapshot remains frozen.",
+  );
 }
 
 if (import.meta.main) {
