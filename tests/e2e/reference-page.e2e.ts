@@ -148,7 +148,7 @@ test("renders latest build metrics and the last-5 table from a fixture history",
         return {
           id: `${runNumber}-1`,
           runId: runNumber,
-          runNumber: runNumber,
+          runNumber,
           runAttempt: 1,
           event: "push",
           branch: "main",
