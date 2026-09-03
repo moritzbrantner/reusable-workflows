@@ -44,7 +44,7 @@ on:
         type: number
         default: 30
       artifact_retention_days:
-        description: Retention period for the coding-tooling report artifact.
+        description: Retention period for the coding-tooling report and execution receipt artifacts.
         required: false
         type: number
         default: 7
@@ -52,9 +52,18 @@ on:
       artifact_name:
         description: Name of the uploaded coding-tooling report artifact.
         value: ${{ jobs.coding-tooling.outputs.artifact_name }}
+      artifact_digest:
+        description: SHA-256 digest reported by actions/upload-artifact for the coding-tooling report artifact.
+        value: ${{ jobs.coding-tooling.outputs.artifact_digest }}
       report_path:
         description: Repository-relative path used for the coding-tooling JSON report.
         value: ${{ jobs.coding-tooling.outputs.report_path }}
+      receipt_artifact_name:
+        description: Name of the uploaded execution receipt artifact.
+        value: ${{ jobs.coding-tooling.outputs.receipt_artifact_name }}
+      receipt_path:
+        description: Repository-relative execution receipt path.
+        value: ${{ jobs.coding-tooling.outputs.receipt_path }}
       outcome:
         description: Outcome of the coding-tooling Action before failure propagation.
         value: ${{ jobs.coding-tooling.outputs.outcome }}
@@ -68,7 +77,10 @@ jobs:
       contents: read
     outputs:
       artifact_name: ${{ steps.report.outputs.artifact_name }}
+      artifact_digest: ${{ steps.report-upload.outputs.artifact-digest }}
       report_path: ${{ steps.report.outputs.report_path }}
+      receipt_artifact_name: ${{ steps.report.outputs.receipt_artifact_name }}
+      receipt_path: ${{ steps.report.outputs.receipt_path }}
       outcome: ${{ steps.tooling.outcome }}
     steps:
       - name: Check out consumer repository
@@ -91,9 +103,19 @@ jobs:
         id: report
         if: ${{ always() }}
         shell: bash
+        env:
+          REPORT_PATH: ${{ inputs.report_path }}
         run: |
-          echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
-          echo "report_path=${{ inputs.report_path }}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          short_sha="${source_sha:0:12}"
+          {
+            echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "report_path=$REPORT_PATH"
+            echo "receipt_artifact_name=execution-receipt-coding-tooling-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_path=.artifacts/reusable-workflows/coding-tooling-validation-receipt.json"
+            echo "source_sha=$source_sha"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Write validation summary
         if: ${{ always() }}
@@ -155,7 +177,9 @@ jobs:
           fi
 
       - name: Upload coding-tooling report
+        id: report-upload
         if: ${{ always() }}
+        continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.report.outputs.artifact_name }}
@@ -163,7 +187,105 @@ jobs:
           if-no-files-found: warn
           retention-days: ${{ inputs.artifact_retention_days }}
 
+      - name: Write execution receipt
+        if: ${{ always() }}
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ steps.report.outputs.source_sha }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
+          REPORT_UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
+          REPORT_ARTIFACT_NAME: ${{ steps.report.outputs.artifact_name }}
+          REPORT_PATH: ${{ steps.report.outputs.report_path }}
+          REPORT_DIGEST: ${{ steps.report-upload.outputs.artifact-digest }}
+          RECEIPT_PATH: ${{ steps.report.outputs.receipt_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$RECEIPT_PATH")"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          digest = os.environ.get("REPORT_DIGEST") or None
+          receipt = {
+              "schemaVersion": 1,
+              "kind": "reusable-workflows/execution-receipt",
+              "capability": {"name": "coding-tooling-validation", "interfaceVersion": 1},
+              "source": {
+                  "repository": os.environ["GITHUB_REPOSITORY"],
+                  "sha": os.environ["SOURCE_SHA"].lower(),
+              },
+              "result": {
+                  "outcome": os.environ["TOOLING_OUTCOME"],
+                  "steps": {
+                      "codingTooling": os.environ["TOOLING_OUTCOME"],
+                      "reportUpload": os.environ["REPORT_UPLOAD_OUTCOME"],
+                  },
+              },
+              "evidence": [
+                  {
+                      "role": "coding-tooling-report",
+                      "name": os.environ["REPORT_ARTIFACT_NAME"],
+                      "path": os.environ["REPORT_PATH"],
+                      "digest": f"sha256:{digest}" if digest else None,
+                  }
+              ],
+              "run": {
+                  "id": os.environ["GITHUB_RUN_ID"],
+                  "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "callerWorkflowRef": os.environ.get("GITHUB_WORKFLOW_REF"),
+              },
+          }
+          Path(os.environ["RECEIPT_PATH"]).write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Validate execution receipt contract
+        if: ${{ always() }}
+        shell: bash
+        env:
+          RECEIPT_PATH: ${{ steps.report.outputs.receipt_path }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
+              receipt = json.load(handle)
+
+          outcomes = {"success", "failure", "cancelled", "skipped"}
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}
+          assert re.fullmatch(r"[^/]+/[^/]+", receipt["source"]["repository"])
+          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
+          assert receipt["result"]["outcome"] in outcomes
+          assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
+          assert isinstance(receipt["evidence"], list) and len(receipt["evidence"]) == 1
+          evidence = receipt["evidence"][0]
+          assert evidence["role"] == "coding-tooling-report"
+          assert isinstance(evidence["name"], str) and evidence["name"]
+          assert isinstance(evidence["path"], str) and evidence["path"]
+          assert evidence["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", evidence["digest"])
+          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
+          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
+          assert receipt["run"]["callerWorkflowRef"] is None or isinstance(receipt["run"]["callerWorkflowRef"], str)
+          PY
+
+      - name: Upload execution receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.report.outputs.receipt_artifact_name }}
+          path: ${{ steps.report.outputs.receipt_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
       - name: Propagate coding-tooling failure
-        if: ${{ steps.tooling.outcome != 'success' }}
+        if: ${{ steps.tooling.outcome != 'success' || steps.report-upload.outcome != 'success' }}
         shell: bash
         run: exit 1
