@@ -209,4 +209,53 @@ jobs:
     expect(errors).toContain("execution receipt v1 schema must require capability");
     expect(errors).toContain("execution receipt v1 schema must require evidence");
   });
+
+  test("keeps command validation runtime-neutral", () => {
+    const commandWorkflow = `
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        type: string
+      setup_command:
+        type: string
+      command:
+        type: string
+      timeout_minutes:
+        type: number
+      artifact_retention_days:
+        type: number
+      node_version:
+        type: string
+    outputs:
+      receipt_artifact_name:
+        value: receipt
+      receipt_path:
+        value: receipt.json
+jobs:
+  command-validation:
+    permissions:
+      contents: read
+    steps:
+      - name: Shared receipt kind
+        run: echo reusable-workflows/execution-receipt
+      - name: Validate execution receipt contract
+        run: echo valid
+`;
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml command-validation.yml",
+        "CONTEXT.md": "fast-validation.yml command-validation.yml",
+      },
+      compatibilitySnapshot,
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+        ".github/workflows/command-validation.yml": commandWorkflow,
+      },
+    });
+
+    expect(errors).toContain(
+      "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, retention, and working directory only",
+    );
+  });
 });

@@ -31,6 +31,7 @@ export type ValidationState = {
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
+const commandValidationWorkflowPath = ".github/workflows/command-validation.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 const executionReceiptKind = "reusable-workflows/execution-receipt";
@@ -122,7 +123,11 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     errors.push("coding-tooling-validation.yml must expose the coding-tooling operation input");
   }
 
-  for (const workflowPath of [codingToolingWorkflowPath, releaseQualificationWorkflowPath]) {
+  for (const workflowPath of [
+    codingToolingWorkflowPath,
+    commandValidationWorkflowPath,
+    releaseQualificationWorkflowPath,
+  ]) {
     const source = state.workflowSources[workflowPath];
     if (!source) {
       continue;
@@ -140,6 +145,24 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
     if (!source.includes("Validate execution receipt contract")) {
       errors.push(`${path.basename(workflowPath)} must validate its execution receipt`);
+    }
+  }
+
+  const commandInputs = Object.keys(
+    manifest.workflows[commandValidationWorkflowPath]?.inputs ?? {},
+  ).sort();
+  if (state.workflowSources[commandValidationWorkflowPath]) {
+    const expectedCommandInputs = [
+      "artifact_retention_days",
+      "command",
+      "setup_command",
+      "timeout_minutes",
+      "working_directory",
+    ];
+    if (JSON.stringify(commandInputs) !== JSON.stringify(expectedCommandInputs)) {
+      errors.push(
+        "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, retention, and working directory only",
+      );
     }
   }
 

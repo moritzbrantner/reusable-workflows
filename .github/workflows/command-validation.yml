@@ -1,0 +1,193 @@
+name: Command Validation
+
+on:
+  workflow_call:
+    inputs:
+      working_directory:
+        description: Repository-relative directory in which setup and validation run.
+        required: false
+        type: string
+        default: "."
+      setup_command:
+        description: Optional repository-owned environment or dependency setup command.
+        required: false
+        type: string
+        default: ""
+      command:
+        description: Repository-owned validation command.
+        required: true
+        type: string
+      timeout_minutes:
+        description: Maximum validation job runtime.
+        required: false
+        type: number
+        default: 20
+      artifact_retention_days:
+        description: Retention period for the execution receipt artifact.
+        required: false
+        type: number
+        default: 7
+    outputs:
+      receipt_artifact_name:
+        description: Name of the uploaded execution receipt artifact.
+        value: ${{ jobs.command-validation.outputs.receipt_artifact_name }}
+      receipt_path:
+        description: Repository-relative execution receipt path.
+        value: ${{ jobs.command-validation.outputs.receipt_path }}
+      outcome:
+        description: Validation outcome before final failure propagation.
+        value: ${{ jobs.command-validation.outputs.outcome }}
+
+jobs:
+  command-validation:
+    name: Command Validation
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working_directory }}
+    outputs:
+      receipt_artifact_name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+      receipt_path: ${{ steps.metadata.outputs.receipt_path }}
+      outcome: ${{ steps.status.outputs.outcome }}
+    steps:
+      - name: Check out consumer repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Define execution metadata
+        id: metadata
+        working-directory: .
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working_directory }}
+          SETUP_COMMAND: ${{ inputs.setup_command }}
+          COMMAND: ${{ inputs.command }}
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          short_sha="${source_sha:0:12}"
+          invocation_key="$(printf '%s\n%s\n%s\n' "$WORKING_DIRECTORY" "$SETUP_COMMAND" "$COMMAND" | sha256sum | cut -c1-12)"
+          {
+            echo "source_sha=$source_sha"
+            echo "invocation_key=$invocation_key"
+            echo "receipt_artifact_name=execution-receipt-command-${invocation_key}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_path=.artifacts/reusable-workflows/command-validation-${invocation_key}-receipt.json"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Prepare repository
+        id: setup
+        if: ${{ inputs.setup_command != '' }}
+        continue-on-error: true
+        run: ${{ inputs.setup_command }}
+
+      - name: Run repository validation
+        id: command
+        if: ${{ steps.setup.outcome == 'success' || steps.setup.outcome == 'skipped' }}
+        continue-on-error: true
+        run: ${{ inputs.command }}
+
+      - name: Determine validation outcome
+        id: status
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          COMMAND_OUTCOME: ${{ steps.command.outcome }}
+        run: |
+          set -euo pipefail
+          outcome=failure
+          if [[ "$SETUP_OUTCOME" == "success" || "$SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$COMMAND_OUTCOME" == "success" ]]; then
+            outcome=success
+          fi
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+      - name: Write execution receipt
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SOURCE_SHA: ${{ steps.metadata.outputs.source_sha }}
+          SETUP_OUTCOME: ${{ steps.setup.outcome }}
+          COMMAND_OUTCOME: ${{ steps.command.outcome }}
+          OUTCOME: ${{ steps.status.outputs.outcome }}
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$RECEIPT_PATH")"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          receipt = {
+              "schemaVersion": 1,
+              "kind": "reusable-workflows/execution-receipt",
+              "capability": {"name": "command-validation", "interfaceVersion": 1},
+              "source": {
+                  "repository": os.environ["GITHUB_REPOSITORY"],
+                  "sha": os.environ["SOURCE_SHA"].lower(),
+              },
+              "result": {
+                  "outcome": os.environ["OUTCOME"],
+                  "steps": {
+                      "setup": os.environ["SETUP_OUTCOME"],
+                      "command": os.environ["COMMAND_OUTCOME"],
+                  },
+              },
+              "evidence": [],
+              "run": {
+                  "id": os.environ["GITHUB_RUN_ID"],
+                  "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "callerWorkflowRef": os.environ.get("GITHUB_WORKFLOW_REF"),
+              },
+          }
+          Path(os.environ["RECEIPT_PATH"]).write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Validate execution receipt contract
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
+              receipt = json.load(handle)
+
+          outcomes = {"success", "failure", "cancelled", "skipped"}
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "command-validation", "interfaceVersion": 1}
+          assert re.fullmatch(r"[^/]+/[^/]+", receipt["source"]["repository"])
+          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
+          assert receipt["result"]["outcome"] in outcomes
+          assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
+          assert receipt["evidence"] == []
+          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
+          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
+          assert receipt["run"]["callerWorkflowRef"] is None or isinstance(receipt["run"]["callerWorkflowRef"], str)
+          PY
+
+      - name: Upload execution receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+          path: ${{ steps.metadata.outputs.receipt_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Propagate validation failure
+        if: ${{ always() && steps.status.outputs.outcome != 'success' }}
+        working-directory: .
+        run: exit 1
