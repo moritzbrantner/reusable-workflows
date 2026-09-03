@@ -205,9 +205,7 @@ jobs:
       },
     });
 
-    expect(errors).toContain(
-      "execution receipt v1 schema must lock schemaVersion 1 and the shared receipt kind",
-    );
+    expect(errors).toContain("execution receipt v1 schema must lock schema version and kind");
     expect(errors).toContain("execution receipt v1 schema must require capability");
     expect(errors).toContain("execution receipt v1 schema must require evidence");
   });
