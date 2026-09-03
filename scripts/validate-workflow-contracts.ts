@@ -177,6 +177,22 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
   }
 
+  for (const workflowPath of [commandValidationWorkflowPath, releaseQualificationWorkflowPath]) {
+    const source = state.workflowSources[workflowPath];
+    if (!source) {
+      continue;
+    }
+    if (
+      !source.includes(".repository-environment.toml") ||
+      !source.includes("bash scripts/codex-environment.sh setup") ||
+      !source.includes("Verify environment-v1 preserves tracked state")
+    ) {
+      errors.push(
+        `${path.basename(workflowPath)} must use the standard environment-v1 setup seam when the repository declares environment-v1`,
+      );
+    }
+  }
+
   const releaseSource = state.workflowSources[releaseQualificationWorkflowPath];
   if (releaseSource) {
     if (!immutableAttestUse.test(releaseSource)) {
