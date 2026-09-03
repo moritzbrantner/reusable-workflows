@@ -89,6 +89,40 @@
         }
       }
     },
+    "attestations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "predicateType", "id", "url", "subjectName", "subjectDigest"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "predicateType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subjectName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "subjectDigest": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      }
+    },
     "run": {
       "type": "object",
       "additionalProperties": false,

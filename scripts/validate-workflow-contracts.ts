@@ -27,6 +27,7 @@ export type ValidationState = {
   workflowSources: Record<string, string>;
   compatibilitySnapshot: CompatibilitySnapshot;
   executionReceiptSchema?: unknown;
+  artifactProvenanceSchema?: unknown;
 };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -34,6 +35,7 @@ const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.y
 const commandValidationWorkflowPath = ".github/workflows/command-validation.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
+const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
 const executionReceiptKind = "reusable-workflows/execution-receipt";
 const executionReceiptOutputs = ["receipt_artifact_name", "receipt_path"];
 
@@ -72,6 +74,30 @@ function validateExecutionReceiptSchema(schema: unknown, errors: string[]) {
       errors.push(`execution receipt v1 schema must require ${field}`);
     }
   }
+
+  if (!("attestations" in properties)) {
+    errors.push("execution receipt v1 schema must define optional attestation transport metadata");
+  }
+}
+
+function validateArtifactProvenanceSchema(schema: unknown, errors: string[]) {
+  if (!isRecord(schema)) {
+    errors.push("contracts/artifact-provenance-v1.schema.json must contain a JSON object");
+    return;
+  }
+
+  const properties = isRecord(schema.properties) ? schema.properties : {};
+  const schemaVersion = isRecord(properties.schemaVersion) ? properties.schemaVersion : {};
+  if (schemaVersion.const !== 1) {
+    errors.push("artifact provenance v1 schema must lock schema version 1");
+  }
+
+  const required = Array.isArray(schema.required) ? schema.required : [];
+  for (const field of ["source", "artifact", "qualification"]) {
+    if (!required.includes(field)) {
+      errors.push(`artifact provenance v1 schema must require ${field}`);
+    }
+  }
 }
 
 export function validateWorkflowContractsState(state: ValidationState): string[] {
@@ -91,6 +117,9 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
   if (state.executionReceiptSchema !== undefined) {
     validateExecutionReceiptSchema(state.executionReceiptSchema, errors);
+  }
+  if (state.artifactProvenanceSchema !== undefined) {
+    validateArtifactProvenanceSchema(state.artifactProvenanceSchema, errors);
   }
 
   for (const [relativePath, source] of Object.entries(state.workflowSources)) {
@@ -145,6 +174,19 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
     if (!source.includes("Validate execution receipt contract")) {
       errors.push(`${path.basename(workflowPath)} must validate its execution receipt`);
+    }
+  }
+
+  const releaseSource = state.workflowSources[releaseQualificationWorkflowPath];
+  if (releaseSource) {
+    if (!immutableAttestUse.test(releaseSource)) {
+      errors.push("release-qualification.yml must pin actions/attest to an exact commit SHA");
+    }
+    const releaseOutputs = manifest.workflows[releaseQualificationWorkflowPath]?.outputs ?? {};
+    for (const output of ["attestation_id", "attestation_url", "provenance_predicate_path"]) {
+      if (!(output in releaseOutputs)) {
+        errors.push(`release-qualification.yml must expose provenance output ${output}`);
+      }
     }
   }
 
@@ -203,6 +245,9 @@ function readValidationState(): ValidationState {
   const executionReceiptSchema = JSON.parse(
     readFileSync(path.join(root, "contracts", "execution-receipt-v1.schema.json"), "utf8"),
   ) as unknown;
+  const artifactProvenanceSchema = JSON.parse(
+    readFileSync(path.join(root, "contracts", "artifact-provenance-v1.schema.json"), "utf8"),
+  ) as unknown;
   const docs = Object.fromEntries(
     ["README.md", "CONTEXT.md"].map((docPath) => [
       docPath,
@@ -215,6 +260,7 @@ function readValidationState(): ValidationState {
     workflowSources: readRepositoryWorkflowSources(),
     compatibilitySnapshot,
     executionReceiptSchema,
+    artifactProvenanceSchema,
   };
 }
 
@@ -227,7 +273,7 @@ export function main() {
   }
 
   console.log(
-    "Workflow capabilities and execution receipt v1 are valid; v1.3 compatibility snapshot remains frozen.",
+    "Workflow capabilities, execution receipt v1, and artifact provenance v1 are valid; v1.3 compatibility snapshot remains frozen.",
   );
 }
 
