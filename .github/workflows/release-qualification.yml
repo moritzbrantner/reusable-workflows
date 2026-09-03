@@ -47,10 +47,10 @@ on:
         description: SHA-256 digest reported by actions/upload-artifact for the qualified artifact archive.
         value: ${{ jobs.release-qualification.outputs.artifact_digest }}
       receipt_artifact_name:
-        description: Name of the uploaded qualification receipt artifact.
+        description: Name of the uploaded execution receipt artifact.
         value: ${{ jobs.release-qualification.outputs.receipt_artifact_name }}
       receipt_path:
-        description: Repository-relative qualification receipt path.
+        description: Repository-relative execution receipt path.
         value: ${{ jobs.release-qualification.outputs.receipt_path }}
       outcome:
         description: Qualification outcome before final failure propagation.
@@ -124,8 +124,8 @@ jobs:
           short_sha="${SOURCE_SHA:0:12}"
           {
             echo "artifact_name=release-qualification-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
-            echo "receipt_artifact_name=release-qualification-receipt-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
-            echo "receipt_path=.artifacts/release-qualification/receipt.json"
+            echo "receipt_artifact_name=execution-receipt-release-qualification-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_path=.artifacts/reusable-workflows/release-qualification-receipt.json"
           } >> "$GITHUB_OUTPUT"
 
       - name: Upload qualified artifact
@@ -161,7 +161,7 @@ jobs:
           fi
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
 
-      - name: Write qualification receipt
+      - name: Write execution receipt
         if: ${{ always() }}
         working-directory: .
         env:
@@ -173,7 +173,7 @@ jobs:
           ARTIFACT_NAME: ${{ steps.metadata.outputs.artifact_name }}
           ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
           RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
-          QUALIFIED: ${{ steps.status.outputs.outcome == 'success' && 'true' || 'false' }}
+          OUTCOME: ${{ steps.status.outputs.outcome }}
         run: |
           set -euo pipefail
           mkdir -p "$(dirname "$RECEIPT_PATH")"
@@ -184,23 +184,29 @@ jobs:
 
           receipt = {
               "schemaVersion": 1,
-              "kind": "reusable-workflows/release-qualification",
-              "capability": {"name": "release-qualification", "version": 1},
+              "kind": "reusable-workflows/execution-receipt",
+              "capability": {"name": "release-qualification", "interfaceVersion": 1},
               "source": {
                   "repository": os.environ["GITHUB_REPOSITORY"],
-                  "sha": os.environ["SOURCE_SHA"],
+                  "sha": os.environ["SOURCE_SHA"].lower(),
               },
               "result": {
-                  "qualified": os.environ["QUALIFIED"] == "true",
-                  "setup": os.environ["SETUP_OUTCOME"],
-                  "qualification": os.environ["QUALIFICATION_OUTCOME"],
-                  "build": os.environ["BUILD_OUTCOME"],
-                  "artifactUpload": os.environ["ARTIFACT_OUTCOME"],
+                  "outcome": os.environ["OUTCOME"],
+                  "steps": {
+                      "setup": os.environ["SETUP_OUTCOME"],
+                      "qualification": os.environ["QUALIFICATION_OUTCOME"],
+                      "build": os.environ["BUILD_OUTCOME"],
+                      "artifactUpload": os.environ["ARTIFACT_OUTCOME"],
+                  },
               },
-              "artifact": {
-                  "name": os.environ["ARTIFACT_NAME"],
-                  "digest": os.environ.get("ARTIFACT_DIGEST") or None,
-              },
+              "evidence": [
+                  {
+                      "role": "qualified-artifact",
+                      "name": os.environ["ARTIFACT_NAME"],
+                      "path": None,
+                      "digest": os.environ.get("ARTIFACT_DIGEST") or None,
+                  }
+              ],
               "run": {
                   "id": os.environ["GITHUB_RUN_ID"],
                   "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
@@ -211,7 +217,41 @@ jobs:
           path.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           PY
 
-      - name: Upload qualification receipt
+      - name: Validate execution receipt contract
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
+              receipt = json.load(handle)
+
+          outcomes = {"success", "failure", "cancelled", "skipped"}
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "release-qualification", "interfaceVersion": 1}
+          assert re.fullmatch(r"[^/]+/[^/]+", receipt["source"]["repository"])
+          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
+          assert receipt["result"]["outcome"] in outcomes
+          assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
+          assert isinstance(receipt["evidence"], list) and len(receipt["evidence"]) == 1
+          evidence = receipt["evidence"][0]
+          assert evidence["role"] == "qualified-artifact"
+          assert isinstance(evidence["name"], str) and evidence["name"]
+          assert evidence["path"] is None
+          assert evidence["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", evidence["digest"])
+          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
+          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
+          assert receipt["run"]["callerWorkflowRef"] is None or isinstance(receipt["run"]["callerWorkflowRef"], str)
+          PY
+
+      - name: Upload execution receipt
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
