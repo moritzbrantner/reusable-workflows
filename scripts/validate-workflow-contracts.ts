@@ -62,7 +62,7 @@ function validateExecutionReceiptSchema(schema: unknown, errors: string[]) {
   const schemaVersion = isRecord(properties.schemaVersion) ? properties.schemaVersion : {};
 
   if (schemaVersion.const !== 1 || kind.const !== executionReceiptKind) {
-    errors.push("execution receipt v1 schema must lock schemaVersion 1 and the shared receipt kind");
+    errors.push("execution receipt v1 schema must lock schema version and kind");
   }
 
   const required = Array.isArray(schema.required) ? schema.required : [];
@@ -131,7 +131,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     const outputs = manifest.workflows[workflowPath]?.outputs ?? {};
     for (const output of executionReceiptOutputs) {
       if (!(output in outputs)) {
-        errors.push(`${path.basename(workflowPath)} must expose ${output} for execution receipt transport`);
+        errors.push(`${path.basename(workflowPath)} must expose receipt output ${output}`);
       }
     }
 
@@ -139,7 +139,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
       errors.push(`${path.basename(workflowPath)} must emit the shared execution receipt kind`);
     }
     if (!source.includes("Validate execution receipt contract")) {
-      errors.push(`${path.basename(workflowPath)} must validate its execution receipt before upload`);
+      errors.push(`${path.basename(workflowPath)} must validate its execution receipt`);
     }
   }
 
