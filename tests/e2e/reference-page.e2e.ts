@@ -5,6 +5,7 @@ const workflowSlugs = [
   "deploy-docs-pages",
   "deploy-pages",
   "e2e-validation",
+  "environment-v1-canary",
   "external-pull",
   "fast-validation",
   "format-repository-pages",
