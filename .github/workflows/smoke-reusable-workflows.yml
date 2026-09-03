@@ -39,6 +39,21 @@ jobs:
       install_command: ""
       command: "echo smoke fast validation"
 
+  command-validation:
+    needs: fast-validation
+    uses: ./.github/workflows/command-validation.yml
+    with:
+      setup_command: "echo smoke generic setup"
+      command: "echo smoke generic validation"
+      artifact_retention_days: 1
+
+  command-validation-second:
+    needs: fast-validation
+    uses: ./.github/workflows/command-validation.yml
+    with:
+      command: "echo smoke second generic validation"
+      artifact_retention_days: 1
+
   public-contract-validation:
     needs: fast-validation
     uses: ./.github/workflows/public-contract-validation.yml
