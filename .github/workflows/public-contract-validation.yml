@@ -23,12 +23,22 @@ on:
         required: false
         type: number
         default: 7
+    outputs:
+      artifact_name:
+        description: Name of the uploaded public-contract report artifact.
+        value: ${{ jobs.public-contract.outputs.artifact_name }}
+      report_path:
+        description: Canonical repository-relative public-contract report path.
+        value: ${{ jobs.public-contract.outputs.report_path }}
+      outcome:
+        description: Outcome of coding-tooling before failure propagation.
+        value: ${{ jobs.public-contract.outputs.outcome }}
 
 jobs:
   public-contract:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@0ed2c4ad9fc5771ca3fad249a5a684363963d392
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@8a0872c06f20d4c6176e6080a1b93ffc0a3973cd
     with:
       operation: public-contract
       config: ${{ inputs.config }}
