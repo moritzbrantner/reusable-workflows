@@ -215,7 +215,9 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   const promotionSource = state.workflowSources[artifactPromotionWorkflowPath];
   if (promotionSource) {
     if (!immutableDownloadArtifactUse.test(promotionSource)) {
-      errors.push("artifact-promotion.yml must pin actions/download-artifact to an exact commit SHA");
+      errors.push(
+        "artifact-promotion.yml must pin actions/download-artifact to an exact commit SHA",
+      );
     }
     if (
       !promotionSource.includes("skip-decompress: true") ||
