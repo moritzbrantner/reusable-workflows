@@ -64,6 +64,15 @@ jobs:
       operation: findings
       report_path: .artifacts/coding-tooling/findings.json
 
+  coding-tooling-bootstrap-plan:
+    uses: ./.github/workflows/coding-tooling-validation.yml
+    permissions:
+      contents: read
+    with:
+      operation: bootstrap-plan
+      install_mode: none
+      report_path: .artifacts/coding-tooling/bootstrap-plan.json
+
   coding-tooling-fast:
     uses: ./.github/workflows/coding-tooling-validation.yml
     permissions:
