@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: "coding-tooling operation to execute: run, findings, foundation, or public-contract."
+        description: "coding-tooling operation to execute: run, findings, foundation, bootstrap-plan, or public-contract."
         required: false
         type: string
         default: run
       tier:
-        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings, foundation, and public-contract.
+        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings, foundation, bootstrap-plan, and public-contract.
         required: false
         type: string
         default: fast
@@ -94,7 +94,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@35d32f320c84e5f2e453106c4af047377f76dd05
+        uses: moritzbrantner/coding-tooling@030afdb6ecd51dd238f9a246f04cabd6a1896152
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -135,7 +135,7 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`35d32f320c84e5f2e453106c4af047377f76dd05\`"
+            echo "- coding-tooling revision: \`030afdb6ecd51dd238f9a246f04cabd6a1896152\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
