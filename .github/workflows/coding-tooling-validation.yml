@@ -4,12 +4,12 @@ on:
   workflow_call:
     inputs:
       operation:
-        description: "coding-tooling operation to execute: run, findings, or public-contract."
+        description: "coding-tooling operation to execute: run, findings, foundation, or public-contract."
         required: false
         type: string
         default: run
       tier:
-        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings and public-contract.
+        description: Validation tier declared by coding-tooling or the consumer repository. Ignored for findings, foundation, and public-contract.
         required: false
         type: string
         default: fast
@@ -28,6 +28,11 @@ on:
         required: false
         type: boolean
         default: true
+      allow_missing_foundation:
+        description: For foundation audits only, keep missing pieces as rollout work while still failing invalid or unsupported foundation state.
+        required: false
+        type: boolean
+        default: false
       install_mode:
         description: Let coding-tooling install supported consumer dependencies or skip installation.
         required: false
@@ -89,7 +94,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@aec59451c4a1402636b16d09a6cf3e8be51e04af
+        uses: moritzbrantner/coding-tooling@35d32f320c84e5f2e453106c4af047377f76dd05
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -130,9 +135,34 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`aec59451c4a1402636b16d09a6cf3e8be51e04af\`"
+            echo "- coding-tooling revision: \`35d32f320c84e5f2e453106c4af047377f76dd05\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$OPERATION" == "foundation" && -f "$REPORT_PATH" ]]; then
+            node - "$REPORT_PATH" <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+          const fs = require("node:fs");
+          try {
+            const report = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+            const summary = report?.data?.summary;
+            if (!summary || !["adopted", "missing", "invalid", "unsupported"].every((field) => Number.isInteger(summary[field]))) {
+              throw new Error("unsupported foundation report schema");
+            }
+            console.log("");
+            console.log("### Repository foundation");
+            console.log("");
+            console.log(`- Adopted: **${summary.adopted}**`);
+            console.log(`- Missing: **${summary.missing}**`);
+            console.log(`- Invalid: **${summary.invalid}**`);
+            console.log(`- Unsupported: **${summary.unsupported}**`);
+          } catch {
+            console.log("");
+            console.log("### Repository foundation");
+            console.log("");
+            console.log("- Summary: **unavailable**; inspect the preserved raw report artifact.");
+          }
+          NODE
+          fi
 
           if [[ "$OPERATION" == "public-contract" && -f "$REPORT_PATH" ]]; then
             node - "$REPORT_PATH" <<'NODE' >> "$GITHUB_STEP_SUMMARY"
@@ -288,4 +318,54 @@ jobs:
       - name: Propagate coding-tooling failure
         if: ${{ steps.tooling.outcome != 'success' || steps.report-upload.outcome != 'success' }}
         shell: bash
-        run: exit 1
+        env:
+          OPERATION: ${{ inputs.operation }}
+          ALLOW_MISSING_FOUNDATION: ${{ inputs.allow_missing_foundation }}
+          REPORT_PATH: ${{ inputs.report_path }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
+          REPORT_UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$REPORT_UPLOAD_OUTCOME" != "success" ]]; then
+            exit 1
+          fi
+
+          if [[ "$OPERATION" != "foundation" || "$ALLOW_MISSING_FOUNDATION" != "true" ]]; then
+            exit 1
+          fi
+
+          python3 - "$REPORT_PATH" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              report = json.load(handle)
+
+          components = report.get("data", {}).get("components")
+          if not isinstance(components, dict) or not components:
+              raise SystemExit("foundation report does not contain component evidence")
+
+          statuses = {
+              name: value.get("status")
+              for name, value in components.items()
+              if isinstance(value, dict)
+          }
+          blocked = [
+              name for name, status in statuses.items()
+              if status in {"invalid", "unsupported"}
+          ]
+          unknown = [
+              name for name, status in statuses.items()
+              if status not in {"adopted", "missing", "invalid", "unsupported"}
+          ]
+          if blocked or unknown:
+              detail = ", ".join(blocked + unknown)
+              raise SystemExit(f"foundation audit remains blocked: {detail}")
+
+          missing = [name for name, status in statuses.items() if status == "missing"]
+          if not missing:
+              raise SystemExit("foundation operation failed without missing, invalid, or unsupported components")
+
+          print("Foundation rollout work remains: " + ", ".join(missing))
+          PY
