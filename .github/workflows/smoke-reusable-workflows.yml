@@ -176,6 +176,18 @@ jobs:
       artifact_paths: .artifacts/release-qualification-smoke/artifact.txt
       artifact_retention_days: 1
 
+  artifact-promotion:
+    needs: release-qualification
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+    uses: ./.github/workflows/artifact-promotion.yml
+    with:
+      qualification_run_id: ${{ github.run_id }}
+      qualification_receipt_artifact_name: ${{ needs.release-qualification.outputs.receipt_artifact_name }}
+      artifact_retention_days: 1
+
   release-template:
     needs: fast-validation
     uses: ./.github/workflows/release-template.yml
