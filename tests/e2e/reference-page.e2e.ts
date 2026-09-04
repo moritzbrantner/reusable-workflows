@@ -230,10 +230,8 @@ test("renders workflow detail pages with dependencies and contract data", async 
   await expect(page.getByRole("heading", { name: "What it uses and who uses it" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Deploy Docs Pages/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Jobs in this workflow" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Inputs" })).toBeVisible();
-  await expect(
-    page.getByRole("table", { name: "Inputs contract fields" }).getByText("promotion_run_id"),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Current contract source" })).toBeVisible();
+  await expect(page.getByText(/workflow_call.*inputs, secrets, outputs/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Current-line reference snippet" })).toBeVisible();
 });
 
