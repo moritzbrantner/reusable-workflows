@@ -34,6 +34,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const artifactPromotionWorkflowPath = ".github/workflows/artifact-promotion.yml";
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
 const commandValidationWorkflowPath = ".github/workflows/command-validation.yml";
+const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
@@ -258,6 +259,60 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
   }
 
+  const deployQualifiedPagesSource = state.workflowSources[deployQualifiedPagesWorkflowPath];
+  if (deployQualifiedPagesSource) {
+    if (!immutableDownloadArtifactUse.test(deployQualifiedPagesSource)) {
+      errors.push(
+        "deploy-qualified-pages.yml must pin actions/download-artifact to an exact commit SHA",
+      );
+    }
+    if (
+      deployQualifiedPagesSource.includes("actions/checkout@") ||
+      deployQualifiedPagesSource.includes("setup-node@") ||
+      deployQualifiedPagesSource.includes("setup-bun@") ||
+      deployQualifiedPagesSource.includes("build_command") ||
+      deployQualifiedPagesSource.includes("install_command")
+    ) {
+      errors.push(
+        "deploy-qualified-pages.yml must deploy an existing qualified artifact without checkout, runtime setup, install, or build inputs",
+      );
+    }
+    if (
+      !deployQualifiedPagesSource.includes("skip-decompress: true") ||
+      !deployQualifiedPagesSource.includes("gh attestation verify") ||
+      !deployQualifiedPagesSource.includes("--signer-workflow") ||
+      !deployQualifiedPagesSource.includes("actions/upload-pages-artifact@") ||
+      !deployQualifiedPagesSource.includes("actions/deploy-pages@")
+    ) {
+      errors.push(
+        "deploy-qualified-pages.yml must reverify the original qualified artifact before Pages upload and deployment",
+      );
+    }
+
+    const deployInputs = Object.keys(
+      manifest.workflows[deployQualifiedPagesWorkflowPath]?.inputs ?? {},
+    ).sort();
+    const expectedDeployInputs = [
+      "cancel_in_progress",
+      "concurrency_group",
+      "promotion_receipt_artifact_name",
+      "promotion_run_id",
+      "timeout_minutes",
+    ];
+    if (JSON.stringify(deployInputs) !== JSON.stringify(expectedDeployInputs)) {
+      errors.push(
+        "deploy-qualified-pages.yml must stay reference-only: promotion coordinates plus deployment mechanics only",
+      );
+    }
+
+    const deployOutputs = manifest.workflows[deployQualifiedPagesWorkflowPath]?.outputs ?? {};
+    for (const output of ["page_url", "source_sha", "artifact_name", "artifact_digest"]) {
+      if (!(output in deployOutputs)) {
+        errors.push(`deploy-qualified-pages.yml must expose qualified deployment output ${output}`);
+      }
+    }
+  }
+
   const commandInputs = Object.keys(
     manifest.workflows[commandValidationWorkflowPath]?.inputs ?? {},
   ).sort();
@@ -341,7 +396,7 @@ export function main() {
   }
 
   console.log(
-    "Workflow capabilities, execution receipt v1, artifact provenance v1, and immutable promotion are valid; v1.3 compatibility snapshot remains frozen.",
+    "Workflow capabilities, execution receipt v1, artifact provenance v1, immutable promotion, and qualified Pages delivery are valid; v1.3 compatibility snapshot remains frozen.",
   );
 }
 
