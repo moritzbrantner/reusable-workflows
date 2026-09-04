@@ -12,27 +12,57 @@ on:
 
 permissions:
   actions: read
+  attestations: write
   contents: read
-  pages: write
   id-token: write
-  packages: read
+  pages: write
 
 concurrency:
   group: docs-pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy-pages:
+  qualify-pages:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     permissions:
       actions: read
+      attestations: write
       contents: read
-      pages: write
       id-token: write
-      packages: read
-    uses: ./.github/workflows/deploy-pages.yml
+    uses: ./.github/workflows/release-qualification.yml
     with:
+      source_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
+      setup_command: "npm install --global bun@1.4.0 && echo 'GITHUB_TOKEN=${{ github.token }}' >> \"$GITHUB_ENV\""
+      qualification_command: "bun run validate:fast"
       build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build"
-      timeout_minutes: 10
+      artifact_paths: dist
+      artifact_retention_days: 7
+      timeout_minutes: 30
+
+  promote-pages:
+    needs: qualify-pages
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+    uses: ./.github/workflows/artifact-promotion.yml
+    with:
+      qualification_run_id: ${{ github.run_id }}
+      qualification_receipt_artifact_name: ${{ needs.qualify-pages.outputs.receipt_artifact_name }}
+      artifact_retention_days: 7
+
+  deploy-pages:
+    needs: promote-pages
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+      id-token: write
+      pages: write
+    uses: ./.github/workflows/deploy-qualified-pages.yml
+    with:
+      promotion_run_id: ${{ github.run_id }}
+      promotion_receipt_artifact_name: ${{ needs.promote-pages.outputs.receipt_artifact_name }}
       concurrency_group: docs-pages
       cancel_in_progress: false
+      timeout_minutes: 15
