@@ -244,7 +244,12 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
 
     const promotionOutputs = manifest.workflows[artifactPromotionWorkflowPath]?.outputs ?? {};
-    for (const output of ["qualification_run_id", "source_sha", "artifact_name", "artifact_digest"]) {
+    for (const output of [
+      "qualification_run_id",
+      "source_sha",
+      "artifact_name",
+      "artifact_digest",
+    ]) {
       if (!(output in promotionOutputs)) {
         errors.push(`artifact-promotion.yml must expose immutable promotion output ${output}`);
       }
