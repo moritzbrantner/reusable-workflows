@@ -90,7 +90,7 @@ Publication is a later, explicit concern:
 ```text
 source development -> local validation -> done
                                       \
-                                       -> optional release qualification -> publish
+                                       -> optional release qualification -> artifact promotion -> publish/deploy
 ```
 
 Using `coding-tooling-validation.yml` in hosted CI does not change this rule. The same `coding-tooling run --tier ...` semantics remain directly usable locally; GitHub is only another execution environment.
@@ -116,11 +116,12 @@ Using `coding-tooling-validation.yml` in hosted CI does not change this rule. Th
 
 These semantic workflows remain callable for existing consumers. New architecture should prefer repository or `coding-tooling` capability semantics expressed through the preferred core adapters instead of expanding these YAML interfaces.
 
-### Release qualification
+### Release qualification and promotion
 
 - `release-qualification.yml` — qualifies one exact consumer commit, runs repository-owned qualification and build commands, uploads the built artifact once, and emits Execution Receipt v1 containing the source SHA and uploaded artifact digest.
+- `artifact-promotion.yml` — promotes by immutable reference. It consumes a successful qualification receipt, resolves the original GitHub artifact, verifies the raw archive digest, verifies the `release-qualification.yml` signer and exact-source provenance, and emits a promotion Execution Receipt v1 containing an upstream qualification reference.
 
-Qualification does not publish, deploy, choose a version, or decide whether a release should happen. Those remain separate caller-owned lifecycle decisions. A later publication or deployment step should consume the already-qualified immutable artifact rather than rebuilding it.
+Qualification does not publish, deploy, choose a version, or decide whether a release should happen. Promotion does not copy, rebuild, repack, or publish the candidate and exposes no build or arbitrary command input. Invoking promotion is a caller-owned lifecycle decision; later delivery consumes the same qualified artifact reference.
 
 ### Delivery
 
@@ -236,7 +237,7 @@ GitHub workflow YAML is the source of truth for the current capability interface
 
 `contracts/workflows.json` is retained only as the frozen `workflow-standard-v1.3` compatibility snapshot. It is no longer manually synchronized with `main`.
 
-`contracts/execution-receipt-v1.schema.json` defines the small common execution/evidence transport envelope used by current emitters. Native semantic reports remain authoritative; see `EXECUTION_RECEIPTS.md`.
+`contracts/execution-receipt-v1.schema.json` defines the small common execution/evidence transport envelope used by current emitters, including optional attestation metadata and upstream execution references used for immutable promotion. Native semantic reports remain authoritative; see `EXECUTION_RECEIPTS.md`.
 
 Current capability metadata is generated from `.github/workflows/*.yml`:
 
@@ -308,4 +309,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, its canonical report artifact, and release qualification of the exact PR head with a retained artifact/receipt pair. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling. The main-branch `coding-tooling-score-history` job dogfoods persistent score publication against this repository with the fast tier.
+`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, release qualification of the exact PR head, and `artifact-promotion.yml` against that exact qualified artifact. The promotion dogfood verifies the original raw archive and signed qualification provenance rather than rebuilding or copying the candidate. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling. The main-branch `coding-tooling-score-history` job dogfoods persistent score publication against this repository with the fast tier.
