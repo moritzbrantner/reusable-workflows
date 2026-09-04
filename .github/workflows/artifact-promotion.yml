@@ -305,6 +305,11 @@ jobs:
           ATTESTATION_ID: ${{ steps.qualification.outputs.attestation_id }}
           ATTESTATION_URL: ${{ steps.qualification.outputs.attestation_url }}
           PREDICATE_TYPE: ${{ steps.qualification.outputs.predicate_type }}
+          RECEIPT_DOWNLOAD_OUTCOME: ${{ steps.receipt-download.outcome }}
+          QUALIFICATION_OUTCOME: ${{ steps.qualification.outcome }}
+          ARTIFACTS_OUTCOME: ${{ steps.artifacts.outcome }}
+          ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.artifact-download.outcome }}
+          VERIFICATION_OUTCOME: ${{ steps.verification.outcome }}
           VERIFICATION_PATH: .artifacts/reusable-workflows/artifact-promotion-attestation-verification.json
           RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
           OUTCOME: ${{ steps.status.outputs.outcome }}
@@ -348,11 +353,11 @@ jobs:
               "result": {
                   "outcome": os.environ["OUTCOME"],
                   "steps": {
-                      "qualificationReceiptDownload": os.environ.get("RECEIPT_DOWNLOAD_OUTCOME", "success"),
-                      "qualificationReceiptValidation": os.environ.get("QUALIFICATION_OUTCOME", "success"),
-                      "artifactMetadata": os.environ.get("ARTIFACTS_OUTCOME", "success"),
-                      "artifactDownload": os.environ.get("ARTIFACT_DOWNLOAD_OUTCOME", "success"),
-                      "attestationVerification": os.environ.get("VERIFICATION_OUTCOME", "success"),
+                      "qualificationReceiptDownload": os.environ["RECEIPT_DOWNLOAD_OUTCOME"],
+                      "qualificationReceiptValidation": os.environ["QUALIFICATION_OUTCOME"],
+                      "artifactMetadata": os.environ["ARTIFACTS_OUTCOME"],
+                      "artifactDownload": os.environ["ARTIFACT_DOWNLOAD_OUTCOME"],
+                      "attestationVerification": os.environ["VERIFICATION_OUTCOME"],
                   },
               },
               "evidence": evidence,
