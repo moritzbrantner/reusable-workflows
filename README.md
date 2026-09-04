@@ -125,8 +125,11 @@ Qualification does not publish, deploy, choose a version, or decide whether a re
 
 ### Delivery
 
-- `deploy-pages.yml` — GitHub Pages deployment.
+- `deploy-qualified-pages.yml` — preferred Pages delivery for the capability line. It consumes a successful promotion receipt, resolves the original qualified archive, rechecks its digest and signed qualification provenance, safely extracts the Pages-ready contents, and deploys them without checkout, dependency installation, runtime setup, or rebuilding.
+- `deploy-pages.yml` — existing build-and-deploy Pages convenience workflow retained for compatibility and transitional callers.
 - `package-publish.yml` — explicit npm/Cargo publication. Publication is never a prerequisite for source development.
+
+A Pages-ready qualified artifact must contain `index.html` at the archive root. The delivery capability does not accept a build command or path-remapping command; packaging layout is part of the repository-owned build output established during qualification.
 
 ### Specialized / legacy lifecycle and release support
 
@@ -309,4 +312,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, release qualification of the exact PR head, and `artifact-promotion.yml` against that exact qualified artifact. The promotion dogfood verifies the original raw archive and signed qualification provenance rather than rebuilding or copying the candidate. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling. The main-branch `coding-tooling-score-history` job dogfoods persistent score publication against this repository with the fast tier.
+`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, release qualification of the exact PR head, and `artifact-promotion.yml` against that exact qualified artifact. The promotion dogfood verifies the original raw archive and signed qualification provenance rather than rebuilding or copying the candidate. The repository-local `deploy-docs-pages.yml` dogfoods `deploy-qualified-pages.yml` on `main`: it qualifies the exact validated source, promotes that immutable artifact, and deploys the original archive without rebuilding it. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling. The main-branch `coding-tooling-score-history` job dogfoods persistent score publication against this repository with the fast tier.
