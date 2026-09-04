@@ -1,0 +1,433 @@
+name: Artifact Promotion
+
+on:
+  workflow_call:
+    inputs:
+      qualification_run_id:
+        description: Workflow run ID that produced the successful release qualification receipt and artifact.
+        required: true
+        type: string
+      qualification_receipt_artifact_name:
+        description: Execution receipt artifact emitted by release-qualification.yml in the qualification run.
+        required: true
+        type: string
+      timeout_minutes:
+        description: Maximum promotion verification job runtime.
+        required: false
+        type: number
+        default: 15
+      artifact_retention_days:
+        description: Retention period for the promotion execution receipt and verification evidence.
+        required: false
+        type: number
+        default: 14
+    outputs:
+      qualification_run_id:
+        description: Qualification workflow run ID carried by the verified promotion reference.
+        value: ${{ jobs.artifact-promotion.outputs.qualification_run_id }}
+      source_sha:
+        description: Exact source commit SHA recorded by release qualification.
+        value: ${{ jobs.artifact-promotion.outputs.source_sha }}
+      artifact_name:
+        description: Exact qualified artifact name selected for promotion.
+        value: ${{ jobs.artifact-promotion.outputs.artifact_name }}
+      artifact_digest:
+        description: Exact SHA-256 digest of the qualified artifact archive.
+        value: ${{ jobs.artifact-promotion.outputs.artifact_digest }}
+      receipt_artifact_name:
+        description: Name of the uploaded promotion execution receipt artifact.
+        value: ${{ jobs.artifact-promotion.outputs.receipt_artifact_name }}
+      receipt_path:
+        description: Repository-relative promotion execution receipt path.
+        value: ${{ jobs.artifact-promotion.outputs.receipt_path }}
+      outcome:
+        description: Promotion verification outcome before final failure propagation.
+        value: ${{ jobs.artifact-promotion.outputs.outcome }}
+
+jobs:
+  artifact-promotion:
+    name: Artifact Promotion
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+    outputs:
+      qualification_run_id: ${{ inputs.qualification_run_id }}
+      source_sha: ${{ steps.qualification.outputs.source_sha }}
+      artifact_name: ${{ steps.qualification.outputs.artifact_name }}
+      artifact_digest: ${{ steps.qualification.outputs.artifact_digest }}
+      receipt_artifact_name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+      receipt_path: ${{ steps.metadata.outputs.receipt_path }}
+      outcome: ${{ steps.status.outputs.outcome }}
+    steps:
+      - name: Validate promotion coordinates
+        id: coordinates
+        continue-on-error: true
+        env:
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification_run_id }}
+          QUALIFICATION_RECEIPT_ARTIFACT_NAME: ${{ inputs.qualification_receipt_artifact_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$QUALIFICATION_RUN_ID" =~ ^[0-9]+$ ]]
+          test -n "$QUALIFICATION_RECEIPT_ARTIFACT_NAME"
+
+      - name: Download qualification receipt
+        id: receipt-download
+        if: ${{ steps.coordinates.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.qualification_receipt_artifact_name }}
+          path: .artifacts/reusable-workflows/qualification-receipt
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.qualification_run_id }}
+          digest-mismatch: error
+
+      - name: Validate qualification receipt
+        id: qualification
+        if: ${{ steps.receipt-download.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification_run_id }}
+          RECEIPT_DIRECTORY: .artifacts/reusable-workflows/qualification-receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          directory = Path(os.environ["RECEIPT_DIRECTORY"])
+          paths = list(directory.rglob("release-qualification-receipt.json"))
+          assert len(paths) == 1, paths
+          receipt = json.loads(paths[0].read_text(encoding="utf-8"))
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "release-qualification", "interfaceVersion": 1}
+          assert receipt["result"]["outcome"] == "success"
+          assert receipt["run"]["id"] == os.environ["QUALIFICATION_RUN_ID"]
+          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
+
+          artifacts = [entry for entry in receipt["evidence"] if entry["role"] == "qualified-artifact"]
+          assert len(artifacts) == 1, artifacts
+          artifact = artifacts[0]
+          assert artifact["path"] is None
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", artifact["digest"])
+
+          attestations = [entry for entry in receipt.get("attestations", []) if entry["role"] == "artifact-provenance"]
+          assert len(attestations) == 1, attestations
+          attestation = attestations[0]
+          assert attestation["subjectName"] == artifact["name"]
+          assert attestation["subjectDigest"] == artifact["digest"]
+          assert attestation["predicateType"].endswith("/artifact-provenance/v1")
+
+          outputs = Path(os.environ["GITHUB_OUTPUT"])
+          with outputs.open("a", encoding="utf-8") as handle:
+              handle.write(f"receipt_path={paths[0]}\n")
+              handle.write(f"source_sha={receipt['source']['sha']}\n")
+              handle.write(f"artifact_name={artifact['name']}\n")
+              handle.write(f"artifact_digest={artifact['digest']}\n")
+              handle.write(f"attestation_id={attestation['id']}\n")
+              handle.write(f"attestation_url={attestation['url']}\n")
+              handle.write(f"predicate_type={attestation['predicateType']}\n")
+          PY
+
+      - name: Resolve immutable qualification artifacts
+        id: artifacts
+        if: ${{ steps.qualification.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification_run_id }}
+          QUALIFICATION_RECEIPT_ARTIFACT_NAME: ${{ inputs.qualification_receipt_artifact_name }}
+          QUALIFIED_ARTIFACT_NAME: ${{ steps.qualification.outputs.artifact_name }}
+          EXPECTED_ARTIFACT_DIGEST: ${{ steps.qualification.outputs.artifact_digest }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${QUALIFICATION_RUN_ID}/artifacts?per_page=100" > "$RUNNER_TEMP/qualification-artifacts.json"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          payload = json.loads(Path(os.environ["RUNNER_TEMP"]).joinpath("qualification-artifacts.json").read_text())
+          artifacts = payload.get("artifacts", [])
+
+          def exactly_one(name):
+              matches = [artifact for artifact in artifacts if artifact.get("name") == name]
+              assert len(matches) == 1, (name, matches)
+              artifact = matches[0]
+              assert artifact.get("expired") is False, artifact
+              return artifact
+
+          receipt_artifact = exactly_one(os.environ["QUALIFICATION_RECEIPT_ARTIFACT_NAME"])
+          qualified_artifact = exactly_one(os.environ["QUALIFIED_ARTIFACT_NAME"])
+          expected = os.environ["EXPECTED_ARTIFACT_DIGEST"]
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", expected)
+          assert qualified_artifact.get("digest") == expected, (qualified_artifact.get("digest"), expected)
+          receipt_digest = receipt_artifact.get("digest")
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", receipt_digest or ""), receipt_artifact
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"qualified_artifact_id={qualified_artifact['id']}\n")
+              handle.write(f"qualification_receipt_digest={receipt_digest}\n")
+          PY
+
+      - name: Download exact qualified artifact archive
+        id: artifact-download
+        if: ${{ steps.artifacts.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.artifacts.outputs.qualified_artifact_id }}
+          path: .artifacts/reusable-workflows/qualified-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.qualification_run_id }}
+          skip-decompress: true
+          digest-mismatch: error
+
+      - name: Verify artifact digest and signed provenance
+        id: verification
+        if: ${{ steps.artifact-download.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification_run_id }}
+          SOURCE_SHA: ${{ steps.qualification.outputs.source_sha }}
+          ARTIFACT_NAME: ${{ steps.qualification.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ steps.qualification.outputs.artifact_digest }}
+          PREDICATE_TYPE: ${{ steps.qualification.outputs.predicate_type }}
+          ARCHIVE_DIRECTORY: .artifacts/reusable-workflows/qualified-artifact
+          VERIFICATION_PATH: .artifacts/reusable-workflows/artifact-promotion-attestation-verification.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$ARCHIVE_DIRECTORY/$ARTIFACT_NAME.zip"
+          test -f "$archive"
+          observed="sha256:$(sha256sum "$archive" | awk '{print $1}')"
+          test "$observed" = "$ARTIFACT_DIGEST"
+
+          gh attestation verify "$archive" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/release-qualification.yml" \
+            --predicate-type "$PREDICATE_TYPE" \
+            --format json > "$VERIFICATION_PATH"
+
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path(os.environ["VERIFICATION_PATH"]).read_text(encoding="utf-8"))
+          assert isinstance(payload, list) and payload, payload
+          expected_hex = os.environ["ARTIFACT_DIGEST"].split(":", 1)[1]
+          matches = []
+          for item in payload:
+              statement = item.get("verificationResult", {}).get("statement", {})
+              if statement.get("predicateType") != os.environ["PREDICATE_TYPE"]:
+                  continue
+              subjects = statement.get("subject", [])
+              if not any(
+                  subject.get("name") == os.environ["ARTIFACT_NAME"]
+                  and subject.get("digest", {}).get("sha256") == expected_hex
+                  for subject in subjects
+              ):
+                  continue
+              predicate = statement.get("predicate", {})
+              if predicate.get("source", {}).get("sha") != os.environ["SOURCE_SHA"]:
+                  continue
+              if predicate.get("artifact", {}).get("name") != os.environ["ARTIFACT_NAME"]:
+                  continue
+              if predicate.get("artifact", {}).get("digest") != os.environ["ARTIFACT_DIGEST"]:
+                  continue
+              if str(predicate.get("qualification", {}).get("runId")) != os.environ["QUALIFICATION_RUN_ID"]:
+                  continue
+              matches.append(item)
+          assert matches, payload
+          PY
+
+      - name: Determine promotion outcome
+        id: status
+        if: ${{ always() }}
+        env:
+          COORDINATES_OUTCOME: ${{ steps.coordinates.outcome }}
+          RECEIPT_DOWNLOAD_OUTCOME: ${{ steps.receipt-download.outcome }}
+          QUALIFICATION_OUTCOME: ${{ steps.qualification.outcome }}
+          ARTIFACTS_OUTCOME: ${{ steps.artifacts.outcome }}
+          ARTIFACT_DOWNLOAD_OUTCOME: ${{ steps.artifact-download.outcome }}
+          VERIFICATION_OUTCOME: ${{ steps.verification.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          outcome=failure
+          if [[ "$COORDINATES_OUTCOME" == "success" ]] \
+            && [[ "$RECEIPT_DOWNLOAD_OUTCOME" == "success" ]] \
+            && [[ "$QUALIFICATION_OUTCOME" == "success" ]] \
+            && [[ "$ARTIFACTS_OUTCOME" == "success" ]] \
+            && [[ "$ARTIFACT_DOWNLOAD_OUTCOME" == "success" ]] \
+            && [[ "$VERIFICATION_OUTCOME" == "success" ]]; then
+            outcome=success
+          fi
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+      - name: Define promotion metadata
+        id: metadata
+        if: ${{ steps.qualification.outcome == 'success' }}
+        env:
+          SOURCE_SHA: ${{ steps.qualification.outputs.source_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="${SOURCE_SHA:0:12}"
+          {
+            echo "receipt_artifact_name=execution-receipt-artifact-promotion-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_path=.artifacts/reusable-workflows/artifact-promotion-receipt.json"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Write promotion execution receipt
+        if: ${{ steps.qualification.outcome == 'success' }}
+        env:
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification_run_id }}
+          QUALIFICATION_RECEIPT_ARTIFACT_NAME: ${{ inputs.qualification_receipt_artifact_name }}
+          QUALIFICATION_RECEIPT_DIGEST: ${{ steps.artifacts.outputs.qualification_receipt_digest }}
+          SOURCE_SHA: ${{ steps.qualification.outputs.source_sha }}
+          ARTIFACT_NAME: ${{ steps.qualification.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ steps.qualification.outputs.artifact_digest }}
+          ATTESTATION_ID: ${{ steps.qualification.outputs.attestation_id }}
+          ATTESTATION_URL: ${{ steps.qualification.outputs.attestation_url }}
+          PREDICATE_TYPE: ${{ steps.qualification.outputs.predicate_type }}
+          VERIFICATION_PATH: .artifacts/reusable-workflows/artifact-promotion-attestation-verification.json
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+          OUTCOME: ${{ steps.status.outputs.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          verification_path = Path(os.environ["VERIFICATION_PATH"])
+          evidence = [
+              {
+                  "role": "qualified-artifact",
+                  "name": os.environ["ARTIFACT_NAME"],
+                  "path": None,
+                  "digest": os.environ["ARTIFACT_DIGEST"],
+              }
+          ]
+          if verification_path.is_file():
+              digest = hashlib.sha256(verification_path.read_bytes()).hexdigest()
+              evidence.append(
+                  {
+                      "role": "attestation-verification",
+                      "name": "artifact-promotion-attestation-verification",
+                      "path": os.environ["VERIFICATION_PATH"],
+                      "digest": f"sha256:{digest}",
+                  }
+              )
+
+          receipt = {
+              "schemaVersion": 1,
+              "kind": "reusable-workflows/execution-receipt",
+              "capability": {"name": "artifact-promotion", "interfaceVersion": 1},
+              "source": {
+                  "repository": os.environ["GITHUB_REPOSITORY"],
+                  "sha": os.environ["SOURCE_SHA"],
+              },
+              "result": {
+                  "outcome": os.environ["OUTCOME"],
+                  "steps": {
+                      "qualificationReceiptDownload": os.environ.get("RECEIPT_DOWNLOAD_OUTCOME", "success"),
+                      "qualificationReceiptValidation": os.environ.get("QUALIFICATION_OUTCOME", "success"),
+                      "artifactMetadata": os.environ.get("ARTIFACTS_OUTCOME", "success"),
+                      "artifactDownload": os.environ.get("ARTIFACT_DOWNLOAD_OUTCOME", "success"),
+                      "attestationVerification": os.environ.get("VERIFICATION_OUTCOME", "success"),
+                  },
+              },
+              "evidence": evidence,
+              "attestations": [
+                  {
+                      "role": "artifact-provenance",
+                      "predicateType": os.environ["PREDICATE_TYPE"],
+                      "id": os.environ["ATTESTATION_ID"],
+                      "url": os.environ["ATTESTATION_URL"],
+                      "subjectName": os.environ["ARTIFACT_NAME"],
+                      "subjectDigest": os.environ["ARTIFACT_DIGEST"],
+                  }
+              ],
+              "upstream": [
+                  {
+                      "role": "release-qualification",
+                      "repository": os.environ["GITHUB_REPOSITORY"],
+                      "runId": os.environ["QUALIFICATION_RUN_ID"],
+                      "artifactName": os.environ["QUALIFICATION_RECEIPT_ARTIFACT_NAME"],
+                      "digest": os.environ.get("QUALIFICATION_RECEIPT_DIGEST") or None,
+                  }
+              ],
+              "run": {
+                  "id": os.environ["GITHUB_RUN_ID"],
+                  "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "callerWorkflowRef": os.environ.get("GITHUB_WORKFLOW_REF"),
+              },
+          }
+          Path(os.environ["RECEIPT_PATH"]).write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Validate promotion execution receipt
+        if: ${{ steps.qualification.outcome == 'success' }}
+        env:
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+          QUALIFICATION_RUN_ID: ${{ inputs.qualification_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
+              receipt = json.load(handle)
+          outcomes = {"success", "failure", "cancelled", "skipped"}
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "artifact-promotion", "interfaceVersion": 1}
+          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
+          assert receipt["result"]["outcome"] in outcomes
+          assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
+          assert len(receipt["attestations"]) == 1
+          assert len(receipt["upstream"]) == 1
+          assert receipt["upstream"][0]["role"] == "release-qualification"
+          assert receipt["upstream"][0]["runId"] == os.environ["QUALIFICATION_RUN_ID"]
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", receipt["evidence"][0]["digest"])
+          PY
+
+      - name: Upload promotion receipt and verification evidence
+        if: ${{ steps.qualification.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+          path: |
+            ${{ steps.metadata.outputs.receipt_path }}
+            .artifacts/reusable-workflows/artifact-promotion-attestation-verification.json
+          if-no-files-found: warn
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Propagate promotion failure
+        if: ${{ always() && steps.status.outputs.outcome != 'success' }}
+        shell: bash
+        run: exit 1
