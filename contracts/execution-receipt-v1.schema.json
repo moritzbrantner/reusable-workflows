@@ -123,6 +123,43 @@
         }
       }
     },
+    "upstream": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "repository", "runId", "artifactName", "digest"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "repository": {
+            "type": "string",
+            "pattern": "^[^/]+/[^/]+$"
+          },
+          "runId": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "artifactName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "digest": {
+            "oneOf": [
+              {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      }
+    },
     "run": {
       "type": "object",
       "additionalProperties": false,

@@ -211,6 +211,9 @@ jobs:
     expect(errors).toContain(
       "execution receipt v1 schema must define optional attestation transport metadata",
     );
+    expect(errors).toContain(
+      "execution receipt v1 schema must define optional upstream execution references",
+    );
   });
 
   test("locks exact-source artifact provenance fields", () => {
@@ -283,6 +286,67 @@ jobs:
 
     expect(errors).toContain(
       "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, retention, and working directory only",
+    );
+  });
+
+  test("keeps artifact promotion reference-only and provenance-verified", () => {
+    const promotionWorkflow = `
+on:
+  workflow_call:
+    inputs:
+      qualification_run_id:
+        type: string
+      qualification_receipt_artifact_name:
+        type: string
+      timeout_minutes:
+        type: number
+      artifact_retention_days:
+        type: number
+      promotion_command:
+        type: string
+    outputs:
+      qualification_run_id:
+        value: run
+      source_sha:
+        value: source
+      artifact_name:
+        value: artifact
+      artifact_digest:
+        value: digest
+      receipt_artifact_name:
+        value: receipt
+      receipt_path:
+        value: receipt.json
+jobs:
+  artifact-promotion:
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/download-artifact@main
+      - name: Write promotion execution receipt
+        run: echo reusable-workflows/execution-receipt
+`;
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml artifact-promotion.yml",
+        "CONTEXT.md": "fast-validation.yml artifact-promotion.yml",
+      },
+      compatibilitySnapshot,
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+        ".github/workflows/artifact-promotion.yml": promotionWorkflow,
+      },
+    });
+
+    expect(errors).toContain(
+      "artifact-promotion.yml must pin actions/download-artifact to an exact commit SHA",
+    );
+    expect(errors).toContain(
+      "artifact-promotion.yml must verify the exact qualified archive and its release-qualification signer before promotion",
+    );
+    expect(errors).toContain(
+      "artifact-promotion.yml must remain a reference-only promotion seam with no build or publication command inputs",
     );
   });
 });

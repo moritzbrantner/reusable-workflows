@@ -43,6 +43,9 @@ Caller-owned policy for when a tier runs: local/agent handoff, pull request, `ma
 **Release Qualification Adapter**  
 `release-qualification.yml`, a hosted adapter that qualifies one exact consumer commit through repository-owned commands, builds the candidate once, and transports the artifact plus a receipt containing its source identity and upload digest. It does not publish, deploy, version, or make the release decision.
 
+**Artifact Promotion Adapter**  
+`artifact-promotion.yml`, a read-only promotion-by-reference adapter. It consumes a successful release-qualification receipt from one exact workflow run, resolves the immutable GitHub artifact recorded by that receipt, verifies the raw archive digest and the signed `release-qualification.yml` provenance, and emits a new Execution Receipt v1 that records the upstream qualification run. It does not rebuild, repack, publish, deploy, or accept an arbitrary promotion command.
+
 **Source-first development**  
 Development against repository sources, including exact sibling sources where appropriate, without requiring package publication or hosted cross-repository access as a prerequisite.
 
@@ -72,8 +75,9 @@ A capability such as branch promotion, existing stage validation, external deplo
 10. Agent contracts and orchestrators may consume results but are not dependencies of any Workflow Capability.
 11. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
 12. `release-qualification.yml` may bind repository-owned qualification/build commands to one exact source SHA and retain the resulting artifact/receipt; release policy and publication remain outside the capability.
-13. Concurrency policy belongs in Caller Workflows unless a GitHub API or persistent evidence writer requires capability-local serialization.
-14. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
+13. `artifact-promotion.yml` may select only a previously successful qualified artifact by exact run/receipt reference, must verify its GitHub archive digest and signed qualification provenance, and must not rebuild or publish the candidate.
+14. Concurrency policy belongs in Caller Workflows unless a GitHub API or persistent evidence writer requires capability-local serialization.
+15. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
 
 ## Capability classes
 
@@ -98,11 +102,12 @@ A capability such as branch promotion, existing stage validation, external deplo
 
 These workflows remain callable, but new design should prefer repository or `coding-tooling` semantics through the preferred core adapters rather than growing their GitHub-specific interfaces.
 
-### Release qualification
+### Release qualification and promotion
 
 - `release-qualification.yml`
+- `artifact-promotion.yml`
 
-The qualification capability checks out the exact caller-supplied source SHA, runs repository-owned qualification and build commands, uploads the built candidate once, and records the source SHA plus artifact digest in its receipt. A publisher or deployment capability should consume that qualified artifact rather than rebuild the candidate.
+The qualification capability checks out the exact caller-supplied source SHA, runs repository-owned qualification and build commands, uploads the built candidate once, and records the source SHA plus artifact digest in its receipt. The promotion capability does not copy or rebuild that candidate: it resolves the original artifact from the qualification run, verifies the raw archive digest, verifies the signer workflow and exact-source provenance, and records the upstream qualification reference in a new receipt. A publisher or deployment capability should consume that same qualified artifact reference rather than rebuilding it.
 
 ### Delivery
 

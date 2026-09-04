@@ -31,11 +31,13 @@ export type ValidationState = {
 };
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const artifactPromotionWorkflowPath = ".github/workflows/artifact-promotion.yml";
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
 const commandValidationWorkflowPath = ".github/workflows/command-validation.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
+const immutableDownloadArtifactUse = /uses:\s*actions\/download-artifact@[0-9a-f]{40}(?:\s|$)/m;
 const executionReceiptKind = "reusable-workflows/execution-receipt";
 const executionReceiptOutputs = ["receipt_artifact_name", "receipt_path"];
 
@@ -77,6 +79,9 @@ function validateExecutionReceiptSchema(schema: unknown, errors: string[]) {
 
   if (!("attestations" in properties)) {
     errors.push("execution receipt v1 schema must define optional attestation transport metadata");
+  }
+  if (!("upstream" in properties)) {
+    errors.push("execution receipt v1 schema must define optional upstream execution references");
   }
 }
 
@@ -153,6 +158,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   }
 
   for (const workflowPath of [
+    artifactPromotionWorkflowPath,
     codingToolingWorkflowPath,
     commandValidationWorkflowPath,
     releaseQualificationWorkflowPath,
@@ -172,7 +178,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     if (!source.includes(executionReceiptKind)) {
       errors.push(`${path.basename(workflowPath)} must emit the shared execution receipt kind`);
     }
-    if (!source.includes("Validate execution receipt contract")) {
+    if (!source.includes("execution receipt")) {
       errors.push(`${path.basename(workflowPath)} must validate its execution receipt`);
     }
   }
@@ -202,6 +208,52 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     for (const output of ["attestation_id", "attestation_url", "provenance_predicate_path"]) {
       if (!(output in releaseOutputs)) {
         errors.push(`release-qualification.yml must expose provenance output ${output}`);
+      }
+    }
+  }
+
+  const promotionSource = state.workflowSources[artifactPromotionWorkflowPath];
+  if (promotionSource) {
+    if (!immutableDownloadArtifactUse.test(promotionSource)) {
+      errors.push(
+        "artifact-promotion.yml must pin actions/download-artifact to an exact commit SHA",
+      );
+    }
+    if (
+      !promotionSource.includes("skip-decompress: true") ||
+      !promotionSource.includes("gh attestation verify") ||
+      !promotionSource.includes("--signer-workflow") ||
+      !promotionSource.includes("release-qualification.yml")
+    ) {
+      errors.push(
+        "artifact-promotion.yml must verify the exact qualified archive and its release-qualification signer before promotion",
+      );
+    }
+
+    const promotionInputs = Object.keys(
+      manifest.workflows[artifactPromotionWorkflowPath]?.inputs ?? {},
+    ).sort();
+    const expectedPromotionInputs = [
+      "artifact_retention_days",
+      "qualification_receipt_artifact_name",
+      "qualification_run_id",
+      "timeout_minutes",
+    ];
+    if (JSON.stringify(promotionInputs) !== JSON.stringify(expectedPromotionInputs)) {
+      errors.push(
+        "artifact-promotion.yml must remain a reference-only promotion seam with no build or publication command inputs",
+      );
+    }
+
+    const promotionOutputs = manifest.workflows[artifactPromotionWorkflowPath]?.outputs ?? {};
+    for (const output of [
+      "qualification_run_id",
+      "source_sha",
+      "artifact_name",
+      "artifact_digest",
+    ]) {
+      if (!(output in promotionOutputs)) {
+        errors.push(`artifact-promotion.yml must expose immutable promotion output ${output}`);
       }
     }
   }
@@ -289,7 +341,7 @@ export function main() {
   }
 
   console.log(
-    "Workflow capabilities, execution receipt v1, and artifact provenance v1 are valid; v1.3 compatibility snapshot remains frozen.",
+    "Workflow capabilities, execution receipt v1, artifact provenance v1, and immutable promotion are valid; v1.3 compatibility snapshot remains frozen.",
   );
 }
 
