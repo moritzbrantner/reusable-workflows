@@ -234,7 +234,9 @@ test("renders workflow detail pages with dependencies and contract data", async 
   await expect(page.getByRole("heading", { name: "Jobs in this workflow" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Inputs" })).toBeVisible();
   await expect(
-    page.getByRole("table", { name: "Inputs contract fields" }).getByText("promotion_run_id"),
+    page
+      .getByRole("table", { name: "Inputs contract fields" })
+      .getByText("promotion_run_id"),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Current-line reference snippet" })).toBeVisible();
 });
