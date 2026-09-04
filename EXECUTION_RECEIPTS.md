@@ -9,19 +9,23 @@ Reusable workflows may produce semantic reports with different schemas, but orch
 - the overall execution outcome and named step outcomes;
 - evidence roles, artifact names, repository-relative paths where applicable, and normalized `sha256:<digest>` identities;
 - optional signed-attestation metadata: predicate type, attestation ID/URL, subject name, and subject digest;
+- optional upstream execution references: role, repository, run ID, artifact name, and digest;
 - the GitHub run ID, run attempt, and caller workflow ref.
 
 The receipt deliberately does **not** copy semantic report contents. For example, `coding-tooling-validation.yml` keeps the coding-tooling JSON report authoritative for findings, tiers, and public-contract evidence, while the receipt points to that report artifact. `command-validation.yml` has no semantic report by default, so its receipt records execution identity and outcomes with an empty evidence list.
 
 `release-qualification.yml` additionally emits an exact-source provenance predicate described by `contracts/artifact-provenance-v1.schema.json`. The predicate binds the exact checked-out source SHA to the uploaded qualified-artifact digest and the qualification run. It is signed with GitHub artifact attestations through an exact `actions/attest` pin. This intentionally uses a custom in-toto predicate rather than GitHub's automatic SLSA provenance mode: automatic provenance resolves the OIDC workflow SHA, which may be a synthetic pull-request merge SHA instead of the exact commit qualified by this capability.
 
+`artifact-promotion.yml` consumes that qualification receipt by exact run and artifact name, validates the GitHub artifact metadata, downloads the original archive without decompression, checks the raw archive digest, and verifies the signed qualification provenance against the `release-qualification.yml` signer. Its Execution Receipt v1 uses `upstream` to retain the qualification run and receipt-artifact identity while its evidence and attestation entries retain the immutable candidate identity. Promotion is therefore a new reference to the same candidate, not a rebuilt or repacked candidate.
+
 ## Current emitters
 
+- `artifact-promotion.yml`
 - `command-validation.yml`
 - `coding-tooling-validation.yml`
 - `release-qualification.yml`
 
-Each emitter validates the receipt shape before uploading it. Release qualification also validates its provenance predicate before attesting the artifact. The repository contract validator locks the shared receipt identity, provenance schema, immutable attestation Action pin, receipt outputs, and provenance outputs so these transport seams cannot silently disappear.
+Each emitter validates the receipt shape before uploading it. Release qualification also validates its provenance predicate before attesting the artifact; artifact promotion verifies that signed predicate and raw artifact archive before emitting a promotion receipt. The repository contract validator locks the shared receipt identity, optional upstream-reference shape, provenance schema, immutable attestation/download Action pins, receipt outputs, and provenance/promotion outputs so these transport seams cannot silently disappear.
 
 ## Compatibility
 
