@@ -28,6 +28,11 @@ on:
         required: false
         type: boolean
         default: true
+      allow_missing_foundation:
+        description: For foundation audits only, keep missing pieces as rollout work while still failing invalid or unsupported foundation state.
+        required: false
+        type: boolean
+        default: false
       install_mode:
         description: Let coding-tooling install supported consumer dependencies or skip installation.
         required: false
@@ -313,4 +318,54 @@ jobs:
       - name: Propagate coding-tooling failure
         if: ${{ steps.tooling.outcome != 'success' || steps.report-upload.outcome != 'success' }}
         shell: bash
-        run: exit 1
+        env:
+          OPERATION: ${{ inputs.operation }}
+          ALLOW_MISSING_FOUNDATION: ${{ inputs.allow_missing_foundation }}
+          REPORT_PATH: ${{ inputs.report_path }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
+          REPORT_UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$REPORT_UPLOAD_OUTCOME" != "success" ]]; then
+            exit 1
+          fi
+
+          if [[ "$OPERATION" != "foundation" || "$ALLOW_MISSING_FOUNDATION" != "true" ]]; then
+            exit 1
+          fi
+
+          python3 - "$REPORT_PATH" <<'PY'
+          import json
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              report = json.load(handle)
+
+          components = report.get("data", {}).get("components")
+          if not isinstance(components, dict) or not components:
+              raise SystemExit("foundation report does not contain component evidence")
+
+          statuses = {
+              name: value.get("status")
+              for name, value in components.items()
+              if isinstance(value, dict)
+          }
+          blocked = [
+              name for name, status in statuses.items()
+              if status in {"invalid", "unsupported"}
+          ]
+          unknown = [
+              name for name, status in statuses.items()
+              if status not in {"adopted", "missing", "invalid", "unsupported"}
+          ]
+          if blocked or unknown:
+              detail = ", ".join(blocked + unknown)
+              raise SystemExit(f"foundation audit remains blocked: {detail}")
+
+          missing = [name for name, status in statuses.items() if status == "missing"]
+          if not missing:
+              raise SystemExit("foundation operation failed without missing, invalid, or unsupported components")
+
+          print("Foundation rollout work remains: " + ", ".join(missing))
+          PY
