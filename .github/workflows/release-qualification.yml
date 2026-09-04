@@ -71,6 +71,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
+      actions: read
       contents: read
       id-token: write
       attestations: write
@@ -78,6 +79,8 @@ jobs:
       run:
         shell: bash
         working-directory: ${{ inputs.working_directory }}
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
     outputs:
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
       artifact_digest: ${{ steps.artifact.outputs.artifact-digest }}
