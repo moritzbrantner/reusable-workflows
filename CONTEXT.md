@@ -46,6 +46,9 @@ Caller-owned policy for when a tier runs: local/agent handoff, pull request, `ma
 **Artifact Promotion Adapter**  
 `artifact-promotion.yml`, a read-only promotion-by-reference adapter. It consumes a successful release-qualification receipt from one exact workflow run, resolves the immutable GitHub artifact recorded by that receipt, verifies the raw archive digest and the signed `release-qualification.yml` provenance, and emits a new Execution Receipt v1 that records the upstream qualification run. It does not rebuild, repack, publish, deploy, or accept an arbitrary promotion command.
 
+**Qualified Pages Delivery Adapter**  
+`deploy-qualified-pages.yml`, a Pages-specific terminal delivery adapter. It consumes one successful artifact-promotion receipt, resolves the same original qualified archive from the upstream qualification run, re-verifies its digest and signed qualification provenance, safely extracts a Pages-ready archive, and calls the GitHub Pages upload/deployment APIs. It performs no source checkout, runtime setup, dependency install, or build.
+
 **Source-first development**  
 Development against repository sources, including exact sibling sources where appropriate, without requiring package publication or hosted cross-repository access as a prerequisite.
 
@@ -76,8 +79,9 @@ A capability such as branch promotion, existing stage validation, external deplo
 11. Publication and release workflows are terminal, optional operations rather than development prerequisites. Prefer qualifying and promoting an exact commit or artifact over a required chain of promotion branches.
 12. `release-qualification.yml` may bind repository-owned qualification/build commands to one exact source SHA and retain the resulting artifact/receipt; release policy and publication remain outside the capability.
 13. `artifact-promotion.yml` may select only a previously successful qualified artifact by exact run/receipt reference, must verify its GitHub archive digest and signed qualification provenance, and must not rebuild or publish the candidate.
-14. Concurrency policy belongs in Caller Workflows unless a GitHub API or persistent evidence writer requires capability-local serialization.
-15. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
+14. `deploy-qualified-pages.yml` may deploy only the artifact identified by a successful promotion receipt, must re-verify the original archive and signer provenance, and must not accept source/build/runtime/install inputs.
+15. Concurrency policy belongs in Caller Workflows unless a GitHub API, persistent evidence writer, or deployment API requires capability-local serialization.
+16. `toolchain-refresh.yml` owns only hosted freshness orchestration. `platform-upgrader` owns latest-stable discovery and compatibility-hold mutation, environment-v1 owns setup semantics, and the consumer repository owns the full acceptance gate.
 
 ## Capability classes
 
@@ -111,8 +115,11 @@ The qualification capability checks out the exact caller-supplied source SHA, ru
 
 ### Delivery
 
+- `deploy-qualified-pages.yml`
 - `deploy-pages.yml`
 - `package-publish.yml`
+
+`deploy-qualified-pages.yml` is the preferred Pages path for new capability-line consumers: the repository qualifies a Pages-ready artifact, promotion records the lifecycle decision, and delivery deploys the original qualified archive. `deploy-pages.yml` remains the existing build-and-deploy convenience capability for compatibility and transitional callers.
 
 ### Specialized / legacy lifecycle and release support
 
@@ -130,7 +137,7 @@ The qualification capability checks out the exact caller-supplied source SHA, ru
 
 - `validate-repo.yml`
 
-`validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` are repository-local Caller Workflows used to validate this repository itself.
+`validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` are repository-local Caller Workflows used to validate this repository itself. `deploy-docs-pages.yml` dogfoods the full qualification -> promotion -> qualified Pages delivery boundary on `main`.
 
 ## Compatibility policy
 

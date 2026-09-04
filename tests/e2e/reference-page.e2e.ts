@@ -1,10 +1,13 @@
 import { expect, test } from "@playwright/test";
 
 const workflowSlugs = [
+  "artifact-promotion",
+  "coding-tooling-score-history",
   "coding-tooling-validation",
   "command-validation",
   "deploy-docs-pages",
   "deploy-pages",
+  "deploy-qualified-pages",
   "e2e-validation",
   "environment-v1-canary",
   "external-pull",
@@ -218,19 +221,17 @@ test("renders latest build metrics and the last-5 table from a fixture history",
 });
 
 test("renders workflow detail pages with dependencies and contract data", async ({ page }) => {
-  await page.goto("/deploy-pages");
+  await page.goto("/deploy-qualified-pages");
 
-  await expect(page.getByRole("heading", { name: "Deploy Pages" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Deploy Qualified Pages" })).toBeVisible();
   await expect(
-    page.locator(".workflow-hero__meta").getByText(".github/workflows/deploy-pages.yml"),
+    page.locator(".workflow-hero__meta").getByText(".github/workflows/deploy-qualified-pages.yml"),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "What it uses and who uses it" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Deploy Docs Pages/ })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Jobs in this workflow" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Inputs" })).toBeVisible();
-  await expect(
-    page.getByRole("table", { name: "Inputs contract fields" }).getByText("artifact_path"),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Current contract source" })).toBeVisible();
+  await expect(page.getByText(/workflow_call.*inputs, secrets, outputs/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Current-line reference snippet" })).toBeVisible();
 });
 
@@ -253,7 +254,7 @@ test("links every workflow to a clean path route", async ({ page }) => {
 test("only shows the uses relationship card when a workflow calls other workflows", async ({
   page,
 }) => {
-  await page.goto("/deploy-pages");
+  await page.goto("/deploy-qualified-pages");
 
   await expect(page.getByText("Uses these workflows", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Used by these workflows", { exact: true })).toBeVisible();
