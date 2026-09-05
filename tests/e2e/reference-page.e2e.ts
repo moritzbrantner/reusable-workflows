@@ -5,6 +5,7 @@ const workflowSlugs = [
   "coding-tooling-score-history",
   "coding-tooling-validation",
   "command-validation",
+  "deliver-qualified-expo-stores",
   "deploy-docs-pages",
   "deploy-pages",
   "deploy-qualified-pages",
