@@ -1,0 +1,62 @@
+name: One-shot repin coding-tooling
+
+on:
+  push:
+    branches: ["maintenance/repin-custom-lint-coding-tooling"]
+
+permissions:
+  contents: write
+
+jobs:
+  repin-and-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Repin coding-tooling authority
+        shell: bash
+        env:
+          OLD_SHA: be9f12b6c724cfd1b46ae1222b4aea4a831ebb69
+          NEW_SHA: fe4c10c3187c029c76653836ecb7b15ce0e51baf
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path('.github/workflows/coding-tooling-validation.yml')
+          source = path.read_text()
+          old = os.environ['OLD_SHA']
+          new = os.environ['NEW_SHA']
+          count = source.count(old)
+          if count != 2:
+              raise SystemExit(f'expected exactly two old authority pins, found {count}')
+          updated = source.replace(old, new)
+          if updated.count(new) != 2:
+              raise SystemExit('new authority pin count is not exactly two')
+          path.write_text(updated)
+          PY
+          grep -F "uses: moritzbrantner/coding-tooling@$NEW_SHA" .github/workflows/coding-tooling-validation.yml
+          grep -F "coding-tooling revision: \\`$NEW_SHA\\`" .github/workflows/coding-tooling-validation.yml
+      - name: Validate workflow pin shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/coding-tooling-validation.yml').read_text()
+          assert source.count('uses: moritzbrantner/coding-tooling@') == 1
+          assert source.count('coding-tooling revision:') == 1
+          PY
+      - name: Commit durable repin
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-repin-coding-tooling.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/coding-tooling-validation.yml .github/workflows/one-shot-repin-coding-tooling.yml
+          git commit -m "chore: repin coding-tooling validation authority"
+          git push origin HEAD:maintenance/repin-custom-lint-coding-tooling
