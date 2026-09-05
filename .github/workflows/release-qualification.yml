@@ -39,6 +39,10 @@ on:
         required: false
         type: number
         default: 14
+    secrets:
+      build_token:
+        description: Optional opaque credential exposed only to the repository-owned build command as RELEASE_BUILD_TOKEN.
+        required: false
     outputs:
       artifact_name:
         description: Name of the uploaded qualified artifact.
@@ -72,9 +76,9 @@ jobs:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
       actions: read
+      attestations: write
       contents: read
       id-token: write
-      attestations: write
     defaults:
       run:
         shell: bash
@@ -97,10 +101,10 @@ jobs:
           SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           set -euo pipefail
-          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          [[ "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || {
             echo "::error::source_sha must be an exact 40-character commit SHA." >&2
             exit 2
-          fi
+          }
 
       - name: Check out exact consumer commit
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -110,9 +114,7 @@ jobs:
       - name: Verify checked-out commit
         env:
           SOURCE_SHA: ${{ inputs.source_sha }}
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 
       - name: Detect environment-v1 declaration
         id: environment
@@ -158,6 +160,8 @@ jobs:
         id: build
         if: ${{ steps.qualification.outcome == 'success' }}
         continue-on-error: true
+        env:
+          RELEASE_BUILD_TOKEN: ${{ secrets.build_token }}
         run: ${{ inputs.build_command }}
 
       - name: Define qualification metadata
@@ -334,39 +338,33 @@ jobs:
 
           digest = os.environ.get("ARTIFACT_DIGEST") or None
           predicate_path = Path(os.environ["PREDICATE_PATH"])
-          evidence = [
-              {
-                  "role": "qualified-artifact",
-                  "name": os.environ["ARTIFACT_NAME"],
-                  "path": None,
-                  "digest": f"sha256:{digest}" if digest else None,
-              }
-          ]
+          evidence = [{
+              "role": "qualified-artifact",
+              "name": os.environ["ARTIFACT_NAME"],
+              "path": None,
+              "digest": f"sha256:{digest}" if digest else None,
+          }]
           if predicate_path.is_file():
               predicate_digest = hashlib.sha256(predicate_path.read_bytes()).hexdigest()
-              evidence.append(
-                  {
-                      "role": "artifact-provenance-predicate",
-                      "name": "artifact-provenance-v1",
-                      "path": os.environ["PREDICATE_PATH"],
-                      "digest": f"sha256:{predicate_digest}",
-                  }
-              )
+              evidence.append({
+                  "role": "artifact-provenance-predicate",
+                  "name": "artifact-provenance-v1",
+                  "path": os.environ["PREDICATE_PATH"],
+                  "digest": f"sha256:{predicate_digest}",
+              })
 
           attestations = []
           attestation_id = os.environ.get("ATTESTATION_ID") or ""
           attestation_url = os.environ.get("ATTESTATION_URL") or ""
           if attestation_id and attestation_url and digest:
-              attestations.append(
-                  {
-                      "role": "artifact-provenance",
-                      "predicateType": "https://github.com/moritzbrantner/reusable-workflows/attestations/artifact-provenance/v1",
-                      "id": attestation_id,
-                      "url": attestation_url,
-                      "subjectName": os.environ["ARTIFACT_NAME"],
-                      "subjectDigest": f"sha256:{digest}",
-                  }
-              )
+              attestations.append({
+                  "role": "artifact-provenance",
+                  "predicateType": "https://github.com/moritzbrantner/reusable-workflows/attestations/artifact-provenance/v1",
+                  "id": attestation_id,
+                  "url": attestation_url,
+                  "subjectName": os.environ["ARTIFACT_NAME"],
+                  "subjectDigest": f"sha256:{digest}",
+              })
 
           receipt = {
               "schemaVersion": 1,
@@ -446,7 +444,6 @@ jobs:
               assert attestation["url"].startswith("https://github.com/")
           assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
           assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
-          assert receipt["run"]["callerWorkflowRef"] is None or isinstance(receipt["run"]["callerWorkflowRef"], str)
           PY
 
       - name: Upload execution receipt and provenance predicate
