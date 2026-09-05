@@ -61,7 +61,7 @@ on:
         description: SHA-256 digest reported by actions/upload-artifact for the coding-tooling report artifact.
         value: ${{ jobs.coding-tooling.outputs.artifact_digest }}
       report_path:
-        description: Repository-relative path used for the machine-readable coding-tooling report.
+        description: Repository-relative path used for the coding-tooling JSON report.
         value: ${{ jobs.coding-tooling.outputs.report_path }}
       receipt_artifact_name:
         description: Name of the uploaded execution receipt artifact.
