@@ -34,7 +34,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const artifactPromotionWorkflowPath = ".github/workflows/artifact-promotion.yml";
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
 const commandValidationWorkflowPath = ".github/workflows/command-validation.yml";
-const deliverQualifiedExpoStoresWorkflowPath = ".github/workflows/deliver-qualified-expo-stores.yml";
+const deliverQualifiedExpoStoresWorkflowPath =
+  ".github/workflows/deliver-qualified-expo-stores.yml";
 const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
@@ -389,7 +390,8 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
       );
     }
 
-    const deliveryOutputs = manifest.workflows[deliverQualifiedExpoStoresWorkflowPath]?.outputs ?? {};
+    const deliveryOutputs =
+      manifest.workflows[deliverQualifiedExpoStoresWorkflowPath]?.outputs ?? {};
     for (const output of ["source_sha", "ios_build_id", "android_build_id", "outcome"]) {
       if (!(output in deliveryOutputs)) {
         errors.push(`deliver-qualified-expo-stores.yml must expose delivery output ${output}`);
