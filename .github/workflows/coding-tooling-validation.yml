@@ -344,7 +344,7 @@ jobs:
 
           components = report.get("data", {}).get("components")
           if not isinstance(components, dict) or not components:
-            raise SystemExit("foundation report does not contain component evidence")
+              raise SystemExit("foundation report does not contain component evidence")
 
           statuses = {
               name: value.get("status")
