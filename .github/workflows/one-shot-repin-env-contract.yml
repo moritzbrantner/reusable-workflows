@@ -1,0 +1,48 @@
+name: One-shot repin env-contract coding-tooling
+
+on:
+  push:
+    branches: ["maintenance/repin-env-contract-coding-tooling"]
+
+permissions:
+  contents: write
+
+jobs:
+  repin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Repin coding-tooling authority
+        shell: bash
+        env:
+          OLD_SHA: fe4c10c3187c029c76653836ecb7b15ce0e51baf
+          NEW_SHA: 173eabf166b9c465a093f92b7bff5eb7efe5ef8e
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path('.github/workflows/coding-tooling-validation.yml')
+          source = path.read_text()
+          old = os.environ['OLD_SHA']
+          new = os.environ['NEW_SHA']
+          if source.count(old) != 2:
+              raise SystemExit(f'expected exactly two old authority pins, found {source.count(old)}')
+          updated = source.replace(old, new)
+          if updated.count(new) != 2:
+              raise SystemExit('new authority pin count is not exactly two')
+          path.write_text(updated)
+          PY
+      - name: Commit durable repin
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-repin-env-contract.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/coding-tooling-validation.yml .github/workflows/one-shot-repin-env-contract.yml
+          git commit -m "chore: repin env-contract coding-tooling authority"
+          git push origin HEAD:maintenance/repin-env-contract-coding-tooling
