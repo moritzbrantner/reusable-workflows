@@ -4,7 +4,7 @@ This repository provides small, optional GitHub Actions adapters for repositorie
 
 It is **not** the source of truth for how a repository develops, validates, or orchestrates work.
 
-The intended ownership boundary is:
+The ownership boundary is:
 
 1. `coding-agent-conventions` describes preferred repository behavior.
 2. Repository-owned commands and `coding-tooling` implement deterministic checks locally.
@@ -12,144 +12,97 @@ The intended ownership boundary is:
 4. This repository optionally reproduces selected checks or release operations on GitHub-hosted runners.
 5. Agent contracts, profilers, and orchestrators may consume results, but are not prerequisites for these workflows.
 
-A repository can use one workflow, several workflows, or none of them. Adoption is progressive rather than profile- or standard-driven.
+A repository can use one workflow, several workflows, or none. Adoption is progressive rather than profile-driven.
 
 ## Validation architecture
 
-Keep three separate decisions separate:
+Keep three decisions separate:
 
-1. A **validation capability** describes what is checked: linting, unit tests, integration checks, browser E2E, accessibility, benchmarks, and so on.
-2. A **validation tier** (or depth) composes deterministic capabilities into the confidence a repository wants, such as `fast`, `standard`, `deep`, or `release`. Tier names and composition belong to `coding-tooling` defaults or the consumer's repository configuration.
-3. A **repository lifecycle** decides when a tier runs: local agent handoff, pull request, `main`, nightly, release candidate, or stable release. The caller owns this policy.
+1. A **validation capability** describes what is checked: linting, tests, E2E, accessibility, benchmarks, and so on.
+2. A **validation tier/depth** composes deterministic capabilities into the confidence a repository wants, such as `fast`, `standard`, `deep`, or `release`.
+3. A **repository lifecycle** decides when a tier runs: local handoff, pull request, `main`, nightly, release candidate, or stable release.
 
-```text
-coding-agent-conventions
-        |
-        | engineering policy
-        v
-consumer repository
-  conventions.json / .conventions/
-  .coding-tooling.json
-        |
-        v
-coding-tooling
-  capabilities + repository tiers
-        |
-        +--> humans / coding agents locally
-        |
-        `--> reusable-workflows GitHub adapter
-                 |
-                 `--> caller-owned lifecycle triggers
-```
-
-The preferred shape lets an agent and hosted CI run the same deterministic tier. A generic consumer can make the same choice with one repository-owned command through `command-validation.yml`; no GitHub workflow defines the repository's validation semantics.
-
-### Lifecycle and release guidance
-
-The following is recommended guidance, not a required branch strategy or workflow profile:
+The preferred shape lets an agent and hosted CI run the same repository-owned command. GitHub workflows transport execution and evidence; they do not redefine repository semantics.
 
 ```text
 local agent handoff -> fast
-pull request        -> fast, optionally affected or deeper checks
+pull request        -> fast, optionally affected/deeper checks
 main                -> normal confidence suite
-nightly             -> expensive or deep checks
-release candidate   -> qualify an exact commit or artifact
-stable release      -> publish or promote the qualified immutable candidate
+nightly             -> expensive/deep checks
+release candidate   -> qualify an exact commit/artifact
+stable release      -> promote/deliver the same qualified artifact
 ```
 
-`nightly`, `beta`, release candidate, and stable are normally lifecycle or release concepts, not deterministic test capabilities. Prefer qualifying and promoting an exact commit or artifact instead of requiring a long-lived `develop -> nightly -> beta -> staging -> production` branch chain.
-
-### Progressive adoption
-
-- Tiny or experimental repositories may validate locally and use no hosted CI.
-- Small repositories can run a `fast` tier on pull requests.
-- Normal repositories can add deeper checks on `main`.
-- Important applications can add E2E/accessibility checks and nightly deep validation.
-- Performance-sensitive repositories can add benchmark or profiling evidence.
-- Released packages and products can add release qualification and publication.
-- Advanced production systems can add matrices or environments only where evidence requires them.
-
-Each maturity step composes capabilities and tiers; it never requires a different workflow standard or profile family.
+Prefer qualifying and promoting an exact immutable candidate over a long-lived `develop -> nightly -> beta -> staging -> production` branch chain.
 
 ## Compatibility release
 
-`workflow-standard-v1.3` is frozen as the compatibility release for existing consumers. Its tag remains immutable and its historical contract snapshot remains in `contracts/workflows.json`.
-
-Do not publish `workflow-standard-v1.4` or build a monolithic `workflow-standard-v2`. New work on `main` evolves individual capabilities independently. Consumers of the new capability line should pin an immutable commit SHA until a capability-specific release tag is intentionally published.
-
-The existing reference/adoption UI is also a v1.3 compatibility aid. It is not the architectural source of truth for the capability line.
+`workflow-standard-v1.3` is frozen for existing consumers. Its tag and `contracts/workflows.json` snapshot remain immutable. Do not publish `workflow-standard-v1.4` or build a monolithic `workflow-standard-v2`; new work on `main` evolves capabilities independently.
 
 ## Source-first boundary
 
-Hosted CI is not responsible for recreating every local source workspace.
-
-A local development workspace may use exact sibling sources, including repositories that are private or intentionally unpublished. Those source relationships are owned by the repository and local tooling. GitHub workflows should validate what can legitimately be validated from their checkout; they must not force publication or credential-dependent remote checkouts back into the normal development loop.
-
-Publication is a later, explicit concern:
+Hosted CI is not responsible for recreating every local source workspace. Local source development may use exact sibling sources, including private or intentionally unpublished packages. Publication is a later explicit concern:
 
 ```text
 source development -> local validation -> done
                                       \
-                                       -> optional release qualification -> artifact promotion -> publish/deploy
+                                       -> optional qualification -> promotion -> delivery
 ```
-
-Using `coding-tooling-validation.yml` in hosted CI does not change this rule. The same `coding-tooling run --tier ...` semantics remain directly usable locally; GitHub is only another execution environment.
 
 ## Current capabilities
 
 ### Preferred core validation
 
-- `command-validation.yml` — runtime-neutral adapter around one optional repository-owned setup command and one repository-owned validation command. It emits Execution Receipt v1 and is the preferred generic/public adapter on the independent capability line.
-- `coding-tooling-validation.yml` — semantic validation adapter that invokes `coding-tooling`, runs a declared operation/tier, and uploads its machine-readable report plus Execution Receipt v1.
-- `coding-tooling-score-history.yml` — persistent score-evidence adapter. It captures one consumer-owned validation tier, asks an immutable `coding-tooling` revision to score it, and serializes the resulting history into a reserved data-only branch. Score formulas, fingerprints, attribution, retention, and tombstone semantics remain owned by `coding-tooling`.
-- `public-contract-validation.yml` — intentionally thin public-contract adapter. It fixes the canonical report path at `.artifacts/coding-tooling/public-contract.json` while leaving discovery, evidence semantics, and enforcement to `coding-tooling` and the consumer repository.
-- `environment-v1-canary.yml` — environment integrity canary for environment-v1 consumers. It captures semantic identity before setup, runs the standard setup entrypoint, requires setup to leave tracked repository state unchanged, verifies the prepared environment earns the exact pre-setup fingerprint, and uploads both receipts.
-- `fast-validation.yml` — existing Node/Bun convenience adapter around one repository-owned validation command. It remains callable and its interface stays stable, but new runtime-neutral integrations should prefer `command-validation.yml`.
+- `command-validation.yml` — runtime-neutral adapter around one optional repository-owned setup command and one validation command. Emits Execution Receipt v1.
+- `coding-tooling-validation.yml` — invokes `coding-tooling` for a declared operation/tier and transports its report plus Execution Receipt v1.
+- `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
+- `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
+- `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
+- `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
 
 ### Specialized / transitional validation
 
-- `integration-validation.yml` — optional service, migration, package, and integration validation.
-- `e2e-validation.yml` — optional browser, desktop, mobile, or application-level validation.
-- `storybook-validation.yml` — optional component documentation and browser-backed component checks.
-- `link-validation.yml` — optional site/link validation.
-- `performance-validation.yml` — optional remote execution and evidence transport for performance checks. Performance semantics should live in repository tooling or `runtime-profiler`, not in GitHub-specific policy.
+- `integration-validation.yml`
+- `e2e-validation.yml`
+- `storybook-validation.yml`
+- `link-validation.yml`
+- `performance-validation.yml`
 
-These semantic workflows remain callable for existing consumers. New architecture should prefer repository or `coding-tooling` capability semantics expressed through the preferred core adapters instead of expanding these YAML interfaces.
+These remain callable for existing consumers. Prefer repository or `coding-tooling` semantics through the core adapters for new architecture.
 
 ### Release qualification and promotion
 
-- `release-qualification.yml` — qualifies one exact consumer commit, runs repository-owned qualification and build commands, uploads the built artifact once, and emits Execution Receipt v1 containing the source SHA and uploaded artifact digest.
-- `artifact-promotion.yml` — promotes by immutable reference. It consumes a successful qualification receipt, resolves the original GitHub artifact, verifies the raw archive digest, verifies the `release-qualification.yml` signer and exact-source provenance, and emits a promotion Execution Receipt v1 containing an upstream qualification reference.
+- `release-qualification.yml` — qualifies one exact consumer SHA, runs repository-owned qualification/build commands, uploads the candidate once, and emits exact-source provenance plus Execution Receipt v1. It accepts one optional opaque `build_token`, exposed only to the build command as `RELEASE_BUILD_TOKEN`; this supports credentialed remote builders without teaching the generic capability about Expo, registries, or another product-specific service.
+- `artifact-promotion.yml` — promotes by immutable reference. It consumes a successful qualification receipt, resolves the original GitHub artifact, verifies its archive digest and signed exact-source provenance, and emits a new promotion receipt. It does not rebuild, repack, or publish the candidate.
 
-Qualification does not publish, deploy, choose a version, or decide whether a release should happen. Promotion does not copy, rebuild, repack, or publish the candidate and exposes no build or arbitrary command input. Invoking promotion is a caller-owned lifecycle decision; later delivery consumes the same qualified artifact reference.
+Qualification does not make the release decision. Promotion records that a previously qualified candidate was selected; it still does not deliver the candidate.
 
 ### Delivery
 
-- `deploy-qualified-pages.yml` — preferred Pages delivery for the capability line. It consumes a successful promotion receipt, resolves the original qualified archive, rechecks its digest and signed qualification provenance, safely extracts the Pages-ready contents, and deploys them without checkout, dependency installation, runtime setup, or rebuilding.
-- `deploy-pages.yml` — existing build-and-deploy Pages convenience workflow retained for compatibility and transitional callers.
+- `deploy-qualified-pages.yml` — consumes a successful promotion receipt, re-verifies the original qualified Pages artifact and signer provenance, then deploys it without checkout, dependency installation, or rebuilding.
+- `deliver-qualified-expo-stores.yml` — terminal Expo store delivery. It consumes a successful promotion receipt, re-verifies the original qualified archive and `release-qualification.yml` provenance, safely extracts one `mobile-release.json`, verifies the recorded `.ipa` and `.aab` SHA-256 digests, checks out the exact source only to read app-owned `eas.json`, and submits the exact binaries with `eas submit --path`. It never uses `--latest` and never rebuilds. The caller supplies the app-owned EAS Submit profile and an Expo token; TestFlight/Play tracks and final public-release policy remain outside this capability.
+- `deploy-pages.yml` — existing build-and-deploy Pages convenience workflow retained for compatibility/transitional callers.
 - `package-publish.yml` — explicit npm/Cargo publication. Publication is never a prerequisite for source development.
 
-A Pages-ready qualified artifact must contain `index.html` at the archive root. The delivery capability does not accept a build command or path-remapping command; packaging layout is part of the repository-owned build output established during qualification.
+A mobile qualified artifact for `deliver-qualified-expo-stores.yml` must contain exactly one `mobile-release.json` with `schemaVersion: 1`, the exact source SHA, build profile, exact EAS CLI version, and one iOS plus one Android entry. Each platform entry records its EAS Build ID, relative binary path, app version/build version, and SHA-256 digest. Store delivery re-hashes the binaries before submission.
 
 ### Specialized / legacy lifecycle and release support
 
 - `external-pull.yml` — notify an external deployment host.
 - `release-template.yml` — repository-specific release skeleton.
-- `stage-validation.yml` — specialized legacy support for consumers that already select commands from a stage/branch model. It is not the preferred lifecycle abstraction.
-- `promote-branches.yml` — advanced exact-tested-SHA branch promotion for consumers that genuinely use promotion branches. It is not a default release architecture.
-- `toolchain-refresh.yml` — scheduled environment-v1 maintenance adapter that proposes exact current-stable toolchain pins and delegates acceptance to the consumer repository's full gate.
+- `stage-validation.yml` — legacy support for consumers that already select commands from a stage/branch model.
+- `promote-branches.yml` — exact-tested-SHA branch promotion for consumers that genuinely need promotion branches.
+- `toolchain-refresh.yml` — scheduled environment-v1 maintenance adapter for exact toolchain-pin proposals.
 
 ### Compatibility only
 
 - `validate-repo.yml` — combined scaffold-v2 compatibility workflow. Do not adopt it in new repositories.
 
-The local caller workflows `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` exercise this repository itself; they are not part of the reusable capability API.
+Repository-local `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` exercise this repository itself; they are not part of the reusable API.
 
-## Validation choices
+## Generic validation usage
 
-### Generic / public consumers
-
-`command-validation.yml` accepts only repository-owned setup and validation commands plus execution/receipt mechanics:
+A generic consumer can delegate to one repository-owned command:
 
 ```yaml
 jobs:
@@ -162,146 +115,77 @@ jobs:
       command: bun run validate:fast
 ```
 
-The adapter deliberately has no Node, Bun, Rust, Python, .NET, framework, or test-kind inputs. A repository that needs environment preparation supplies its normal setup entrypoint, such as `bash scripts/codex-environment.sh setup`; the semantic validation command remains repository-owned. Separate format, lint, typecheck, build, and unit-test inputs belong in repository tooling, not this workflow.
+For repositories using `coding-tooling`, prefer `coding-tooling-validation.yml` so hosted execution delegates to the same semantic interface used locally.
 
-`fast-validation.yml` remains available for existing callers that want its built-in Node/Bun setup. Its interface is contract-locked and should not grow into the general validation abstraction.
+## Immutable release usage
 
-### Consumers using coding-tooling
+The generic lifecycle is:
 
-For repositories that use `coding-tooling`, prefer the semantic adapter:
-
-```yaml
-jobs:
-  fast:
-    permissions:
-      contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@<immutable-sha>
-    with:
-      tier: fast
-      strict: true
+```text
+exact source SHA
+    |
+release-qualification.yml
+    |  build once + SHA-256 + signed exact-source provenance
+    v
+qualified artifact
+    |
+artifact-promotion.yml
+    |  verify by reference; no rebuild/repack
+    v
+promoted reference
+    |
+terminal delivery capability
 ```
 
-The hosted run delegates to the same deterministic interface used locally:
+For Expo apps, the repository-owned build command may translate `RELEASE_BUILD_TOKEN` into the credential expected by its remote build provider, but that mapping stays inside the consumer. The resulting `mobile-release.json` is part of the qualified artifact and binds the remote build IDs to the downloaded `.ipa`/`.aab` digests.
 
-```bash
-coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/report.json --json
-```
+A caller then invokes `deliver-qualified-expo-stores.yml` with the promotion run/receipt coordinates, the repository's `submit_profile`, and `expo_token`. Delivery installs only the exact requested `eas-cli` version and submits the already-qualified binary files by path.
 
-`coding-tooling-validation.yml` pins the Action to an exact commit, uploads its JSON report even when validation fails where possible, emits a shared execution receipt, writes a GitHub job summary, and then propagates the tooling result. It does not own tier definitions or source-dependency policy.
+Do not use this capability to make a hidden production decision. A generated app should normally begin with a TestFlight/Google Play internal profile. An Android production profile can remain draft or staged until an outer lifecycle decision authorizes exposure; Apple public App Store release remains an App Store Connect lifecycle decision after TestFlight/submission evidence is clean.
 
-For persistent main-branch evidence, add the score-history adapter independently of the blocking validation job:
+## Environment-v1 canary
 
-```yaml
-permissions:
-  contents: write
-
-jobs:
-  score-history:
-    permissions:
-      contents: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-score-history.yml@<immutable-sha>
-    with:
-      tier: full
-```
-
-`coding-tooling-score-history.yml` treats the selected validation tier as descriptive evidence: ordinary validation failures are persisted as a lower score instead of making the snapshot disappear, while score-production failures publish an explicit tombstone and still fail the workflow. The `score-history` branch is reserved for `history.json`, reruns replace the same commit, writes are serialized per repository, and exact definition fingerprints determine whether adjacent points are comparable. Consumers should not add thresholds or release policy to this adapter.
-
-For public-contract measurement, consumers can instead call the narrower wrapper:
-
-```yaml
-jobs:
-  public-contract:
-    permissions:
-      contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/public-contract-validation.yml@<immutable-sha>
-```
-
-That wrapper runs `coding-tooling` public-contract verification and publishes `.artifacts/coding-tooling/public-contract.json`. The report protocol is the standard; repositories remain free to satisfy semantic capabilities with their native test frameworks.
-
-### Environment-v1 integrity canary
-
-Environment-v1 consumers can add the canary independently of their normal validation tier:
-
-```yaml
-jobs:
-  environment:
-    permissions:
-      contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/environment-v1-canary.yml@<immutable-sha>
-```
-
-The canary deliberately uses the repository-standard `bash scripts/codex-environment.sh setup` entrypoint rather than accepting an arbitrary setup command. It treats setup as an idempotent reconstruction operation: tracked repository state must remain unchanged, and the prepared machine must verify against the semantic fingerprint captured before setup. The expected fingerprint and verification receipt are retained as short-lived evidence.
-
-Existing v1.3 callers keep the old interfaces by remaining pinned to `workflow-standard-v1.3`.
+`environment-v1-canary.yml` uses the repository-standard `bash scripts/codex-environment.sh setup` entrypoint. Setup is treated as an idempotent reconstruction operation: tracked state must remain unchanged and the prepared machine must verify against the semantic identity captured before setup.
 
 ## Contracts and generated metadata
 
-GitHub workflow YAML is the source of truth for the current capability interfaces.
+Workflow YAML is the source of truth for current capability interfaces. `contracts/workflows.json` is only the frozen v1.3 compatibility snapshot.
 
-`contracts/workflows.json` is retained only as the frozen `workflow-standard-v1.3` compatibility snapshot. It is no longer manually synchronized with `main`.
+`contracts/execution-receipt-v1.schema.json` defines the shared execution/evidence transport envelope. `contracts/artifact-provenance-v1.schema.json` defines exact-source artifact provenance for qualified candidates.
 
-`contracts/execution-receipt-v1.schema.json` defines the small common execution/evidence transport envelope used by current emitters, including optional attestation metadata and upstream execution references used for immutable promotion. Native semantic reports remain authoritative; see `EXECUTION_RECEIPTS.md`.
-
-Current capability metadata is generated from `.github/workflows/*.yml`:
+Generate current capability metadata with:
 
 ```bash
 bun run contracts:generate
 ```
 
-Validation parses the current workflow files directly:
+Validate interfaces and architecture with:
 
 ```bash
 bun run validate:contracts
 ```
 
-This avoids maintaining inputs, defaults, secrets, outputs, and permissions twice.
-
 ## Caller-owned concerns
 
-Keep these in the caller or repository rather than growing reusable workflow inputs:
+Keep these in the caller or consumer repository rather than growing reusable workflow inputs:
 
 - concurrency policy;
-- semantic tier definitions and repository capability commands;
+- semantic validation tiers and commands;
 - source-workspace layout;
 - local-only dependency resolution;
 - profiler thresholds and benchmark interpretation;
-- agent/orchestrator behavior;
-- release decision policy.
+- release authorization;
+- application/store identity and metadata;
+- EAS build/submit profiles, TestFlight groups, Play tracks/rollout policy, and final production exposure;
+- agent/orchestrator behavior.
 
-Reusable workflows should mainly own GitHub-specific mechanics such as checkout, runtime-neutral command execution, permissions, timeouts, evidence transport, and deployment APIs.
+Reusable workflows own GitHub-specific mechanics: exact checkout, bounded command execution, permissions, provenance/evidence transport, immutable-artifact verification, and terminal delivery APIs where the capability is explicitly scoped.
 
-## Dependency updates
+## Dependency updates and toolchains
 
-Dependency automation is a separate concern from workflow architecture. Dependabot or Renovate may propose updates, while repository-owned validation determines whether those updates are acceptable. Consumers may use `coding-tooling-validation.yml` with a `dependency-update` tier; other consumers can run equivalent repository-owned commands through the generic workflows. See `DEPENDENCY_UPDATES.md`.
+Dependency automation is separate from workflow architecture. Dependabot or Renovate may propose updates while repository-owned validation decides whether they are acceptable.
 
-## Toolchain freshness
-
-`toolchain-refresh.yml` is deliberately separate from normal package dependency automation. It operates only on exact repository-native environment toolchain pins supported by `platform-upgrader`.
-
-The reusable workflow requires:
-
-- `contents: write` and `pull-requests: write` so it can maintain one bot-owned upgrade branch/PR or compatibility-hold branch/PR;
-- `packages: read` for consumer environments that restore GitHub Packages;
-- an exact 40-character `platform_upgrader_ref` rather than a moving branch/tag;
-- `platform_upgrader_token`, a secret with read access to the private `moritzbrantner/platform-upgrader` repository;
-- a consumer-owned `full_gate_command` that defines acceptance;
-- environment-v1 adoption (`.repository-environment.toml` plus `scripts/codex-environment.sh`).
-
-The caller owns schedule and concurrency. A typical caller runs daily and may also expose `workflow_dispatch`; see `examples/toolchain-refresh-caller.yml`.
-
-The flow is:
-
-1. resolve current stable toolchains through the pinned upgrader;
-2. no-op when all supported pins are current or covered by a merged compatibility hold;
-3. install the candidate environment and run any repository-owned metadata update hook;
-4. run the repository-owned full deterministic gate;
-5. on success, clear superseded holds and create/update `automation/toolchain-refresh` as one explicit exact-pin PR;
-6. on failure, restore the accepted revision, close any stale upgrade PR, record only the candidate compatibility hold, and create/update `automation/toolchain-compatibility-hold`;
-7. if a compatibility-hold PR is already open, defer additional scheduled evaluation until that PR is resolved.
-
-The workflow never writes `latest`, `stable`, `*`, or another floating build input. An exact candidate is accepted only through the consumer's gate.
-
-Because `GITHUB_TOKEN`-authored pushes/PRs do not recursively trigger normal workflow events, consumers whose branch protection requires a fresh PR check suite may later choose a dedicated automation token/GitHub App for publication. The candidate full gate still runs before the refresh PR is created.
+`toolchain-refresh.yml` is likewise separate from normal package dependency automation. It operates only on exact repository-native environment pins supported by `platform-upgrader`, delegates acceptance to the consumer's full gate, and never owns semantic validation or floating-version policy.
 
 ## Repository validation
 
@@ -312,4 +196,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`Smoke Reusable Workflows` exercises callable workflows with minimal commands, including two independent `command-validation.yml` invocations, the public-contract wrapper, release qualification of the exact PR head, and `artifact-promotion.yml` against that exact qualified artifact. The promotion dogfood verifies the original raw archive and signed qualification provenance rather than rebuilding or copying the candidate. The repository-local `deploy-docs-pages.yml` dogfoods `deploy-qualified-pages.yml` on `main`: it qualifies the exact validated source, promotes that immutable artifact, and deploys the original archive without rebuilding it. `environment-v1-canary.yml` remains consumer-canary-only because it requires the caller's declared environment-v1 setup and semantic identity; `toolchain-refresh.yml` remains excluded because it requires write operations and private sibling tooling. The main-branch `coding-tooling-score-history` job dogfoods persistent score publication against this repository with the fast tier.
+`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/release-qualification/promotion path. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
