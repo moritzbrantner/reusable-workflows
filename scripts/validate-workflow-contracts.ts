@@ -34,6 +34,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const artifactPromotionWorkflowPath = ".github/workflows/artifact-promotion.yml";
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
 const commandValidationWorkflowPath = ".github/workflows/command-validation.yml";
+const deliverQualifiedExpoStoresWorkflowPath =
+  ".github/workflows/deliver-qualified-expo-stores.yml";
 const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
@@ -162,6 +164,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     artifactPromotionWorkflowPath,
     codingToolingWorkflowPath,
     commandValidationWorkflowPath,
+    deliverQualifiedExpoStoresWorkflowPath,
     releaseQualificationWorkflowPath,
   ]) {
     const source = state.workflowSources[workflowPath];
@@ -210,6 +213,23 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
       if (!(output in releaseOutputs)) {
         errors.push(`release-qualification.yml must expose provenance output ${output}`);
       }
+    }
+
+    const releaseSecrets = Object.keys(
+      manifest.workflows[releaseQualificationWorkflowPath]?.secrets ?? {},
+    ).sort();
+    if (JSON.stringify(releaseSecrets) !== JSON.stringify(["build_token"])) {
+      errors.push(
+        "release-qualification.yml may expose only one optional opaque build_token secret",
+      );
+    }
+    if (
+      !releaseSource.includes("RELEASE_BUILD_TOKEN: ${{ secrets.build_token }}") ||
+      !releaseSource.includes("Build qualified artifact once")
+    ) {
+      errors.push(
+        "release-qualification.yml must expose build_token only through the repository-owned build seam",
+      );
     }
   }
 
@@ -313,6 +333,72 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
   }
 
+  const expoDeliverySource = state.workflowSources[deliverQualifiedExpoStoresWorkflowPath];
+  if (expoDeliverySource) {
+    if (!immutableDownloadArtifactUse.test(expoDeliverySource)) {
+      errors.push(
+        "deliver-qualified-expo-stores.yml must pin actions/download-artifact to an exact commit SHA",
+      );
+    }
+    if (
+      expoDeliverySource.includes("build_command") ||
+      expoDeliverySource.includes("eas build") ||
+      expoDeliverySource.includes("--latest")
+    ) {
+      errors.push(
+        "deliver-qualified-expo-stores.yml must deliver only the promoted exact binaries without rebuilding or resolving latest",
+      );
+    }
+    if (
+      !expoDeliverySource.includes("skip-decompress: true") ||
+      !expoDeliverySource.includes("gh attestation verify") ||
+      !expoDeliverySource.includes("--signer-workflow") ||
+      !expoDeliverySource.includes("release-qualification.yml") ||
+      !expoDeliverySource.includes("mobile-release.json") ||
+      !expoDeliverySource.includes("eas submit") ||
+      !expoDeliverySource.includes("--path")
+    ) {
+      errors.push(
+        "deliver-qualified-expo-stores.yml must reverify provenance and binary manifests before exact-path store submission",
+      );
+    }
+
+    const deliveryInputs = Object.keys(
+      manifest.workflows[deliverQualifiedExpoStoresWorkflowPath]?.inputs ?? {},
+    ).sort();
+    const expectedDeliveryInputs = [
+      "artifact_retention_days",
+      "eas_cli_version",
+      "promotion_receipt_artifact_name",
+      "promotion_run_id",
+      "submit_profile",
+      "timeout_minutes",
+      "working_directory",
+    ];
+    if (JSON.stringify(deliveryInputs) !== JSON.stringify(expectedDeliveryInputs)) {
+      errors.push(
+        "deliver-qualified-expo-stores.yml must stay reference-only: promotion coordinates, submit profile, exact CLI version, retention, timeout, and project directory only",
+      );
+    }
+
+    const deliverySecrets = Object.keys(
+      manifest.workflows[deliverQualifiedExpoStoresWorkflowPath]?.secrets ?? {},
+    ).sort();
+    if (JSON.stringify(deliverySecrets) !== JSON.stringify(["expo_token"])) {
+      errors.push(
+        "deliver-qualified-expo-stores.yml may accept only the Expo submission credential",
+      );
+    }
+
+    const deliveryOutputs =
+      manifest.workflows[deliverQualifiedExpoStoresWorkflowPath]?.outputs ?? {};
+    for (const output of ["source_sha", "ios_build_id", "android_build_id", "outcome"]) {
+      if (!(output in deliveryOutputs)) {
+        errors.push(`deliver-qualified-expo-stores.yml must expose delivery output ${output}`);
+      }
+    }
+  }
+
   const commandInputs = Object.keys(
     manifest.workflows[commandValidationWorkflowPath]?.inputs ?? {},
   ).sort();
@@ -396,7 +482,7 @@ export function main() {
   }
 
   console.log(
-    "Workflow capabilities, execution receipt v1, artifact provenance v1, immutable promotion, and qualified Pages delivery are valid; v1.3 compatibility snapshot remains frozen.",
+    "Workflow capabilities, execution receipt v1, artifact provenance v1, immutable promotion, qualified Pages delivery, and exact-binary Expo store delivery are valid; v1.3 compatibility snapshot remains frozen.",
   );
 }
 
