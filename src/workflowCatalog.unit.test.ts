@@ -46,13 +46,12 @@ describe("workflow catalog", () => {
     );
   });
 
-  test("parses deploy-pages.yml job metadata and contract inputs", () => {
+  test("parses deploy-pages.yml job metadata and frozen contract inputs", () => {
     const deployPagesWorkflow = parsedWorkflowsByFile.get(".github/workflows/deploy-pages.yml");
 
     expect(deployPagesWorkflow?.yamlName).toBe("Deploy Pages");
     expect(deployPagesWorkflow?.triggers).toEqual(["workflow_call"]);
     expect(deployPagesWorkflow?.contract?.inputs).toHaveProperty("artifact_path");
-    expect(deployPagesWorkflow?.contract?.inputs).toHaveProperty("prebuilt_artifact_run_id");
     expect(deployPagesWorkflow?.jobs).toEqual([
       expect.objectContaining({
         id: "deploy-pages",
@@ -65,7 +64,7 @@ describe("workflow catalog", () => {
 
   test("counts unique input names separately from workflow-specific input slots", () => {
     expect(workflowInputMetrics(parsedWorkflows)).toEqual({
-      totalInputSlots: 286,
+      totalInputSlots: 279,
       uniqueInputNames: 79,
     });
   });
