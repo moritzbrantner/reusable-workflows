@@ -58,7 +58,7 @@ source development -> local validation -> done
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
 - `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
-- `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA, runs one repository-owned build command exactly once, uploads the resulting artifact, and emits source-bound artifact identity plus Execution Receipt v1. It has no release, promotion, or deployment authority.
+- `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA and returns one source-bound artifact plus Execution Receipt v1. By default it builds and uploads normally; opt-in `reuse_across_runs` first resolves a still-retained artifact with the same exact build identity and returns its original `producer_run_id` without rerunning setup or the build. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
 
 ### Specialized / transitional validation
@@ -76,7 +76,7 @@ These remain callable for existing consumers. Prefer repository or `coding-tooli
 - `release-qualification.yml` — qualifies one exact consumer SHA, runs repository-owned qualification/build commands, uploads the candidate once, and emits exact-source provenance plus Execution Receipt v1. It accepts one optional opaque `build_token`, exposed only to the build command as `RELEASE_BUILD_TOKEN`; this supports credentialed remote builders without teaching the generic capability about Expo, registries, or another product-specific service.
 - `artifact-promotion.yml` — promotes by immutable reference. It consumes a successful qualification receipt, resolves the original GitHub artifact, verifies its archive digest and signed exact-source provenance, and emits a new promotion receipt. It does not rebuild, repack, or publish the candidate.
 
-Qualification does not make the release decision. Promotion records that a previously qualified candidate was selected; it still does not deliver the candidate.
+Qualification does not make the release decision. Promotion records that a previously qualified candidate was selected; it still does not deliver the candidate. Cross-run ordinary-CI reuse is deliberately not applied implicitly to `release-qualification.yml`; qualification remains an explicit lifecycle operation and promotion is the reuse-by-reference boundary for qualified candidates.
 
 ### Delivery
 
@@ -118,7 +118,7 @@ jobs:
 
 For repositories using `coding-tooling`, prefer `coding-tooling-validation.yml` so hosted execution delegates to the same semantic interface used locally.
 
-`build-artifact.yml` is intentionally separate from validation semantics. A caller supplies an exact source SHA, a stable artifact key, preparation if needed, the one build command, and the paths to preserve. Downstream consumers should use the resulting artifact name/digest/receipt rather than rerun the same build when their semantics operate on those exact bytes.
+`build-artifact.yml` is intentionally separate from validation semantics. A caller supplies an exact source SHA, a stable artifact key, preparation if needed, the one build command, and the paths to preserve. Its deterministic identity covers those coordinates plus the runner identity. With `reuse_across_runs: true`, the workflow searches retained build receipts for that identity, verifies the full receipt/source/run/artifact coordinates, and skips setup/build/upload only on a proven hit. Lookup or verification uncertainty falls back to a normal build. Callers that enable reuse must pass the returned `producer_run_id` together with artifact name, digest, receipt name, source SHA, artifact key, and identity digest to downstream consumers rather than assuming `github.run_id`.
 
 ## Immutable release usage
 
@@ -199,4 +199,4 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/release-qualification/promotion path. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
+`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.

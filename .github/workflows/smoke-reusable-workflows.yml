@@ -52,26 +52,43 @@ jobs:
       setup_command: "npm install --global bun@1.4.0"
       build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
       artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
+      reuse_across_runs: true
+      artifact_retention_days: 1
+
+  build-artifact-reuse:
+    needs: build-artifact
+    uses: ./.github/workflows/build-artifact.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_key: reusable-workflows-smoke-artifact-v1
+      setup_command: "npm install --global bun@1.4.0"
+      build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
+      artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
+      reuse_across_runs: true
       artifact_retention_days: 1
 
   consume-build-artifact:
-    needs: build-artifact
+    needs: build-artifact-reuse
     runs-on: ubuntu-latest
     permissions:
       actions: read
       contents: read
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Verify resolver reused the existing build
+        env:
+          REUSED: ${{ needs.build-artifact-reuse.outputs.reused }}
+        run: test "$REUSED" = "true"
       - name: Consume exact build artifact
         uses: ./.github/actions/consume-build-artifact
         with:
-          producer_run_id: ${{ github.run_id }}
-          receipt_artifact_name: ${{ needs.build-artifact.outputs.receipt_artifact_name }}
-          artifact_name: ${{ needs.build-artifact.outputs.artifact_name }}
-          artifact_digest: ${{ needs.build-artifact.outputs.artifact_digest }}
-          source_sha: ${{ needs.build-artifact.outputs.source_sha }}
-          artifact_key: ${{ needs.build-artifact.outputs.artifact_key }}
-          identity_digest: ${{ needs.build-artifact.outputs.identity_digest }}
+          producer_run_id: ${{ needs.build-artifact-reuse.outputs.producer_run_id }}
+          receipt_artifact_name: ${{ needs.build-artifact-reuse.outputs.receipt_artifact_name }}
+          artifact_name: ${{ needs.build-artifact-reuse.outputs.artifact_name }}
+          artifact_digest: ${{ needs.build-artifact-reuse.outputs.artifact_digest }}
+          source_sha: ${{ needs.build-artifact-reuse.outputs.source_sha }}
+          artifact_key: ${{ needs.build-artifact-reuse.outputs.artifact_key }}
+          identity_digest: ${{ needs.build-artifact-reuse.outputs.identity_digest }}
           destination_path: .artifacts/consumed-build-artifact
           github_token: ${{ github.token }}
       - name: Verify consumed bytes

@@ -29,6 +29,11 @@ on:
         description: Newline-separated repository-relative paths that make up the built artifact.
         required: true
         type: string
+      reuse_across_runs:
+        description: Reuse a still-retained verified artifact with the same exact identity instead of rebuilding. Callers must consume producer_run_id rather than assuming the current run.
+        required: false
+        type: boolean
+        default: false
       timeout_minutes:
         description: Maximum artifact-build job runtime.
         required: false
@@ -46,6 +51,12 @@ on:
       artifact_key:
         description: Caller-owned artifact identity carried by this build.
         value: ${{ jobs.build-artifact.outputs.artifact_key }}
+      producer_run_id:
+        description: Workflow run ID that actually produced the returned artifact and receipt. This may refer to an earlier run when reuse_across_runs is enabled.
+        value: ${{ jobs.build-artifact.outputs.producer_run_id }}
+      reused:
+        description: Whether this invocation reused a verified artifact from an earlier build instead of rebuilding it.
+        value: ${{ jobs.build-artifact.outputs.reused }}
       artifact_name:
         description: Name of the uploaded built artifact.
         value: ${{ jobs.build-artifact.outputs.artifact_name }}
@@ -53,16 +64,16 @@ on:
         description: SHA-256 digest reported by actions/upload-artifact for the built artifact archive.
         value: ${{ jobs.build-artifact.outputs.artifact_digest }}
       identity_digest:
-        description: SHA-256 digest of exact source, caller identity, setup/build commands, working directory, and runner identity.
+        description: SHA-256 digest of exact source, caller identity, setup/build commands, artifact paths, working directory, and stable runner platform identity.
         value: ${{ jobs.build-artifact.outputs.identity_digest }}
       receipt_artifact_name:
-        description: Name of the uploaded Execution Receipt v1 artifact.
+        description: Name of the verified Execution Receipt v1 artifact associated with the returned artifact.
         value: ${{ jobs.build-artifact.outputs.receipt_artifact_name }}
       receipt_path:
-        description: Repository-relative execution receipt path.
+        description: Repository-relative execution receipt path inside the receipt artifact.
         value: ${{ jobs.build-artifact.outputs.receipt_path }}
       outcome:
-        description: Artifact-build outcome before final failure propagation.
+        description: Artifact-build or reuse outcome before final failure propagation.
         value: ${{ jobs.build-artifact.outputs.outcome }}
 
 jobs:
@@ -71,6 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
+      actions: read
       contents: read
     defaults:
       run:
@@ -79,10 +91,12 @@ jobs:
     outputs:
       source_sha: ${{ steps.coordinates.outputs.source_sha }}
       artifact_key: ${{ inputs.artifact_key }}
-      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
-      artifact_digest: ${{ steps.artifact.outputs.artifact-digest }}
-      identity_digest: ${{ steps.metadata.outputs.identity_digest }}
-      receipt_artifact_name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+      producer_run_id: ${{ steps.result.outputs.producer_run_id }}
+      reused: ${{ steps.result.outputs.reused }}
+      artifact_name: ${{ steps.result.outputs.artifact_name }}
+      artifact_digest: ${{ steps.result.outputs.artifact_digest }}
+      identity_digest: ${{ steps.identity.outputs.identity_digest }}
+      receipt_artifact_name: ${{ steps.result.outputs.receipt_artifact_name }}
       receipt_path: ${{ steps.metadata.outputs.receipt_path }}
       outcome: ${{ steps.status.outputs.outcome }}
     steps:
@@ -113,6 +127,216 @@ jobs:
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
         run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
 
+      - name: Define deterministic artifact identity
+        id: identity
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
+          ARTIFACT_KEY: ${{ inputs.artifact_key }}
+          SETUP_COMMAND: ${{ inputs.setup_command }}
+          BUILD_COMMAND: ${{ inputs.build_command }}
+          ARTIFACT_PATHS: ${{ inputs.artifact_paths }}
+          WORKING_DIRECTORY: ${{ inputs.working_directory }}
+        run: |
+          set -euo pipefail
+          identity_hash="$(python3 - <<'PY'
+          import hashlib
+          import os
+          value = "\0".join([
+              "build-artifact-identity-v3",
+              os.environ["SOURCE_SHA"],
+              os.environ["ARTIFACT_KEY"],
+              os.environ["SETUP_COMMAND"],
+              os.environ["BUILD_COMMAND"],
+              os.environ["ARTIFACT_PATHS"],
+              os.environ["WORKING_DIRECTORY"],
+              os.environ.get("RUNNER_OS", ""),
+              os.environ.get("RUNNER_ARCH", ""),
+              os.environ.get("ImageOS", ""),
+          ])
+          print(hashlib.sha256(value.encode("utf-8")).hexdigest())
+          PY
+          )"
+          echo "identity_digest=sha256:${identity_hash}" >> "$GITHUB_OUTPUT"
+
+      - name: Find reusable artifact receipt
+        id: reuse-candidate
+        if: ${{ inputs.reuse_across_runs && steps.coordinates.outcome == 'success' && steps.identity.outcome == 'success' }}
+        continue-on-error: true
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
+          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
+        run: |
+          set -euo pipefail
+          short_sha="${SOURCE_SHA:0:12}"
+          identity_hash="${IDENTITY_DIGEST#sha256:}"
+          short_identity="${identity_hash:0:12}"
+          receipt_prefix="execution-receipt-build-artifact-${short_sha}-${short_identity}-"
+          export RECEIPT_PREFIX="$receipt_prefix"
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+            > "$RUNNER_TEMP/build-artifact-reuse-candidates.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(
+              Path(os.environ["RUNNER_TEMP"])
+              .joinpath("build-artifact-reuse-candidates.json")
+              .read_text(encoding="utf-8")
+          )
+          pages = payload if isinstance(payload, list) else [payload]
+          artifacts = [
+              artifact
+              for page in pages
+              for artifact in page.get("artifacts", [])
+          ]
+          prefix = os.environ["RECEIPT_PREFIX"]
+          candidates = []
+          for artifact in artifacts:
+              if artifact.get("expired") is not False:
+                  continue
+              name = artifact.get("name") or ""
+              if not name.startswith(prefix):
+                  continue
+              workflow_run = artifact.get("workflow_run") or {}
+              run_id = workflow_run.get("id")
+              artifact_id = artifact.get("id")
+              if not isinstance(run_id, int) or not isinstance(artifact_id, int):
+                  continue
+              candidates.append(artifact)
+
+          candidates.sort(
+              key=lambda artifact: (
+                  artifact.get("created_at") or "",
+                  artifact.get("id") or 0,
+              ),
+              reverse=True,
+          )
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as handle:
+              if not candidates:
+                  handle.write("candidate_found=false\n")
+              else:
+                  candidate = candidates[0]
+                  handle.write("candidate_found=true\n")
+                  handle.write(f"receipt_artifact_id={candidate['id']}\n")
+                  handle.write(f"receipt_artifact_name={candidate['name']}\n")
+                  handle.write(f"producer_run_id={candidate['workflow_run']['id']}\n")
+          PY
+
+      - name: Download reusable artifact receipt
+        id: reuse-receipt-download
+        if: ${{ steps.reuse-candidate.outcome == 'success' && steps.reuse-candidate.outputs.candidate_found == 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.reuse-candidate.outputs.receipt_artifact_id }}
+          path: ${{ runner.temp }}/build-artifact-reuse-receipt
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.reuse-candidate.outputs.producer_run_id }}
+          digest-mismatch: error
+
+      - name: Verify reusable artifact receipt and coordinates
+        id: reuse
+        if: ${{ steps.reuse-receipt-download.outcome == 'success' }}
+        continue-on-error: true
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RECEIPT_DIRECTORY: ${{ runner.temp }}/build-artifact-reuse-receipt
+          RECEIPT_ARTIFACT_ID: ${{ steps.reuse-candidate.outputs.receipt_artifact_id }}
+          RECEIPT_ARTIFACT_NAME: ${{ steps.reuse-candidate.outputs.receipt_artifact_name }}
+          PRODUCER_RUN_ID: ${{ steps.reuse-candidate.outputs.producer_run_id }}
+          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
+          ARTIFACT_KEY: ${{ inputs.artifact_key }}
+          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
+        run: |
+          set -euo pipefail
+          gh api --paginate --slurp \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${PRODUCER_RUN_ID}/artifacts?per_page=100" \
+            > "$RUNNER_TEMP/build-artifact-reuse-producer-artifacts.json"
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          receipt_paths = list(
+              Path(os.environ["RECEIPT_DIRECTORY"]).rglob("build-artifact-receipt.json")
+          )
+          assert len(receipt_paths) == 1, receipt_paths
+          receipt = json.loads(receipt_paths[0].read_text(encoding="utf-8"))
+
+          expected_source = os.environ["SOURCE_SHA"].lower()
+          expected_identity = os.environ["IDENTITY_DIGEST"].lower()
+          producer_run_id = os.environ["PRODUCER_RUN_ID"]
+
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "build-artifact", "interfaceVersion": 1}
+          assert receipt["source"]["repository"] == os.environ["GITHUB_REPOSITORY"]
+          assert receipt["source"]["sha"] == expected_source
+          assert receipt["result"]["outcome"] == "success"
+          assert str(receipt["run"]["id"]) == producer_run_id
+
+          artifacts = [
+              entry for entry in receipt["evidence"] if entry.get("role") == "built-artifact"
+          ]
+          identities = [
+              entry for entry in receipt["evidence"] if entry.get("role") == "artifact-identity"
+          ]
+          assert len(artifacts) == 1, artifacts
+          assert len(identities) == 1, identities
+          artifact = artifacts[0]
+          identity = identities[0]
+          assert identity["name"] == os.environ["ARTIFACT_KEY"]
+          assert identity["digest"].lower() == expected_identity
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", expected_identity)
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", artifact.get("digest") or "")
+          assert isinstance(artifact.get("name"), str) and artifact["name"]
+
+          pages = json.loads(
+              Path(os.environ["RUNNER_TEMP"])
+              .joinpath("build-artifact-reuse-producer-artifacts.json")
+              .read_text(encoding="utf-8")
+          )
+          pages = pages if isinstance(pages, list) else [pages]
+          producer_artifacts = [
+              item for page in pages for item in page.get("artifacts", [])
+          ]
+          receipt_matches = [
+              item
+              for item in producer_artifacts
+              if str(item.get("id")) == os.environ["RECEIPT_ARTIFACT_ID"]
+              and item.get("name") == os.environ["RECEIPT_ARTIFACT_NAME"]
+              and item.get("expired") is False
+          ]
+          artifact_matches = [
+              item
+              for item in producer_artifacts
+              if item.get("name") == artifact["name"]
+              and item.get("expired") is False
+          ]
+          assert len(receipt_matches) == 1, receipt_matches
+          assert len(artifact_matches) == 1, artifact_matches
+          assert artifact_matches[0].get("digest") == artifact["digest"], artifact_matches[0]
+
+          raw_digest = artifact["digest"].split(":", 1)[1]
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as handle:
+              handle.write("hit=true\n")
+              handle.write(f"producer_run_id={producer_run_id}\n")
+              handle.write(f"receipt_artifact_name={os.environ['RECEIPT_ARTIFACT_NAME']}\n")
+              handle.write(f"artifact_name={artifact['name']}\n")
+              handle.write(f"artifact_digest={raw_digest}\n")
+          PY
+
       - name: Detect environment-v1 declaration
         id: environment
         working-directory: .
@@ -126,13 +350,13 @@ jobs:
 
       - name: Run repository bootstrap
         id: bootstrap
-        if: ${{ inputs.setup_command != '' }}
+        if: ${{ steps.reuse.outputs.hit != 'true' && inputs.setup_command != '' }}
         continue-on-error: true
         run: ${{ inputs.setup_command }}
 
       - name: Run standard environment-v1 setup
         id: environment-setup
-        if: ${{ steps.environment.outputs.detected == 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') }}
+        if: ${{ steps.reuse.outputs.hit != 'true' && steps.environment.outputs.detected == 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') }}
         continue-on-error: true
         working-directory: .
         run: bash scripts/codex-environment.sh setup
@@ -149,7 +373,7 @@ jobs:
 
       - name: Build artifact once
         id: build
-        if: ${{ (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') && (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped') }}
+        if: ${{ steps.reuse.outputs.hit != 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') && (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped') }}
         continue-on-error: true
         run: ${{ inputs.build_command }}
 
@@ -159,33 +383,13 @@ jobs:
         working-directory: .
         env:
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
-          ARTIFACT_KEY: ${{ inputs.artifact_key }}
-          SETUP_COMMAND: ${{ inputs.setup_command }}
-          BUILD_COMMAND: ${{ inputs.build_command }}
-          WORKING_DIRECTORY: ${{ inputs.working_directory }}
+          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
         run: |
           set -euo pipefail
-          identity_hash="$(python3 - <<'PY'
-          import hashlib
-          import os
-          value = "\0".join([
-              os.environ["SOURCE_SHA"],
-              os.environ["ARTIFACT_KEY"],
-              os.environ["SETUP_COMMAND"],
-              os.environ["BUILD_COMMAND"],
-              os.environ["WORKING_DIRECTORY"],
-              os.environ.get("RUNNER_OS", ""),
-              os.environ.get("RUNNER_ARCH", ""),
-              os.environ.get("ImageOS", ""),
-              os.environ.get("ImageVersion", ""),
-          ])
-          print(hashlib.sha256(value.encode("utf-8")).hexdigest())
-          PY
-          )"
+          identity_hash="${IDENTITY_DIGEST#sha256:}"
           short_sha="${SOURCE_SHA:0:12}"
           short_identity="${identity_hash:0:12}"
           {
-            echo "identity_digest=sha256:${identity_hash}"
             echo "artifact_name=build-artifact-${short_sha}-${short_identity}-${{ github.run_id }}-${{ github.run_attempt }}"
             echo "receipt_artifact_name=execution-receipt-build-artifact-${short_sha}-${short_identity}-${{ github.run_id }}-${{ github.run_attempt }}"
             echo "receipt_path=.artifacts/reusable-workflows/build-artifact-receipt.json"
@@ -208,6 +412,8 @@ jobs:
         working-directory: .
         env:
           COORDINATES_OUTCOME: ${{ steps.coordinates.outcome }}
+          IDENTITY_OUTCOME: ${{ steps.identity.outcome }}
+          REUSE_HIT: ${{ steps.reuse.outputs.hit }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
           ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
@@ -217,6 +423,11 @@ jobs:
           set -euo pipefail
           outcome=failure
           if [[ "$COORDINATES_OUTCOME" == "success" ]] \
+            && [[ "$IDENTITY_OUTCOME" == "success" ]] \
+            && [[ "$REUSE_HIT" == "true" ]]; then
+            outcome=success
+          elif [[ "$COORDINATES_OUTCOME" == "success" ]] \
+            && [[ "$IDENTITY_OUTCOME" == "success" ]] \
             && [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]] \
             && [[ "$ENVIRONMENT_SETUP_OUTCOME" == "success" || "$ENVIRONMENT_SETUP_OUTCOME" == "skipped" ]] \
             && [[ "$ENVIRONMENT_STATE_OUTCOME" == "success" || "$ENVIRONMENT_STATE_OUTCOME" == "skipped" ]] \
@@ -227,12 +438,12 @@ jobs:
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
 
       - name: Write build execution receipt
-        if: ${{ always() }}
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' }}
         working-directory: .
         env:
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
           ARTIFACT_KEY: ${{ inputs.artifact_key }}
-          IDENTITY_DIGEST: ${{ steps.metadata.outputs.identity_digest }}
+          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
           ARTIFACT_NAME: ${{ steps.metadata.outputs.artifact_name }}
           ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
           RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
@@ -299,13 +510,13 @@ jobs:
 
       - name: Validate Execution Receipt v1
         id: receipt-validation
-        if: ${{ always() }}
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' }}
         working-directory: .
         env:
           RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
           ARTIFACT_KEY: ${{ inputs.artifact_key }}
-          IDENTITY_DIGEST: ${{ steps.metadata.outputs.identity_digest }}
+          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
           OUTCOME: ${{ steps.status.outputs.outcome }}
         run: |
           set -euo pipefail
@@ -339,7 +550,7 @@ jobs:
 
       - name: Upload execution receipt
         id: receipt-upload
-        if: ${{ always() && steps.metadata.outcome == 'success' && steps.receipt-validation.outcome == 'success' }}
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.metadata.outcome == 'success' && steps.receipt-validation.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
@@ -347,7 +558,51 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
 
-      - name: Propagate artifact-build failure
-        if: ${{ steps.status.outputs.outcome != 'success' || steps.receipt-validation.outcome != 'success' || steps.receipt-upload.outcome != 'success' }}
+      - name: Resolve returned artifact coordinates
+        id: result
+        if: ${{ always() }}
         working-directory: .
-        run: exit 1
+        env:
+          REUSE_HIT: ${{ steps.reuse.outputs.hit }}
+          REUSE_PRODUCER_RUN_ID: ${{ steps.reuse.outputs.producer_run_id }}
+          REUSE_RECEIPT_ARTIFACT_NAME: ${{ steps.reuse.outputs.receipt_artifact_name }}
+          REUSE_ARTIFACT_NAME: ${{ steps.reuse.outputs.artifact_name }}
+          REUSE_ARTIFACT_DIGEST: ${{ steps.reuse.outputs.artifact_digest }}
+          BUILT_ARTIFACT_NAME: ${{ steps.metadata.outputs.artifact_name }}
+          BUILT_ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+          BUILT_RECEIPT_ARTIFACT_NAME: ${{ steps.metadata.outputs.receipt_artifact_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$REUSE_HIT" == "true" ]]; then
+            {
+              echo "producer_run_id=$REUSE_PRODUCER_RUN_ID"
+              echo "reused=true"
+              echo "receipt_artifact_name=$REUSE_RECEIPT_ARTIFACT_NAME"
+              echo "artifact_name=$REUSE_ARTIFACT_NAME"
+              echo "artifact_digest=$REUSE_ARTIFACT_DIGEST"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "producer_run_id=$GITHUB_RUN_ID"
+              echo "reused=false"
+              echo "receipt_artifact_name=$BUILT_RECEIPT_ARTIFACT_NAME"
+              echo "artifact_name=$BUILT_ARTIFACT_NAME"
+              echo "artifact_digest=$BUILT_ARTIFACT_DIGEST"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Propagate artifact-build failure
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          OUTCOME: ${{ steps.status.outputs.outcome }}
+          REUSE_HIT: ${{ steps.reuse.outputs.hit }}
+          RECEIPT_VALIDATION_OUTCOME: ${{ steps.receipt-validation.outcome }}
+          RECEIPT_UPLOAD_OUTCOME: ${{ steps.receipt-upload.outcome }}
+        run: |
+          set -euo pipefail
+          test "$OUTCOME" = "success"
+          if [[ "$REUSE_HIT" != "true" ]]; then
+            test "$RECEIPT_VALIDATION_OUTCOME" = "success"
+            test "$RECEIPT_UPLOAD_OUTCOME" = "success"
+          fi
