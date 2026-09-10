@@ -31,6 +31,46 @@ on:
         required: false
         type: string
         default: ""
+      prebuilt_artifact_run_id:
+        description: Exact build-artifact producer run ID. Empty keeps the existing local-build path.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_receipt_name:
+        description: Exact build-artifact Execution Receipt artifact name.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_name:
+        description: Exact immutable build artifact name.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_digest:
+        description: Raw 64-character SHA-256 digest emitted by build-artifact.yml.
+        required: false
+        type: string
+        default: ""
+      prebuilt_source_sha:
+        description: Exact source SHA bound to the prebuilt artifact.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_key:
+        description: Caller-owned semantic artifact key bound to the prebuilt artifact.
+        required: false
+        type: string
+        default: ""
+      prebuilt_identity_digest:
+        description: sha256-prefixed deterministic artifact identity digest.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_destination:
+        description: Repository-root-relative empty/absent destination for verified extraction.
+        required: false
+        type: string
+        default: ""
       e2e_command:
         required: false
         type: string
@@ -119,6 +159,7 @@ jobs:
     outputs:
       artifact_name: ${{ steps.artifact-name.outputs.name }}
     permissions:
+      actions: read
       contents: read
       packages: read
     concurrency:
@@ -133,6 +174,8 @@ jobs:
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.prebuilt_source_sha != '' && inputs.prebuilt_source_sha || github.sha }}
 
       - name: Set artifact name
         id: artifact-name
@@ -143,6 +186,31 @@ jobs:
         run: |
           echo "::error::upload_artifacts_on must be one of: failure, always, never." >&2
           exit 1
+
+      - name: Validate prebuilt artifact coordinates
+        working-directory: .
+        env:
+          RUN_ID: ${{ inputs.prebuilt_artifact_run_id }}
+          RECEIPT_NAME: ${{ inputs.prebuilt_artifact_receipt_name }}
+          ARTIFACT_NAME: ${{ inputs.prebuilt_artifact_name }}
+          ARTIFACT_DIGEST: ${{ inputs.prebuilt_artifact_digest }}
+          SOURCE_SHA: ${{ inputs.prebuilt_source_sha }}
+          ARTIFACT_KEY: ${{ inputs.prebuilt_artifact_key }}
+          IDENTITY_DIGEST: ${{ inputs.prebuilt_identity_digest }}
+          DESTINATION: ${{ inputs.prebuilt_artifact_destination }}
+        run: |
+          set -euo pipefail
+          values=("$RUN_ID" "$RECEIPT_NAME" "$ARTIFACT_NAME" "$ARTIFACT_DIGEST" "$SOURCE_SHA" "$ARTIFACT_KEY" "$IDENTITY_DIGEST" "$DESTINATION")
+          populated=0
+          for value in "${values[@]}"; do
+            if [[ -n "$value" ]]; then
+              populated=$((populated + 1))
+            fi
+          done
+          if [[ "$populated" -ne 0 && "$populated" -ne "${#values[@]}" ]]; then
+            echo "::error::Prebuilt artifact coordinates must be supplied all-or-none." >&2
+            exit 2
+          fi
 
       - name: Set up Bun
         if: ${{ inputs.bun_version != '' }}
@@ -203,8 +271,22 @@ jobs:
         if: ${{ inputs.pre_command != '' }}
         run: ${{ inputs.pre_command }}
 
+      - name: Consume verified prebuilt artifact
+        if: ${{ inputs.prebuilt_artifact_run_id != '' }}
+        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@14d111fe589f21fe7254354713320ab0a832a101
+        with:
+          producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
+          receipt_artifact_name: ${{ inputs.prebuilt_artifact_receipt_name }}
+          artifact_name: ${{ inputs.prebuilt_artifact_name }}
+          artifact_digest: ${{ inputs.prebuilt_artifact_digest }}
+          source_sha: ${{ inputs.prebuilt_source_sha }}
+          artifact_key: ${{ inputs.prebuilt_artifact_key }}
+          identity_digest: ${{ inputs.prebuilt_identity_digest }}
+          destination_path: ${{ inputs.prebuilt_artifact_destination }}
+          github_token: ${{ github.token }}
+
       - name: Build
-        if: ${{ inputs.build_command != '' }}
+        if: ${{ inputs.build_command != '' && inputs.prebuilt_artifact_run_id == '' }}
         run: ${{ inputs.build_command }}
 
       - name: Run e2e tests
