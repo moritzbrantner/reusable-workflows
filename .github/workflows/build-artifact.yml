@@ -1,0 +1,353 @@
+name: Build Artifact
+
+on:
+  workflow_call:
+    inputs:
+      source_sha:
+        description: Exact 40-character consumer commit SHA to build.
+        required: true
+        type: string
+      artifact_key:
+        description: Stable caller-owned semantic identity for the built artifact.
+        required: true
+        type: string
+      working_directory:
+        description: Repository-relative directory in which setup and build commands run.
+        required: false
+        type: string
+        default: "."
+      setup_command:
+        description: Optional repository-owned bootstrap/setup command.
+        required: false
+        type: string
+        default: ""
+      build_command:
+        description: Repository-owned command that builds the artifact exactly once.
+        required: true
+        type: string
+      artifact_paths:
+        description: Newline-separated repository-relative paths that make up the built artifact.
+        required: true
+        type: string
+      timeout_minutes:
+        description: Maximum artifact-build job runtime.
+        required: false
+        type: number
+        default: 45
+      artifact_retention_days:
+        description: Retention period for the built artifact and execution receipt.
+        required: false
+        type: number
+        default: 7
+    outputs:
+      source_sha:
+        description: Exact source commit SHA that was built.
+        value: ${{ jobs.build-artifact.outputs.source_sha }}
+      artifact_key:
+        description: Caller-owned artifact identity carried by this build.
+        value: ${{ jobs.build-artifact.outputs.artifact_key }}
+      artifact_name:
+        description: Name of the uploaded built artifact.
+        value: ${{ jobs.build-artifact.outputs.artifact_name }}
+      artifact_digest:
+        description: SHA-256 digest reported by actions/upload-artifact for the built artifact archive.
+        value: ${{ jobs.build-artifact.outputs.artifact_digest }}
+      identity_digest:
+        description: SHA-256 digest of exact source, caller identity, setup/build commands, working directory, and runner identity.
+        value: ${{ jobs.build-artifact.outputs.identity_digest }}
+      receipt_artifact_name:
+        description: Name of the uploaded Execution Receipt v1 artifact.
+        value: ${{ jobs.build-artifact.outputs.receipt_artifact_name }}
+      receipt_path:
+        description: Repository-relative execution receipt path.
+        value: ${{ jobs.build-artifact.outputs.receipt_path }}
+      outcome:
+        description: Artifact-build outcome before final failure propagation.
+        value: ${{ jobs.build-artifact.outputs.outcome }}
+
+jobs:
+  build-artifact:
+    name: Build Artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ inputs.working_directory }}
+    outputs:
+      source_sha: ${{ steps.coordinates.outputs.source_sha }}
+      artifact_key: ${{ inputs.artifact_key }}
+      artifact_name: ${{ steps.metadata.outputs.artifact_name }}
+      artifact_digest: ${{ steps.artifact.outputs.artifact-digest }}
+      identity_digest: ${{ steps.metadata.outputs.identity_digest }}
+      receipt_artifact_name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+      receipt_path: ${{ steps.metadata.outputs.receipt_path }}
+      outcome: ${{ steps.status.outputs.outcome }}
+    steps:
+      - name: Validate exact source and artifact identity
+        id: coordinates
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          ARTIFACT_KEY: ${{ inputs.artifact_key }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]] || {
+            echo "::error::source_sha must be an exact 40-character commit SHA." >&2
+            exit 2
+          }
+          test -n "$ARTIFACT_KEY" || {
+            echo "::error::artifact_key must not be empty." >&2
+            exit 2
+          }
+          echo "source_sha=${SOURCE_SHA,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Check out exact consumer commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.source_sha }}
+
+      - name: Verify checked-out commit
+        env:
+          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+
+      - name: Detect environment-v1 declaration
+        id: environment
+        working-directory: .
+        run: |
+          set -euo pipefail
+          detected=false
+          if [[ -f .repository-environment.toml && -f scripts/codex-environment.sh ]]; then
+            detected=true
+          fi
+          echo "detected=$detected" >> "$GITHUB_OUTPUT"
+
+      - name: Run repository bootstrap
+        id: bootstrap
+        if: ${{ inputs.setup_command != '' }}
+        continue-on-error: true
+        run: ${{ inputs.setup_command }}
+
+      - name: Run standard environment-v1 setup
+        id: environment-setup
+        if: ${{ steps.environment.outputs.detected == 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') }}
+        continue-on-error: true
+        working-directory: .
+        run: bash scripts/codex-environment.sh setup
+
+      - name: Verify preparation preserves tracked state
+        id: environment-state
+        if: ${{ steps.environment-setup.outcome == 'success' }}
+        continue-on-error: true
+        working-directory: .
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+
+      - name: Build artifact once
+        id: build
+        if: ${{ (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') && (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped') }}
+        continue-on-error: true
+        run: ${{ inputs.build_command }}
+
+      - name: Define immutable artifact metadata
+        id: metadata
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
+          ARTIFACT_KEY: ${{ inputs.artifact_key }}
+          SETUP_COMMAND: ${{ inputs.setup_command }}
+          BUILD_COMMAND: ${{ inputs.build_command }}
+          WORKING_DIRECTORY: ${{ inputs.working_directory }}
+        run: |
+          set -euo pipefail
+          identity_hash="$(python3 - <<'PY'
+          import hashlib
+          import os
+          value = "\0".join([
+              os.environ["SOURCE_SHA"],
+              os.environ["ARTIFACT_KEY"],
+              os.environ["SETUP_COMMAND"],
+              os.environ["BUILD_COMMAND"],
+              os.environ["WORKING_DIRECTORY"],
+              os.environ.get("RUNNER_OS", ""),
+              os.environ.get("RUNNER_ARCH", ""),
+              os.environ.get("ImageOS", ""),
+              os.environ.get("ImageVersion", ""),
+          ])
+          print(hashlib.sha256(value.encode("utf-8")).hexdigest())
+          PY
+          )"
+          short_sha="${SOURCE_SHA:0:12}"
+          short_identity="${identity_hash:0:12}"
+          {
+            echo "identity_digest=sha256:${identity_hash}"
+            echo "artifact_name=build-artifact-${short_sha}-${short_identity}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_artifact_name=execution-receipt-build-artifact-${short_sha}-${short_identity}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "receipt_path=.artifacts/reusable-workflows/build-artifact-receipt.json"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload built artifact
+        id: artifact
+        if: ${{ steps.build.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.metadata.outputs.artifact_name }}
+          path: ${{ inputs.artifact_paths }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Determine artifact-build outcome
+        id: status
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          COORDINATES_OUTCOME: ${{ steps.coordinates.outcome }}
+          BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
+          ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
+          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
+        run: |
+          set -euo pipefail
+          outcome=failure
+          if [[ "$COORDINATES_OUTCOME" == "success" ]] \
+            && [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]] \
+            && [[ "$ENVIRONMENT_SETUP_OUTCOME" == "success" || "$ENVIRONMENT_SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$ENVIRONMENT_STATE_OUTCOME" == "success" || "$ENVIRONMENT_STATE_OUTCOME" == "skipped" ]] \
+            && [[ "$BUILD_OUTCOME" == "success" ]] \
+            && [[ "$ARTIFACT_OUTCOME" == "success" ]]; then
+            outcome=success
+          fi
+          echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+      - name: Write build execution receipt
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
+          ARTIFACT_KEY: ${{ inputs.artifact_key }}
+          IDENTITY_DIGEST: ${{ steps.metadata.outputs.identity_digest }}
+          ARTIFACT_NAME: ${{ steps.metadata.outputs.artifact_name }}
+          ARTIFACT_DIGEST: ${{ steps.artifact.outputs.artifact-digest }}
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+          OUTCOME: ${{ steps.status.outputs.outcome }}
+          COORDINATES_OUTCOME: ${{ steps.coordinates.outcome }}
+          BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
+          ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
+          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
+          BUILD_OUTCOME: ${{ steps.build.outcome }}
+          ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$RECEIPT_PATH")"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          artifact_digest = os.environ.get("ARTIFACT_DIGEST") or None
+          receipt = {
+              "schemaVersion": 1,
+              "kind": "reusable-workflows/execution-receipt",
+              "capability": {"name": "build-artifact", "interfaceVersion": 1},
+              "source": {
+                  "repository": os.environ["GITHUB_REPOSITORY"],
+                  "sha": os.environ["SOURCE_SHA"].lower(),
+              },
+              "result": {
+                  "outcome": os.environ["OUTCOME"],
+                  "steps": {
+                      "coordinates": os.environ["COORDINATES_OUTCOME"],
+                      "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
+                      "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
+                      "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
+                      "build": os.environ["BUILD_OUTCOME"],
+                      "artifactUpload": os.environ["ARTIFACT_OUTCOME"],
+                  },
+              },
+              "evidence": [
+                  {
+                      "role": "built-artifact",
+                      "name": os.environ["ARTIFACT_NAME"],
+                      "path": None,
+                      "digest": f"sha256:{artifact_digest}" if artifact_digest else None,
+                  },
+                  {
+                      "role": "artifact-identity",
+                      "name": os.environ["ARTIFACT_KEY"],
+                      "path": None,
+                      "digest": os.environ["IDENTITY_DIGEST"],
+                  },
+              ],
+              "run": {
+                  "id": os.environ["GITHUB_RUN_ID"],
+                  "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+                  "callerWorkflowRef": os.environ.get("GITHUB_WORKFLOW_REF"),
+              },
+          }
+          Path(os.environ["RECEIPT_PATH"]).write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Validate Execution Receipt v1
+        id: receipt-validation
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
+          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
+          ARTIFACT_KEY: ${{ inputs.artifact_key }}
+          IDENTITY_DIGEST: ${{ steps.metadata.outputs.identity_digest }}
+          OUTCOME: ${{ steps.status.outputs.outcome }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
+              receipt = json.load(handle)
+
+          outcomes = {"success", "failure", "cancelled", "skipped"}
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "build-artifact", "interfaceVersion": 1}
+          assert receipt["source"]["sha"] == os.environ["SOURCE_SHA"]
+          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
+          assert receipt["result"]["outcome"] == os.environ["OUTCOME"]
+          assert all(value in outcomes for value in receipt["result"]["steps"].values())
+          evidence = receipt["evidence"]
+          assert len(evidence) == 2
+          artifact = next(item for item in evidence if item["role"] == "built-artifact")
+          identity = next(item for item in evidence if item["role"] == "artifact-identity")
+          assert identity["name"] == os.environ["ARTIFACT_KEY"]
+          assert identity["digest"] == os.environ["IDENTITY_DIGEST"]
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", identity["digest"])
+          assert artifact["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", artifact["digest"])
+          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
+          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
+          PY
+
+      - name: Upload execution receipt
+        id: receipt-upload
+        if: ${{ always() && steps.metadata.outcome == 'success' && steps.receipt-validation.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+          path: ${{ steps.metadata.outputs.receipt_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Propagate artifact-build failure
+        if: ${{ steps.status.outputs.outcome != 'success' || steps.receipt-validation.outcome != 'success' || steps.receipt-upload.outcome != 'success' }}
+        working-directory: .
+        run: exit 1
