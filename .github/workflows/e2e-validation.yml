@@ -273,7 +273,6 @@ jobs:
 
       - name: Consume verified prebuilt artifact
         if: ${{ inputs.prebuilt_artifact_run_id != '' }}
-        working-directory: .
         uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@14d111fe589f21fe7254354713320ab0a832a101
         with:
           producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
