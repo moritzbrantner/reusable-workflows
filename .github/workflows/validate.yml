@@ -103,10 +103,13 @@ jobs:
     permissions:
       actions: read
       contents: read
+      packages: read
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_key: reusable-workflows-web-dist-v1
-      setup_command: "npm install --global bun@1.4.0 && bun install --frozen-lockfile"
+      bun_version: "1.4.0"
+      cache_bun: true
+      setup_command: "bun install --frozen-lockfile"
       build_command: "bun run build"
       artifact_paths: dist
       reuse_across_runs: true
