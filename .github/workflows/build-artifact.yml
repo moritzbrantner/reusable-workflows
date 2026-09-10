@@ -52,6 +52,9 @@ on:
       artifact_digest:
         description: SHA-256 digest reported by actions/upload-artifact for the built artifact archive.
         value: ${{ jobs.build-artifact.outputs.artifact_digest }}
+      identity_digest:
+        description: SHA-256 digest of exact source, caller identity, setup/build commands, working directory, and runner identity.
+        value: ${{ jobs.build-artifact.outputs.identity_digest }}
       receipt_artifact_name:
         description: Name of the uploaded Execution Receipt v1 artifact.
         value: ${{ jobs.build-artifact.outputs.receipt_artifact_name }}
@@ -78,6 +81,7 @@ jobs:
       artifact_key: ${{ inputs.artifact_key }}
       artifact_name: ${{ steps.metadata.outputs.artifact_name }}
       artifact_digest: ${{ steps.artifact.outputs.artifact-digest }}
+      identity_digest: ${{ steps.metadata.outputs.identity_digest }}
       receipt_artifact_name: ${{ steps.metadata.outputs.receipt_artifact_name }}
       receipt_path: ${{ steps.metadata.outputs.receipt_path }}
       outcome: ${{ steps.status.outputs.outcome }}
@@ -156,6 +160,7 @@ jobs:
         env:
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
           ARTIFACT_KEY: ${{ inputs.artifact_key }}
+          SETUP_COMMAND: ${{ inputs.setup_command }}
           BUILD_COMMAND: ${{ inputs.build_command }}
           WORKING_DIRECTORY: ${{ inputs.working_directory }}
         run: |
@@ -164,11 +169,15 @@ jobs:
           import hashlib
           import os
           value = "\0".join([
+              os.environ["SOURCE_SHA"],
               os.environ["ARTIFACT_KEY"],
+              os.environ["SETUP_COMMAND"],
               os.environ["BUILD_COMMAND"],
               os.environ["WORKING_DIRECTORY"],
               os.environ.get("RUNNER_OS", ""),
               os.environ.get("RUNNER_ARCH", ""),
+              os.environ.get("ImageOS", ""),
+              os.environ.get("ImageVersion", ""),
           ])
           print(hashlib.sha256(value.encode("utf-8")).hexdigest())
           PY
