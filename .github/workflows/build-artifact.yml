@@ -64,7 +64,7 @@ on:
         description: SHA-256 digest reported by actions/upload-artifact for the built artifact archive.
         value: ${{ jobs.build-artifact.outputs.artifact_digest }}
       identity_digest:
-        description: SHA-256 digest of exact source, caller identity, setup/build commands, artifact paths, working directory, and runner identity.
+        description: SHA-256 digest of exact source, caller identity, setup/build commands, artifact paths, working directory, and stable runner platform identity.
         value: ${{ jobs.build-artifact.outputs.identity_digest }}
       receipt_artifact_name:
         description: Name of the verified Execution Receipt v1 artifact associated with the returned artifact.
@@ -144,7 +144,7 @@ jobs:
           import hashlib
           import os
           value = "\0".join([
-              "build-artifact-identity-v2",
+              "build-artifact-identity-v3",
               os.environ["SOURCE_SHA"],
               os.environ["ARTIFACT_KEY"],
               os.environ["SETUP_COMMAND"],
@@ -154,7 +154,6 @@ jobs:
               os.environ.get("RUNNER_OS", ""),
               os.environ.get("RUNNER_ARCH", ""),
               os.environ.get("ImageOS", ""),
-              os.environ.get("ImageVersion", ""),
           ])
           print(hashlib.sha256(value.encode("utf-8")).hexdigest())
           PY
