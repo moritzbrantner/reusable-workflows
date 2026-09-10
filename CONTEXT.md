@@ -40,6 +40,9 @@ Caller-owned policy for when validation, qualification, promotion, or delivery r
 **Environment Integrity Canary**  
 `environment-v1-canary.yml`, which verifies the standard environment-v1 setup is idempotent over tracked state and reconstructs the declared semantic environment.
 
+**Build Artifact Adapter**  
+`build-artifact.yml`, an ordinary-CI producer for one exact source SHA. It runs a caller-owned build command exactly once, preserves the artifact with its archive digest, binds caller-owned semantic identity plus runner/build context into deterministic identity evidence, and emits Execution Receipt v1. It does not qualify a release, promote, publish, or deploy.
+
 **Release Qualification Adapter**  
 `release-qualification.yml`, which qualifies one exact consumer commit, builds the candidate once, and transports the artifact plus exact-source provenance and Execution Receipt v1. It may accept one opaque `build_token`; that secret is exposed only to the repository-owned build command as `RELEASE_BUILD_TOKEN`. The adapter does not know what external builder or credential the consumer maps that token to.
 
@@ -74,15 +77,16 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 6. `public-contract-validation.yml` standardizes transport/location, not evidence meaning.
 7. `environment-v1-canary.yml` owns only the hosted pre/setup/post sequence and must use the standard environment-v1 setup seam.
 8. `fast-validation.yml` remains a stable Node/Bun convenience adapter, not the generic abstraction.
-9. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport evidence.
-10. Publication and release workflows are terminal optional operations, not development prerequisites.
-11. `release-qualification.yml` binds repository-owned qualification/build commands to one exact source SHA and candidate. Its only optional credential seam is `build_token`, scoped to the build step; it must not acquire product-specific publication authority.
-12. `artifact-promotion.yml` selects only a previously successful qualified artifact by exact run/receipt reference and must verify the original archive and qualification provenance before promotion.
-13. `deploy-qualified-pages.yml` deploys only the artifact identified by a successful promotion receipt and cannot accept build/runtime/install inputs.
-14. `deliver-qualified-expo-stores.yml` delivers only a promoted artifact containing a verified mobile release manifest and exact binary digests. It may install an exact EAS CLI for submission but cannot invoke `eas build`, accept a build command, or use `--latest`.
-15. Store identity, App Store Connect/Play Console metadata, EAS build/submit profiles, TestFlight groups, Play tracks/rollouts, and final public exposure remain caller/application policy.
-16. Concurrency policy belongs in caller workflows unless an API/persistent writer requires capability-local serialization.
-17. `toolchain-refresh.yml` owns only hosted freshness orchestration; toolchain semantics and acceptance stay with platform-upgrader/environment-v1/the consumer.
+9. `build-artifact.yml` may build and preserve one exact-source ordinary-CI artifact, but it must not acquire validation semantics, release qualification, promotion, publication, or deployment policy. Reuse consumers must verify the preserved identity instead of silently rebuilding.
+10. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport evidence.
+11. Publication and release workflows are terminal optional operations, not development prerequisites.
+12. `release-qualification.yml` binds repository-owned qualification/build commands to one exact source SHA and candidate. Its only optional credential seam is `build_token`, scoped to the build step; it must not acquire product-specific publication authority.
+13. `artifact-promotion.yml` selects only a previously successful qualified artifact by exact run/receipt reference and must verify the original archive and qualification provenance before promotion.
+14. `deploy-qualified-pages.yml` deploys only the artifact identified by a successful promotion receipt and cannot accept build/runtime/install inputs.
+15. `deliver-qualified-expo-stores.yml` delivers only a promoted artifact containing a verified mobile release manifest and exact binary digests. It may install an exact EAS CLI for submission but cannot invoke `eas build`, accept a build command, or use `--latest`.
+16. Store identity, App Store Connect/Play Console metadata, EAS build/submit profiles, TestFlight groups, Play tracks/rollouts, and final public exposure remain caller/application policy.
+17. Concurrency policy belongs in caller workflows unless an API/persistent writer requires capability-local serialization.
+18. `toolchain-refresh.yml` owns only hosted freshness orchestration; toolchain semantics and acceptance stay with platform-upgrader/environment-v1/the consumer.
 
 ## Capability classes
 
@@ -93,6 +97,7 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 - `coding-tooling-score-history.yml`
 - `public-contract-validation.yml`
 - `environment-v1-canary.yml`
+- `build-artifact.yml`
 - `fast-validation.yml`
 
 ### Specialized / transitional validation
