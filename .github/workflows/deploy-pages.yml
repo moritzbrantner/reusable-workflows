@@ -35,6 +35,41 @@ on:
         required: false
         type: string
         default: "dist"
+      prebuilt_artifact_run_id:
+        description: Exact build-artifact producer run ID. Empty keeps the existing local-build path.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_receipt_name:
+        description: Exact build-artifact Execution Receipt artifact name.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_name:
+        description: Exact immutable build artifact name.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_digest:
+        description: Raw 64-character SHA-256 digest emitted by build-artifact.yml.
+        required: false
+        type: string
+        default: ""
+      prebuilt_source_sha:
+        description: Exact source SHA bound to the prebuilt artifact.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_key:
+        description: Caller-owned semantic artifact key bound to the prebuilt artifact.
+        required: false
+        type: string
+        default: ""
+      prebuilt_identity_digest:
+        description: sha256-prefixed deterministic artifact identity digest.
+        required: false
+        type: string
+        default: ""
       timeout_minutes:
         required: false
         type: number
@@ -98,21 +133,47 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.prebuilt_source_sha != '' && inputs.prebuilt_source_sha || github.sha }}
+
+      - name: Validate prebuilt artifact coordinates
+        working-directory: .
+        env:
+          RUN_ID: ${{ inputs.prebuilt_artifact_run_id }}
+          RECEIPT_NAME: ${{ inputs.prebuilt_artifact_receipt_name }}
+          ARTIFACT_NAME: ${{ inputs.prebuilt_artifact_name }}
+          ARTIFACT_DIGEST: ${{ inputs.prebuilt_artifact_digest }}
+          SOURCE_SHA: ${{ inputs.prebuilt_source_sha }}
+          ARTIFACT_KEY: ${{ inputs.prebuilt_artifact_key }}
+          IDENTITY_DIGEST: ${{ inputs.prebuilt_identity_digest }}
+        run: |
+          set -euo pipefail
+          values=("$RUN_ID" "$RECEIPT_NAME" "$ARTIFACT_NAME" "$ARTIFACT_DIGEST" "$SOURCE_SHA" "$ARTIFACT_KEY" "$IDENTITY_DIGEST")
+          populated=0
+          for value in "${values[@]}"; do
+            if [[ -n "$value" ]]; then
+              populated=$((populated + 1))
+            fi
+          done
+          if [[ "$populated" -ne 0 && "$populated" -ne "${#values[@]}" ]]; then
+            echo "::error::Prebuilt artifact coordinates must be supplied all-or-none." >&2
+            exit 2
+          fi
 
       - name: Set up Bun
-        if: ${{ inputs.bun_version != '' }}
+        if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.bun_version != '' }}
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: ${{ inputs.bun_version }}
 
       - name: Set up Node.js
-        if: ${{ inputs.node_version != '' }}
+        if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.node_version != '' }}
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ inputs.node_version }}
 
       - name: Cache Bun
-        if: ${{ inputs.cache_bun }}
+        if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.cache_bun }}
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ~/.bun/install/cache
@@ -121,7 +182,7 @@ jobs:
             ${{ runner.os }}-bun-
 
       - name: Cache npm
-        if: ${{ inputs.cache_node }}
+        if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.cache_node }}
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
         with:
           path: ~/.npm
@@ -133,15 +194,29 @@ jobs:
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 
       - name: Install dependencies
-        if: ${{ inputs.install_command != '' }}
+        if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
 
       - name: Run pre-command
-        if: ${{ inputs.pre_command != '' }}
+        if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.pre_command != '' }}
         run: ${{ inputs.pre_command }}
 
+      - name: Consume verified prebuilt artifact
+        if: ${{ inputs.prebuilt_artifact_run_id != '' }}
+        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@956c234b40cd834e3fa7601e372decff43417456
+        with:
+          producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
+          receipt_artifact_name: ${{ inputs.prebuilt_artifact_receipt_name }}
+          artifact_name: ${{ inputs.prebuilt_artifact_name }}
+          artifact_digest: ${{ inputs.prebuilt_artifact_digest }}
+          source_sha: ${{ inputs.prebuilt_source_sha }}
+          artifact_key: ${{ inputs.prebuilt_artifact_key }}
+          identity_digest: ${{ inputs.prebuilt_identity_digest }}
+          destination_path: ${{ inputs.working_directory == '.' && inputs.artifact_path || format('{0}/{1}', inputs.working_directory, inputs.artifact_path) }}
+          github_token: ${{ github.token }}
+
       - name: Build
-        if: ${{ inputs.build_command != '' }}
+        if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.build_command != '' }}
         run: ${{ inputs.build_command }}
 
       - name: Upload Pages artifact
