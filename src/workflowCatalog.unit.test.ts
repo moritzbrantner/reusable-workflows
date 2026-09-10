@@ -46,7 +46,7 @@ describe("workflow catalog", () => {
     );
   });
 
-  test("parses deploy-pages.yml job metadata and contract inputs", () => {
+  test("parses deploy-pages.yml job metadata and frozen contract inputs", () => {
     const deployPagesWorkflow = parsedWorkflowsByFile.get(".github/workflows/deploy-pages.yml");
 
     expect(deployPagesWorkflow?.yamlName).toBe("Deploy Pages");
@@ -57,7 +57,7 @@ describe("workflow catalog", () => {
         id: "deploy-pages",
         name: "Deploy Pages",
         runsOn: "ubuntu-latest",
-        stepCount: 11,
+        stepCount: 13,
       }),
     ]);
   });
