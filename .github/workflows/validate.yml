@@ -96,8 +96,8 @@ jobs:
     if: >-
       ${{
         (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_link_validation)) ||
-        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:e2e') || contains(github.event.pull_request.labels.*.name, 'ci:links')))
+        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_storybook || inputs.run_link_validation)) ||
+        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:e2e') || contains(github.event.pull_request.labels.*.name, 'ci:storybook') || contains(github.event.pull_request.labels.*.name, 'ci:links')))
       }}
     uses: ./.github/workflows/build-artifact.yml
     permissions:
@@ -143,19 +143,30 @@ jobs:
         test-results
 
   storybook-validation:
-    needs: [app-validation, actionlint]
+    needs: [artifact-build]
     if: >-
       ${{
-        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_storybook)) ||
-        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:storybook')))
+        !cancelled() && needs.artifact-build.result == 'success' && (
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_storybook)) ||
+          (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:storybook')))
+        )
       }}
     uses: ./.github/workflows/storybook-validation.yml
     permissions:
+      actions: read
       contents: read
       packages: read
     with:
-      pre_command: "bun run build"
+      prebuilt_artifact_run_id: ${{ github.run_id }}
+      prebuilt_artifact_receipt_name: ${{ needs.artifact-build.outputs.receipt_artifact_name }}
+      prebuilt_artifact_name: ${{ needs.artifact-build.outputs.artifact_name }}
+      prebuilt_artifact_digest: ${{ needs.artifact-build.outputs.artifact_digest }}
+      prebuilt_source_sha: ${{ needs.artifact-build.outputs.source_sha }}
+      prebuilt_artifact_key: ${{ needs.artifact-build.outputs.artifact_key }}
+      prebuilt_identity_digest: ${{ needs.artifact-build.outputs.identity_digest }}
+      prebuilt_artifact_destination: dist
+      pre_command: ""
       storybook_build_command: "bun run storybook:build"
       storybook_test_command: "bun run test:storybook"
       accessibility_command: "bun run test:a11y:dist"
