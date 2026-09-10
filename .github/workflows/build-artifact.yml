@@ -16,6 +16,36 @@ on:
         required: false
         type: string
         default: "."
+      node_version:
+        description: Optional exact or semver-compatible Node.js version to install before setup/build on a cache miss.
+        required: false
+        type: string
+        default: ""
+      bun_version:
+        description: Optional exact or semver-compatible Bun version to install before setup/build on a cache miss.
+        required: false
+        type: string
+        default: ""
+      cache_bun:
+        description: Cache Bun's package cache on build misses.
+        required: false
+        type: boolean
+        default: false
+      bun_cache_dependency_path:
+        description: Lockfile glob used to key the Bun package cache.
+        required: false
+        type: string
+        default: "**/bun.lock"
+      cache_node:
+        description: Cache npm's package cache on build misses.
+        required: false
+        type: boolean
+        default: false
+      npm_cache_dependency_path:
+        description: Lockfile glob used to key the npm package cache.
+        required: false
+        type: string
+        default: "**/package-lock.json"
       setup_command:
         description: Optional repository-owned bootstrap/setup command.
         required: false
@@ -44,6 +74,11 @@ on:
         required: false
         type: number
         default: 7
+    secrets:
+      node_auth_token:
+        required: false
+      GH_PACKAGES_TOKEN:
+        required: false
     outputs:
       source_sha:
         description: Exact source commit SHA that was built.
@@ -64,7 +99,7 @@ on:
         description: SHA-256 digest reported by actions/upload-artifact for the built artifact archive.
         value: ${{ jobs.build-artifact.outputs.artifact_digest }}
       identity_digest:
-        description: SHA-256 digest of exact source, caller identity, setup/build commands, artifact paths, working directory, and stable runner platform identity.
+        description: SHA-256 digest of exact source, caller identity, runtime versions, setup/build commands, artifact paths, working directory, and stable runner platform identity.
         value: ${{ jobs.build-artifact.outputs.identity_digest }}
       receipt_artifact_name:
         description: Name of the verified Execution Receipt v1 artifact associated with the returned artifact.
@@ -84,10 +119,14 @@ jobs:
     permissions:
       actions: read
       contents: read
+      packages: read
     defaults:
       run:
         shell: bash
         working-directory: ${{ inputs.working_directory }}
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     outputs:
       source_sha: ${{ steps.coordinates.outputs.source_sha }}
       artifact_key: ${{ inputs.artifact_key }}
@@ -134,6 +173,8 @@ jobs:
         env:
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
           ARTIFACT_KEY: ${{ inputs.artifact_key }}
+          NODE_VERSION: ${{ inputs.node_version }}
+          BUN_VERSION: ${{ inputs.bun_version }}
           SETUP_COMMAND: ${{ inputs.setup_command }}
           BUILD_COMMAND: ${{ inputs.build_command }}
           ARTIFACT_PATHS: ${{ inputs.artifact_paths }}
@@ -144,9 +185,11 @@ jobs:
           import hashlib
           import os
           value = "\0".join([
-              "build-artifact-identity-v3",
+              "build-artifact-identity-v4",
               os.environ["SOURCE_SHA"],
               os.environ["ARTIFACT_KEY"],
+              os.environ["NODE_VERSION"],
+              os.environ["BUN_VERSION"],
               os.environ["SETUP_COMMAND"],
               os.environ["BUILD_COMMAND"],
               os.environ["ARTIFACT_PATHS"],
@@ -337,6 +380,40 @@ jobs:
               handle.write(f"artifact_digest={raw_digest}\n")
           PY
 
+      - name: Set up Bun
+        id: bun-setup
+        if: ${{ steps.reuse.outputs.hit != 'true' && inputs.bun_version != '' }}
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ inputs.bun_version }}
+
+      - name: Set up Node.js
+        id: node-setup
+        if: ${{ steps.reuse.outputs.hit != 'true' && inputs.node_version != '' }}
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Cache Bun
+        id: bun-cache
+        if: ${{ steps.reuse.outputs.hit != 'true' && inputs.cache_bun }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - name: Cache npm
+        id: npm-cache
+        if: ${{ steps.reuse.outputs.hit != 'true' && inputs.cache_node }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
+          restore-keys: |
+            ${{ runner.os }}-npm-
+
       - name: Detect environment-v1 declaration
         id: environment
         working-directory: .
@@ -414,6 +491,10 @@ jobs:
           COORDINATES_OUTCOME: ${{ steps.coordinates.outcome }}
           IDENTITY_OUTCOME: ${{ steps.identity.outcome }}
           REUSE_HIT: ${{ steps.reuse.outputs.hit }}
+          BUN_SETUP_OUTCOME: ${{ steps.bun-setup.outcome }}
+          NODE_SETUP_OUTCOME: ${{ steps.node-setup.outcome }}
+          BUN_CACHE_OUTCOME: ${{ steps.bun-cache.outcome }}
+          NPM_CACHE_OUTCOME: ${{ steps.npm-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
           ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
@@ -428,6 +509,10 @@ jobs:
             outcome=success
           elif [[ "$COORDINATES_OUTCOME" == "success" ]] \
             && [[ "$IDENTITY_OUTCOME" == "success" ]] \
+            && [[ "$BUN_SETUP_OUTCOME" == "success" || "$BUN_SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$NODE_SETUP_OUTCOME" == "success" || "$NODE_SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$BUN_CACHE_OUTCOME" == "success" || "$BUN_CACHE_OUTCOME" == "skipped" ]] \
+            && [[ "$NPM_CACHE_OUTCOME" == "success" || "$NPM_CACHE_OUTCOME" == "skipped" ]] \
             && [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]] \
             && [[ "$ENVIRONMENT_SETUP_OUTCOME" == "success" || "$ENVIRONMENT_SETUP_OUTCOME" == "skipped" ]] \
             && [[ "$ENVIRONMENT_STATE_OUTCOME" == "success" || "$ENVIRONMENT_STATE_OUTCOME" == "skipped" ]] \
@@ -449,6 +534,10 @@ jobs:
           RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
           OUTCOME: ${{ steps.status.outputs.outcome }}
           COORDINATES_OUTCOME: ${{ steps.coordinates.outcome }}
+          BUN_SETUP_OUTCOME: ${{ steps.bun-setup.outcome }}
+          NODE_SETUP_OUTCOME: ${{ steps.node-setup.outcome }}
+          BUN_CACHE_OUTCOME: ${{ steps.bun-cache.outcome }}
+          NPM_CACHE_OUTCOME: ${{ steps.npm-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
           ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
@@ -475,6 +564,10 @@ jobs:
                   "outcome": os.environ["OUTCOME"],
                   "steps": {
                       "coordinates": os.environ["COORDINATES_OUTCOME"],
+                      "bunSetup": os.environ["BUN_SETUP_OUTCOME"],
+                      "nodeSetup": os.environ["NODE_SETUP_OUTCOME"],
+                      "bunCache": os.environ["BUN_CACHE_OUTCOME"],
+                      "npmCache": os.environ["NPM_CACHE_OUTCOME"],
                       "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
                       "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
                       "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
