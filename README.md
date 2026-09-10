@@ -58,6 +58,7 @@ source development -> local validation -> done
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
 - `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
+- `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA, runs one repository-owned build command exactly once, uploads the resulting artifact, and emits source-bound artifact identity plus Execution Receipt v1. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
 
 ### Specialized / transitional validation
@@ -116,6 +117,8 @@ jobs:
 ```
 
 For repositories using `coding-tooling`, prefer `coding-tooling-validation.yml` so hosted execution delegates to the same semantic interface used locally.
+
+`build-artifact.yml` is intentionally separate from validation semantics. A caller supplies an exact source SHA, a stable artifact key, preparation if needed, the one build command, and the paths to preserve. Downstream consumers should use the resulting artifact name/digest/receipt rather than rerun the same build when their semantics operate on those exact bytes.
 
 ## Immutable release usage
 
