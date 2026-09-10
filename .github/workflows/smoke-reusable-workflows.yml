@@ -47,7 +47,7 @@ jobs:
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_key: reusable-workflows-smoke-artifact-v1
-      setup_command: ""
+      setup_command: "npm install --global bun@1.4.0"
       build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
       artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
       artifact_retention_days: 1
