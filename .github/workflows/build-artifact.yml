@@ -26,6 +26,16 @@ on:
         required: false
         type: string
         default: ""
+      rust_toolchain:
+        description: Optional Rust toolchain to install before setup/build on a cache miss.
+        required: false
+        type: string
+        default: ""
+      rust_targets:
+        description: Optional comma-separated Rust compilation targets to install with rust_toolchain.
+        required: false
+        type: string
+        default: ""
       cache_bun:
         description: Cache Bun's package cache on build misses.
         required: false
@@ -46,6 +56,11 @@ on:
         required: false
         type: string
         default: "**/package-lock.json"
+      use_environment_v1:
+        description: Run the repository's environment-v1 setup on build misses when it is declared.
+        required: false
+        type: boolean
+        default: true
       setup_command:
         description: Optional repository-owned bootstrap/setup command.
         required: false
@@ -99,7 +114,7 @@ on:
         description: SHA-256 digest reported by actions/upload-artifact for the built artifact archive.
         value: ${{ jobs.build-artifact.outputs.artifact_digest }}
       identity_digest:
-        description: SHA-256 digest of exact source, caller identity, runtime versions, setup/build commands, artifact paths, working directory, and stable runner platform identity.
+        description: SHA-256 digest of exact source, caller identity, runtime versions, environment policy, setup/build commands, artifact paths, working directory, and stable runner platform identity.
         value: ${{ jobs.build-artifact.outputs.identity_digest }}
       receipt_artifact_name:
         description: Name of the verified Execution Receipt v1 artifact associated with the returned artifact.
@@ -175,6 +190,9 @@ jobs:
           ARTIFACT_KEY: ${{ inputs.artifact_key }}
           NODE_VERSION: ${{ inputs.node_version }}
           BUN_VERSION: ${{ inputs.bun_version }}
+          RUST_TOOLCHAIN: ${{ inputs.rust_toolchain }}
+          RUST_TARGETS: ${{ inputs.rust_targets }}
+          USE_ENVIRONMENT_V1: ${{ inputs.use_environment_v1 }}
           SETUP_COMMAND: ${{ inputs.setup_command }}
           BUILD_COMMAND: ${{ inputs.build_command }}
           ARTIFACT_PATHS: ${{ inputs.artifact_paths }}
@@ -185,11 +203,14 @@ jobs:
           import hashlib
           import os
           value = "\0".join([
-              "build-artifact-identity-v4",
+              "build-artifact-identity-v5",
               os.environ["SOURCE_SHA"],
               os.environ["ARTIFACT_KEY"],
               os.environ["NODE_VERSION"],
               os.environ["BUN_VERSION"],
+              os.environ["RUST_TOOLCHAIN"],
+              os.environ["RUST_TARGETS"],
+              os.environ["USE_ENVIRONMENT_V1"],
               os.environ["SETUP_COMMAND"],
               os.environ["BUILD_COMMAND"],
               os.environ["ARTIFACT_PATHS"],
@@ -394,6 +415,14 @@ jobs:
         with:
           node-version: ${{ inputs.node_version }}
 
+      - name: Set up Rust
+        id: rust-setup
+        if: ${{ steps.reuse.outputs.hit != 'true' && inputs.rust_toolchain != '' }}
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        with:
+          toolchain: ${{ inputs.rust_toolchain }}
+          targets: ${{ inputs.rust_targets }}
+
       - name: Cache Bun
         id: bun-cache
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.cache_bun }}
@@ -417,10 +446,12 @@ jobs:
       - name: Detect environment-v1 declaration
         id: environment
         working-directory: .
+        env:
+          USE_ENVIRONMENT_V1: ${{ inputs.use_environment_v1 }}
         run: |
           set -euo pipefail
           detected=false
-          if [[ -f .repository-environment.toml && -f scripts/codex-environment.sh ]]; then
+          if [[ "$USE_ENVIRONMENT_V1" == "true" && -f .repository-environment.toml && -f scripts/codex-environment.sh ]]; then
             detected=true
           fi
           echo "detected=$detected" >> "$GITHUB_OUTPUT"
@@ -450,7 +481,7 @@ jobs:
 
       - name: Build artifact once
         id: build
-        if: ${{ steps.reuse.outputs.hit != 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') && (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped') }}
+        if: ${{ steps.reuse.outputs.hit != 'true' && (steps.bun-setup.outcome == 'success' || steps.bun-setup.outcome == 'skipped') && (steps.node-setup.outcome == 'success' || steps.node-setup.outcome == 'skipped') && (steps.rust-setup.outcome == 'success' || steps.rust-setup.outcome == 'skipped') && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') && (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped') }}
         continue-on-error: true
         run: ${{ inputs.build_command }}
 
@@ -493,6 +524,7 @@ jobs:
           REUSE_HIT: ${{ steps.reuse.outputs.hit }}
           BUN_SETUP_OUTCOME: ${{ steps.bun-setup.outcome }}
           NODE_SETUP_OUTCOME: ${{ steps.node-setup.outcome }}
+          RUST_SETUP_OUTCOME: ${{ steps.rust-setup.outcome }}
           BUN_CACHE_OUTCOME: ${{ steps.bun-cache.outcome }}
           NPM_CACHE_OUTCOME: ${{ steps.npm-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
@@ -511,6 +543,7 @@ jobs:
             && [[ "$IDENTITY_OUTCOME" == "success" ]] \
             && [[ "$BUN_SETUP_OUTCOME" == "success" || "$BUN_SETUP_OUTCOME" == "skipped" ]] \
             && [[ "$NODE_SETUP_OUTCOME" == "success" || "$NODE_SETUP_OUTCOME" == "skipped" ]] \
+            && [[ "$RUST_SETUP_OUTCOME" == "success" || "$RUST_SETUP_OUTCOME" == "skipped" ]] \
             && [[ "$BUN_CACHE_OUTCOME" == "success" || "$BUN_CACHE_OUTCOME" == "skipped" ]] \
             && [[ "$NPM_CACHE_OUTCOME" == "success" || "$NPM_CACHE_OUTCOME" == "skipped" ]] \
             && [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]] \
@@ -536,6 +569,7 @@ jobs:
           COORDINATES_OUTCOME: ${{ steps.coordinates.outcome }}
           BUN_SETUP_OUTCOME: ${{ steps.bun-setup.outcome }}
           NODE_SETUP_OUTCOME: ${{ steps.node-setup.outcome }}
+          RUST_SETUP_OUTCOME: ${{ steps.rust-setup.outcome }}
           BUN_CACHE_OUTCOME: ${{ steps.bun-cache.outcome }}
           NPM_CACHE_OUTCOME: ${{ steps.npm-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
@@ -566,6 +600,7 @@ jobs:
                       "coordinates": os.environ["COORDINATES_OUTCOME"],
                       "bunSetup": os.environ["BUN_SETUP_OUTCOME"],
                       "nodeSetup": os.environ["NODE_SETUP_OUTCOME"],
+                      "rustSetup": os.environ["RUST_SETUP_OUTCOME"],
                       "bunCache": os.environ["BUN_CACHE_OUTCOME"],
                       "npmCache": os.environ["NPM_CACHE_OUTCOME"],
                       "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
