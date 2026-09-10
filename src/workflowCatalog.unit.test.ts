@@ -52,19 +52,20 @@ describe("workflow catalog", () => {
     expect(deployPagesWorkflow?.yamlName).toBe("Deploy Pages");
     expect(deployPagesWorkflow?.triggers).toEqual(["workflow_call"]);
     expect(deployPagesWorkflow?.contract?.inputs).toHaveProperty("artifact_path");
+    expect(deployPagesWorkflow?.contract?.inputs).toHaveProperty("prebuilt_artifact_run_id");
     expect(deployPagesWorkflow?.jobs).toEqual([
       expect.objectContaining({
         id: "deploy-pages",
         name: "Deploy Pages",
         runsOn: "ubuntu-latest",
-        stepCount: 11,
+        stepCount: 13,
       }),
     ]);
   });
 
   test("counts unique input names separately from workflow-specific input slots", () => {
     expect(workflowInputMetrics(parsedWorkflows)).toEqual({
-      totalInputSlots: 279,
+      totalInputSlots: 286,
       uniqueInputNames: 79,
     });
   });
