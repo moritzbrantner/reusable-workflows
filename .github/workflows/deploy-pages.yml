@@ -35,6 +35,11 @@ on:
         required: false
         type: string
         default: "dist"
+      enable_pages:
+        description: Automatically enable and configure GitHub Pages for repositories that do not have a Pages site yet.
+        required: false
+        type: boolean
+        default: false
       prebuilt_artifact_run_id:
         description: Exact build-artifact producer run ID. Empty keeps the existing local-build path.
         required: false
@@ -192,6 +197,8 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+        with:
+          enablement: ${{ inputs.enable_pages }}
 
       - name: Install dependencies
         if: ${{ inputs.prebuilt_artifact_run_id == '' && inputs.install_command != '' }}
