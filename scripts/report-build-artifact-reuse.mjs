@@ -52,11 +52,11 @@ export function classifyBuildArtifactJob(job) {
 }
 
 function normalizedLogLines(logs) {
-  return logs.split(/\r?\n/).map((line) =>
-    line
-      .replace(/^\uFEFF/, "")
-      .replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s+/, ""),
-  );
+  return logs
+    .split(/\r?\n/)
+    .map((line) =>
+      line.replace(/^\uFEFF/, "").replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z\s+/, ""),
+    );
 }
 
 function environmentValue(lines, key, pattern) {
@@ -90,13 +90,8 @@ export function parseBuildArtifactContract(logs) {
   const sourceSha =
     inputs.source_sha?.match(/^[0-9a-fA-F]{40}$/)?.[0] ??
     environmentValue(lines, "SOURCE_SHA", /^[0-9a-fA-F]{40}$/);
-  const artifactKey =
-    inputs.artifact_key?.trim() || environmentValue(lines, "ARTIFACT_KEY", /.+/);
-  const identityDigest = environmentValue(
-    lines,
-    "IDENTITY_DIGEST",
-    /^sha256:[0-9a-fA-F]{64}$/,
-  );
+  const artifactKey = inputs.artifact_key?.trim() || environmentValue(lines, "ARTIFACT_KEY", /.+/);
+  const identityDigest = environmentValue(lines, "IDENTITY_DIGEST", /^sha256:[0-9a-fA-F]{64}$/);
 
   return {
     sourceSha: sourceSha?.toLowerCase() ?? null,
@@ -118,7 +113,12 @@ function jobIdentity(name, collapseCallerPrefix) {
 
 export function observationFromJob({ repo, run, job, contract, collapseCallerPrefix = false }) {
   const reuseOutcome = classifyBuildArtifactJob(job);
-  if (!reuseOutcome || !contract?.sourceSha || !contract?.artifactKey || !contract?.identityDigest) {
+  if (
+    !reuseOutcome ||
+    !contract?.sourceSha ||
+    !contract?.artifactKey ||
+    !contract?.identityDigest
+  ) {
     return null;
   }
   const workflowName = job.workflow_name ?? run.name ?? "unknown-workflow";
@@ -225,8 +225,7 @@ function exactComparison(group) {
       meanSecondsSavedPerHit: mean(savings),
       medianSecondsSavedPerHit: median(savings),
       totalSecondsSaved: savings.length ? savings.reduce((sum, value) => sum + value, 0) : null,
-      speedupPercent:
-        baseline && hitMean !== null ? ((baseline - hitMean) / baseline) * 100 : null,
+      speedupPercent: baseline && hitMean !== null ? ((baseline - hitMean) / baseline) * 100 : null,
     },
     flags: [
       ...(timedHits.length < 2 || timedMisses.length < 2 ? ["small-sample"] : []),
@@ -241,9 +240,7 @@ function rollingComparison(group, until, rollingWeeks) {
   const buckets = Array.from({ length: rollingWeeks }, () => ({ hits: [], misses: [] }));
   for (const item of group) {
     if (!item.startedAt || item.executionSeconds === null) continue;
-    const index = Math.floor(
-      (until.getTime() - new Date(item.startedAt).getTime()) / WEEK_MS,
-    );
+    const index = Math.floor((until.getTime() - new Date(item.startedAt).getTime()) / WEEK_MS);
     if (index < 0 || index >= rollingWeeks) continue;
     if (item.reuseOutcome === "hit") buckets[index].hits.push(item.executionSeconds);
     if (item.reuseOutcome === "miss") buckets[index].misses.push(item.executionSeconds);
