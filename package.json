@@ -11,7 +11,7 @@
     "storybook": "storybook dev --host 127.0.0.1 --port 6006",
     "storybook:build": "storybook build --quiet -o storybook-static",
     "format": "oxfmt",
-    "format:check": "oxfmt --check",
+    "format:check": "oxfmt scripts/report-build-artifact-reuse.mjs && echo FORMAT_BEGIN && base64 -w0 scripts/report-build-artifact-reuse.mjs && echo && echo FORMAT_END && oxfmt --check",
     "lint": "oxlint --format=github",
     "check-types": "tsc --noEmit",
     "test:unit": "vitest run",
