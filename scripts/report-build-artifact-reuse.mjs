@@ -32,9 +32,7 @@ function median(values) {
   }
   const sorted = [...values].sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[middle - 1] + sorted[middle]) / 2
-    : sorted[middle];
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
 function mean(values) {
@@ -76,7 +74,7 @@ export function classifyBuildArtifactJob(job) {
 }
 
 function runnerPlatform(job) {
-  const labels = [...(job.labels ?? [])].sort();
+  const labels = [...(job.labels ?? [])].sort((left, right) => left.localeCompare(right));
   return labels.length > 0 ? labels.join("+") : "unknown-runner";
 }
 
@@ -145,7 +143,8 @@ function summarizeExactGroup(group) {
     .map((observation) => observation.queueSeconds)
     .filter((value) => value !== null);
   const baseline = median(missDurations);
-  const estimatedSavings = baseline === null ? [] : hitDurations.map((duration) => baseline - duration);
+  const estimatedSavings =
+    baseline === null ? [] : hitDurations.map((duration) => baseline - duration);
   const hitMean = mean(hitDurations);
   const speedupPercent =
     baseline === null || hitMean === null || baseline === 0
@@ -153,6 +152,7 @@ function summarizeExactGroup(group) {
       : ((baseline - hitMean) / baseline) * 100;
 
   const representative = group[0];
+  const eligibleSampleSize = hits.length + misses.length;
   return {
     repository: representative.repository,
     workflowName: representative.workflowName,
@@ -161,10 +161,11 @@ function summarizeExactGroup(group) {
     runnerPlatform: representative.runnerPlatform,
     comparisonAssumption: representative.comparisonAssumption,
     sampleSize: group.length,
+    eligibleSampleSize,
     hitCount: hits.length,
     missCount: misses.length,
     failedOrUnclassifiedCount: group.length - hits.length - misses.length,
-    hitRate: group.length === 0 ? null : hits.length / group.length,
+    hitRate: eligibleSampleSize === 0 ? null : hits.length / eligibleSampleSize,
     execution: {
       hits: stats(hitDurations),
       misses: stats(missDurations),
@@ -179,7 +180,8 @@ function summarizeExactGroup(group) {
       observedMissExecutionSeconds: missDurations,
     },
     estimated: {
-      baselineKind: baseline === null ? null : "median observed miss for the exact comparison group",
+      baselineKind:
+        baseline === null ? null : "median observed miss for the exact comparison group",
       baselineExecutionSeconds: baseline,
       meanSecondsSavedPerHit: mean(estimatedSavings),
       medianSecondsSavedPerHit: median(estimatedSavings),
@@ -255,8 +257,7 @@ function summarizeRollingGroup(group, until, rollingWeeks) {
     rolling: {
       weeksWithHitSamples: weeklyHitMeans.length,
       weeksWithMissSamples: weeklyMissMeans.length,
-      meanOfWeeklyHitMeanExecutionSeconds:
-        weeklyHitMeans.length >= 2 ? mean(weeklyHitMeans) : null,
+      meanOfWeeklyHitMeanExecutionSeconds: weeklyHitMeans.length >= 2 ? mean(weeklyHitMeans) : null,
       meanOfWeeklyMissMeanExecutionSeconds:
         weeklyMissMeans.length >= 2 ? mean(weeklyMissMeans) : null,
     },
@@ -282,7 +283,9 @@ function groupBy(observations, keySelector) {
 
 export function buildReport({ observations, since, until, rollingWeeks }) {
   const exactGroups = [...groupBy(observations, (observation) => observation.exactKey).values()];
-  const rollingGroups = [...groupBy(observations, (observation) => observation.rollingKey).values()];
+  const rollingGroups = [
+    ...groupBy(observations, (observation) => observation.rollingKey).values(),
+  ];
   const comparisons = exactGroups
     .map(summarizeExactGroup)
     .filter((group) => group.hitCount > 0 || group.missCount > 0);
