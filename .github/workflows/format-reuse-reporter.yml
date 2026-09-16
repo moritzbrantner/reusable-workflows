@@ -6,7 +6,7 @@ on:
       - feat/ci-reuse-efficiency-report
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   format:
@@ -18,9 +18,13 @@ jobs:
           bun-version: "1.4.0"
       - run: bun install --frozen-lockfile
       - run: bun x oxfmt scripts/report-build-artifact-reuse.mjs
-      - name: Emit formatted reporter
+      - name: Commit formatted reporter
         run: |
-          echo FORMAT_BEGIN
-          base64 -w0 scripts/report-build-artifact-reuse.mjs
-          echo
-          echo FORMAT_END
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add scripts/report-build-artifact-reuse.mjs
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Format reuse reporter"
+          git push
