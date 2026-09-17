@@ -34,7 +34,7 @@ on:
         type: boolean
         default: false
       install_mode:
-        description: Let coding-tooling install supported consumer dependencies or skip installation.
+        description: Let coding-tooling install supported consumer dependencies or skip installation. Environment-v1 is authoritative for run operations when declared.
         required: false
         type: string
         default: auto
@@ -91,8 +91,58 @@ jobs:
       - name: Check out consumer repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
+      - name: Detect environment-v1 declaration
+        id: environment
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -euo pipefail
+          detected=false
+          if [[ "$OPERATION" == "run" && -f .repository-environment.toml && -f scripts/codex-environment.sh ]]; then
+            detected=true
+          fi
+          echo "detected=$detected" >> "$GITHUB_OUTPUT"
+
+      - name: Run standard environment-v1 setup
+        id: environment-setup
+        if: ${{ steps.environment.outputs.detected == 'true' }}
+        continue-on-error: true
+        shell: bash
+        run: bash scripts/codex-environment.sh setup
+
+      - name: Verify environment-v1 preserves tracked state
+        id: environment-state
+        if: ${{ steps.environment-setup.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code
+          git diff --cached --exit-code
+
+      - name: Resolve dependency preparation authority
+        id: preparation
+        if: ${{ always() }}
+        shell: bash
+        env:
+          ENVIRONMENT_DETECTED: ${{ steps.environment.outputs.detected }}
+          REQUESTED_INSTALL_MODE: ${{ inputs.install_mode }}
+        run: |
+          set -euo pipefail
+          install_mode="$REQUESTED_INSTALL_MODE"
+          if [[ "$ENVIRONMENT_DETECTED" == "true" ]]; then
+            install_mode=none
+          fi
+          echo "install_mode=$install_mode" >> "$GITHUB_OUTPUT"
+
       - name: Run coding-tooling
         id: tooling
+        if: >-
+          ${{
+            (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') &&
+            (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped')
+          }}
         continue-on-error: true
         uses: moritzbrantner/coding-tooling@25e0dd76ae901347f40f9997b9223eb256e001e9
         with:
@@ -102,7 +152,7 @@ jobs:
           config: ${{ inputs.config }}
           report-path: ${{ inputs.report_path }}
           strict: ${{ inputs.strict }}
-          install-mode: ${{ inputs.install_mode }}
+          install-mode: ${{ steps.preparation.outputs.install_mode }}
 
       - name: Define report metadata
         id: report
@@ -134,6 +184,9 @@ jobs:
             echo
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
+            echo "- Environment-v1 detected: \`${{ steps.environment.outputs.detected }}\`"
+            echo "- Environment setup: \`${{ steps.environment-setup.outcome }}\`"
+            echo "- Effective install mode: \`${{ steps.preparation.outputs.install_mode }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
             echo "- coding-tooling revision: \`25e0dd76ae901347f40f9997b9223eb256e001e9\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
@@ -222,6 +275,8 @@ jobs:
         shell: bash
         env:
           SOURCE_SHA: ${{ steps.report.outputs.source_sha }}
+          ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
+          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
           TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
           REPORT_UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
           REPORT_ARTIFACT_NAME: ${{ steps.report.outputs.artifact_name }}
@@ -248,6 +303,8 @@ jobs:
               "result": {
                   "outcome": os.environ["TOOLING_OUTCOME"],
                   "steps": {
+                      "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
+                      "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
                       "codingTooling": os.environ["TOOLING_OUTCOME"],
                       "reportUpload": os.environ["REPORT_UPLOAD_OUTCOME"],
                   },
@@ -316,17 +373,33 @@ jobs:
           retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Propagate coding-tooling failure
-        if: ${{ steps.tooling.outcome != 'success' || steps.report-upload.outcome != 'success' }}
+        if: >-
+          ${{
+            always() && (
+              (steps.environment-setup.outcome != 'success' && steps.environment-setup.outcome != 'skipped') ||
+              (steps.environment-state.outcome != 'success' && steps.environment-state.outcome != 'skipped') ||
+              steps.tooling.outcome != 'success' ||
+              steps.report-upload.outcome != 'success'
+            )
+          }}
         shell: bash
         env:
           OPERATION: ${{ inputs.operation }}
           ALLOW_MISSING_FOUNDATION: ${{ inputs.allow_missing_foundation }}
           REPORT_PATH: ${{ inputs.report_path }}
+          ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
+          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
           TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
           REPORT_UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
         run: |
           set -euo pipefail
 
+          if [[ "$ENVIRONMENT_SETUP_OUTCOME" != "success" && "$ENVIRONMENT_SETUP_OUTCOME" != "skipped" ]]; then
+            exit 1
+          fi
+          if [[ "$ENVIRONMENT_STATE_OUTCOME" != "success" && "$ENVIRONMENT_STATE_OUTCOME" != "skipped" ]]; then
+            exit 1
+          fi
           if [[ "$REPORT_UPLOAD_OUTCOME" != "success" ]]; then
             exit 1
           fi
