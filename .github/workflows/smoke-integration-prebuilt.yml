@@ -22,6 +22,7 @@ jobs:
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_key: integration-prebuilt-smoke-v1
+      use_environment_v1: false
       build_command: mkdir -p .artifacts/integration-prebuilt && printf 'verified integration artifact\n' > .artifacts/integration-prebuilt/artifact.txt
       artifact_paths: .artifacts/integration-prebuilt/artifact.txt
       reuse_across_runs: true
