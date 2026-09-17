@@ -1,0 +1,51 @@
+name: Smoke Integration Prebuilt Artifact
+
+on:
+  pull_request:
+    paths:
+      - ".github/actions/consume-build-artifact/**"
+      - ".github/workflows/build-artifact.yml"
+      - ".github/workflows/integration-validation.yml"
+      - ".github/workflows/smoke-integration-prebuilt.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-artifact:
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    uses: ./.github/workflows/build-artifact.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_key: integration-prebuilt-smoke-v1
+      use_environment_v1: false
+      build_command: mkdir -p .artifacts/integration-prebuilt && printf 'verified integration artifact\n' > .artifacts/integration-prebuilt/artifact.txt
+      artifact_paths: .artifacts/integration-prebuilt/artifact.txt
+      reuse_across_runs: true
+      artifact_retention_days: 1
+
+  integration-validation:
+    needs: build-artifact
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    uses: ./.github/workflows/integration-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      prebuilt_artifact_run_id: ${{ needs.build-artifact.outputs.producer_run_id }}
+      prebuilt_artifact_receipt_name: ${{ needs.build-artifact.outputs.receipt_artifact_name }}
+      prebuilt_artifact_name: ${{ needs.build-artifact.outputs.artifact_name }}
+      prebuilt_artifact_digest: ${{ needs.build-artifact.outputs.artifact_digest }}
+      prebuilt_source_sha: ${{ needs.build-artifact.outputs.source_sha }}
+      prebuilt_artifact_key: ${{ needs.build-artifact.outputs.artifact_key }}
+      prebuilt_identity_digest: ${{ needs.build-artifact.outputs.identity_digest }}
+      prebuilt_artifact_destination: .artifacts/integration-consumed
+      integration_command: test "$(cat .artifacts/integration-consumed/artifact.txt)" = "verified integration artifact"
+      artifact_paths: ""
