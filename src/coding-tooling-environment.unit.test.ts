@@ -1,14 +1,10 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
 
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
-const workflowPath = join(
-  import.meta.dir,
-  "..",
-  ".github",
-  "workflows",
-  "coding-tooling-validation.yml",
+const workflowPath = new URL(
+  "../.github/workflows/coding-tooling-validation.yml",
+  import.meta.url,
 );
 
 describe("coding-tooling validation environment authority", () => {
@@ -26,7 +22,11 @@ describe("coding-tooling validation environment authority", () => {
   test("preserves environment preparation outcomes in the execution receipt", () => {
     const source = readFileSync(workflowPath, "utf8");
 
-    expect(source).toContain('"environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"]');
-    expect(source).toContain('"environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"]');
+    expect(source).toContain(
+      '"environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"]',
+    );
+    expect(source).toContain(
+      '"environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"]',
+    );
   });
 });
