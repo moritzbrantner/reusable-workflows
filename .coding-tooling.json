@@ -2,7 +2,13 @@
   "schemaVersion": 1,
   "profile": "repository-foundation-v1",
   "tiers": {
-    "fast": ["format:check", "lint", "typecheck", "build", "test:unit"],
+    "fast": [
+      "format:check",
+      "lint",
+      "typecheck",
+      "test:unit",
+      "test:integration"
+    ],
     "full": [
       "format:check",
       "lint",
@@ -18,9 +24,15 @@
       "benchmark"
     ]
   },
-  "requiredCapabilities": ["format:check", "lint", "typecheck", "build", "test:unit"],
+  "requiredCapabilities": [
+    "format:check",
+    "lint",
+    "typecheck",
+    "test:unit",
+    "test:integration"
+  ],
   "optionalCapabilities": [
-    "test:integration",
+    "build",
     "test:e2e",
     "test:accessibility",
     "test:visual",
@@ -30,19 +42,70 @@
   ],
   "capabilityCommands": {
     ".": {
-      "format:check": ["bun", "run", "format:check"],
-      "lint": ["bun", "run", "lint"],
-      "typecheck": ["bun", "run", "check-types"],
-      "build": ["bun", "run", "build"],
-      "test:unit": ["bun", "run", "test:unit"],
-      "test:integration": ["bun", "run", "test:integration"],
-      "test:e2e": ["bun", "run", "test:e2e"],
-      "test:accessibility": ["bun", "run", "test:a11y"],
-      "test:visual": ["bun", "run", "test:visual"],
-      "storybook:check": ["bash", "-lc", "bun run storybook:build && bun run test:storybook"],
-      "web:audit": ["bun", "run", "test:unlighthouse"],
-      "benchmark": ["bun", "run", "bench"]
+      "format:check": [
+        "bun",
+        "run",
+        "format:check"
+      ],
+      "lint": [
+        "bun",
+        "run",
+        "lint"
+      ],
+      "typecheck": [
+        "bun",
+        "run",
+        "check-types"
+      ],
+      "build": [
+        "bun",
+        "run",
+        "build"
+      ],
+      "test:unit": [
+        "bun",
+        "run",
+        "test:unit"
+      ],
+      "test:integration": [
+        "bun",
+        "run",
+        "validate:contracts"
+      ],
+      "test:e2e": [
+        "bun",
+        "run",
+        "test:e2e"
+      ],
+      "test:accessibility": [
+        "bun",
+        "run",
+        "test:a11y"
+      ],
+      "test:visual": [
+        "bun",
+        "run",
+        "test:visual"
+      ],
+      "storybook:check": [
+        "bash",
+        "-lc",
+        "bun run storybook:build && bun run test:storybook"
+      ],
+      "web:audit": [
+        "bun",
+        "run",
+        "test:unlighthouse"
+      ],
+      "benchmark": [
+        "bun",
+        "run",
+        "bench"
+      ]
     }
   },
-  "conventionRefs": ["AGENT-001", "AGENT-007"]
+  "conventionRefs": [
+    "AGENT-001",
+    "AGENT-007"
+  ]
 }
