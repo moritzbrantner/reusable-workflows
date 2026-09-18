@@ -19,13 +19,15 @@ export const adoptionProfiles: AdoptionProfile[] = [
   {
     id: "web-app",
     label: "Web app",
-    description:\n      "Fast PR validation with deeper link and optional E2E coverage after merge or on demand.",
+    description:
+      "Fast PR validation with deeper link and optional E2E coverage after merge or on demand.",
     options: { ...baseOptions },
   },
   {
     id: "monorepo-web-app",
     label: "Monorepo web app",
-    description:\n      "Scoped fast PR validation for `apps/web`, with deeper checks after merge or on demand.",
+    description:
+      "Scoped fast PR validation for `apps/web`, with deeper checks after merge or on demand.",
     options: {
       ...baseOptions,
       profileId: "monorepo-web-app",
@@ -47,7 +49,8 @@ export const adoptionProfiles: AdoptionProfile[] = [
   {
     id: "package",
     label: "Package",
-    description:\n      "Fast PR validation with post-merge package checks and a gated publish workflow starter.",
+    description:
+      "Fast PR validation with post-merge package checks and a gated publish workflow starter.",
     options: {
       ...baseOptions,
       profileId: "package",
