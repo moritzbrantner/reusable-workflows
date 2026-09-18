@@ -3,7 +3,8 @@ name: E2E Validation
 on:
   workflow_call:
     outputs:
-      artifact_name:
+      artifact_name:      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/reusable-workflows-playwright
+
         description: "Failure or requested artifact name for this validation job."
         value: ${{ jobs.e2e-validation.outputs.artifact_name }}
     inputs:
@@ -105,6 +106,11 @@ on:
         default: false
       cargo_cache_dependency_path:
         required: false
+      cargo_tool_cache_key:
+        description: Exact caller-owned identity for cached cargo-installed CLI binaries. Empty disables this disposable environment cache.
+        required: false
+        type: string
+        default: ""
         type: string
         default: "**/Cargo.lock"
       install_playwright:
@@ -113,6 +119,16 @@ on:
         default: true
       install_playwright_browsers:
         required: false
+      cache_playwright_browsers:
+        description: Cache Playwright browser payloads by runner, lockfile, and browser selection. System dependency installation still runs normally.
+        required: false
+        type: boolean
+        default: true
+      playwright_cache_dependency_path:
+        description: Lockfile glob used to key the Playwright browser payload cache.
+        required: false
+        type: string
+        default: "**/bun.lock"
         type: string
         default: ""
       install_xvfb:
@@ -172,6 +188,7 @@ jobs:
     env:
       NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
+      CARGO_INSTALL_ROOT: ${{ runner.temp }}/reusable-workflows-cargo-tools
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -254,6 +271,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Expose cached Cargo tools
+        if: ${{ inputs.cargo_tool_cache_key != '' }}
+        working-directory: .
+        run: echo "$CARGO_INSTALL_ROOT/bin" >> "$GITHUB_PATH"
+
+      - name: Cache cargo-installed tools
+        if: ${{ inputs.cargo_tool_cache_key != '' }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/reusable-workflows-cargo-tools
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-${{ inputs.cargo_tool_cache_key }}
+
       - name: Install Xvfb
         if: ${{ inputs.install_xvfb }}
         run: sudo apt-get update && sudo apt-get install -y xvfb
@@ -262,6 +291,13 @@ jobs:
       - name: Install dependencies
         if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
+
+      - name: Cache Playwright browser payloads
+        if: ${{ inputs.install_playwright && inputs.cache_playwright_browsers }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/reusable-workflows-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles(inputs.playwright_cache_dependency_path) }}-${{ inputs.install_playwright_browsers }}
 
       - name: Install Playwright browsers
         if: ${{ inputs.install_playwright }}
