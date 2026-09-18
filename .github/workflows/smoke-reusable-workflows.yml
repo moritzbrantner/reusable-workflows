@@ -147,6 +147,8 @@ jobs:
       bun_version: "1.4.0"
       cache_bun: true
       cache_cargo: true
+      cargo_tool_cache_key: smoke-cli-v1
+      setup_command: "mkdir -p \"$CARGO_INSTALL_ROOT/bin\" && printf '#!/usr/bin/env bash\\necho cached-tool\\n' > \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && chmod +x \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && reusable-workflows-smoke-tool"
       build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
       artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
       reuse_across_runs: true
@@ -161,6 +163,8 @@ jobs:
       bun_version: "1.4.0"
       cache_bun: true
       cache_cargo: true
+      cargo_tool_cache_key: smoke-cli-v1
+      setup_command: "mkdir -p \"$CARGO_INSTALL_ROOT/bin\" && printf '#!/usr/bin/env bash\\necho cached-tool\\n' > \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && chmod +x \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && reusable-workflows-smoke-tool"
       build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
       artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
       reuse_across_runs: true
