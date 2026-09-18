@@ -46,4 +46,25 @@ describe("coding-tooling repository evidence preservation", () => {
       "uses: moritzbrantner/coding-tooling@a630598d369ac94d0f549dce5c859b9dd28b250c",
     );
   });
+  test("skips reusable validation units without spending a coding-tooling run", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("Resolve validation impact");
+    expect(source).toContain("Resolve validation routing");
+    expect(source).toContain("impact_unit:");
+    expect(source).toContain("steps.routing.outputs.execute == 'true'");
+    expect(source).toContain("full_validation");
+    expect(source).toContain("invalidated_units_json");
+  });
+
+  test("preserves successful evidence only when requested", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("preserve_success_evidence:");
+    expect(source).toContain("Resolve evidence preservation");
+    expect(source).toContain("steps.evidence-policy.outputs.required == 'true'");
+    expect(source).toContain('TOOLING_OUTCOME: ${{ steps.tooling.outcome }}');
+    expect(source).toContain('PRESERVE_SUCCESS: ${{ inputs.preserve_success_evidence }}');
+  });
+
 });
