@@ -1,10 +1,37 @@
 {
   "schemaVersion": 1,
   "globalInputs": [],
-  "ignoredInputs": [],
+  "ignoredInputs": [
+    "docs/**",
+    "**/*.md"
+  ],
   "units": {
     "semantic": {
-      "inputs": ["**"]
+      "inputs": [
+        ".coding-tooling.json",
+        ".repository-environment.toml",
+        ".github/**",
+        ".conventions/**",
+        "contracts/**",
+        "package.json",
+        "bun.lock",
+        "tsconfig.json",
+        "vite.config.ts",
+        "playwright.config.ts",
+        "index.html",
+        "public/**",
+        "src/**",
+        "scripts/**",
+        "tests/**",
+        "README.md",
+        "CONTEXT.md",
+        "*.config.*",
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.mjs",
+        "*.cjs"
+      ]
     },
     "web-build": {
       "inputs": [
@@ -27,7 +54,9 @@
       ]
     },
     "actionlint": {
-      "inputs": [".github/workflows/**"]
+      "inputs": [
+        ".github/workflows/**"
+      ]
     }
   }
 }
