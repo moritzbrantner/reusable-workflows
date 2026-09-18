@@ -132,9 +132,6 @@ describe("repository validation impact scheduling", () => {
     expect(validate).toContain(
       "contains(github.event.pull_request.labels.*.name, 'ci:e2e')",
     );
-    expect(smoke).toMatch(/push:
-\s+branches:
-\s+- main
-\s+paths:/);
+    expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);
   });
 });
