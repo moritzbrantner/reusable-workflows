@@ -48,6 +48,31 @@ on:
         required: false
         type: string
         default: ""
+      preserve_success_evidence:
+        description: Preserve the report, optional repository evidence, and execution receipt even when coding-tooling succeeds.
+        required: false
+        type: boolean
+        default: false
+      impact_base_sha:
+        description: Optional exact base SHA for change-aware validation routing. Empty disables impact routing.
+        required: false
+        type: string
+        default: ""
+      impact_head_sha:
+        description: Optional exact head SHA for change-aware validation routing. Empty disables impact routing.
+        required: false
+        type: string
+        default: ""
+      impact_manifest_path:
+        description: Consumer-owned validation impact manifest used when impact_unit is set.
+        required: false
+        type: string
+        default: .github/validation-impact.json
+      impact_unit:
+        description: Optional validation unit name. When proven reusable, coding-tooling execution is skipped.
+        required: false
+        type: string
+        default: ""
       timeout_minutes:
         description: Maximum job runtime.
         required: false
@@ -95,23 +120,77 @@ jobs:
     permissions:
       contents: read
     outputs:
-      artifact_name: ${{ steps.report.outputs.artifact_name }}
+      artifact_name: ${{ steps.report-upload.outcome == 'success' && steps.report.outputs.artifact_name || '' }}
       artifact_digest: ${{ steps.report-upload.outputs.artifact-digest }}
       report_path: ${{ steps.report.outputs.report_path }}
-      evidence_artifact_name: ${{ steps.report.outputs.evidence_artifact_name }}
+      evidence_artifact_name: ${{ steps.evidence-upload.outcome == 'success' && steps.report.outputs.evidence_artifact_name || '' }}
       evidence_artifact_digest: ${{ steps.evidence-upload.outputs.artifact-digest }}
       evidence_path: ${{ steps.report.outputs.evidence_path }}
-      receipt_artifact_name: ${{ steps.report.outputs.receipt_artifact_name }}
+      receipt_artifact_name: ${{ steps.receipt-upload.outcome == 'success' && steps.report.outputs.receipt_artifact_name || '' }}
       receipt_path: ${{ steps.report.outputs.receipt_path }}
-      outcome: ${{ steps.tooling.outcome }}
+      outcome: ${{ steps.result.outputs.outcome }}
     steps:
       - name: Check out exact consumer revision
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.impact_head_sha != '' && inputs.impact_head_sha || github.event.pull_request.head.sha || github.sha }}
+
+      - name: Prepare impact baseline
+        if: ${{ inputs.impact_unit != '' && inputs.impact_base_sha != '' && inputs.impact_head_sha != '' }}
+        shell: bash
+        env:
+          BASE_SHA: ${{ inputs.impact_base_sha }}
+        run: |
+          set -euo pipefail
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          fi
+
+      - name: Resolve validation impact
+        id: impact
+        if: ${{ inputs.impact_unit != '' && inputs.impact_base_sha != '' && inputs.impact_head_sha != '' }}
+        continue-on-error: true
+        uses: moritzbrantner/reusable-workflows/.github/actions/resolve-validation-impact@8669e7cad2233c0fb1e0fcc3e00a041d2b6d7b03
+        with:
+          base_sha: ${{ inputs.impact_base_sha }}
+          head_sha: ${{ inputs.impact_head_sha }}
+          manifest_path: ${{ inputs.impact_manifest_path }}
+          output_path: .artifacts/reusable-workflows/coding-tooling-impact.json
+
+      - name: Resolve validation routing
+        id: routing
+        if: ${{ always() }}
+        shell: bash
+        env:
+          IMPACT_UNIT: ${{ inputs.impact_unit }}
+          IMPACT_BASE_SHA: ${{ inputs.impact_base_sha }}
+          IMPACT_HEAD_SHA: ${{ inputs.impact_head_sha }}
+          IMPACT_OUTCOME: ${{ steps.impact.outcome }}
+          FULL_VALIDATION: ${{ steps.impact.outputs.full_validation }}
+          INVALIDATED_UNITS: ${{ steps.impact.outputs.invalidated_units_json }}
+        run: |
+          set -euo pipefail
+          execute=true
+          if [[ -n "$IMPACT_UNIT" && -n "$IMPACT_BASE_SHA" && -n "$IMPACT_HEAD_SHA" && "$IMPACT_OUTCOME" == "success" && "$FULL_VALIDATION" != "true" ]]; then
+            execute="$(python3 - <<'PY'
+          import json
+          import os
+
+          try:
+              invalidated = json.loads(os.environ.get("INVALIDATED_UNITS") or "[]")
+          except json.JSONDecodeError:
+              print("true")
+              raise SystemExit(0)
+
+          print("true" if os.environ["IMPACT_UNIT"] in invalidated else "false")
+          PY
+            )"
+          fi
+          echo "execute=$execute" >> "$GITHUB_OUTPUT"
 
       - name: Run coding-tooling
         id: tooling
+        if: ${{ steps.routing.outputs.execute == 'true' }}
         continue-on-error: true
         uses: moritzbrantner/coding-tooling@a630598d369ac94d0f549dce5c859b9dd28b250c
         with:
@@ -122,6 +201,22 @@ jobs:
           report-path: ${{ inputs.report_path }}
           strict: ${{ inputs.strict }}
           install-mode: ${{ inputs.install_mode }}
+
+      - name: Resolve evidence preservation
+        id: evidence-policy
+        if: ${{ always() }}
+        shell: bash
+        env:
+          EXECUTE: ${{ steps.routing.outputs.execute }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
+          PRESERVE_SUCCESS: ${{ inputs.preserve_success_evidence }}
+        run: |
+          set -euo pipefail
+          required=false
+          if [[ "$EXECUTE" == "true" && ( "$TOOLING_OUTCOME" != "success" || "$PRESERVE_SUCCESS" == "true" ) ]]; then
+            required=true
+          fi
+          echo "required=$required" >> "$GITHUB_OUTPUT"
 
       - name: Define report metadata
         id: report
@@ -151,13 +246,19 @@ jobs:
           OPERATION: ${{ inputs.operation }}
           REPORT_PATH: ${{ inputs.report_path }}
           EVIDENCE_PATH: ${{ inputs.evidence_path }}
+          EXECUTE: ${{ steps.routing.outputs.execute }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
         run: |
+          outcome="$TOOLING_OUTCOME"
+          if [[ "$EXECUTE" != "true" ]]; then
+            outcome="skipped-impact"
+          fi
           {
             echo "## coding-tooling validation"
             echo
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
-            echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
+            echo "- Outcome: \`$outcome\`"
             echo "- coding-tooling revision: \`a630598d369ac94d0f549dce5c859b9dd28b250c\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
             if [[ -n "$EVIDENCE_PATH" ]]; then
@@ -234,7 +335,7 @@ jobs:
 
       - name: Upload coding-tooling report
         id: report-upload
-        if: ${{ always() }}
+        if: ${{ always() && steps.evidence-policy.outputs.required == 'true' }}
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -245,7 +346,7 @@ jobs:
 
       - name: Stage repository evidence
         id: evidence-stage
-        if: ${{ always() && inputs.evidence_path != '' }}
+        if: ${{ always() && steps.evidence-policy.outputs.required == 'true' && inputs.evidence_path != '' }}
         continue-on-error: true
         shell: bash
         env:
@@ -300,7 +401,7 @@ jobs:
 
       - name: Upload repository evidence
         id: evidence-upload
-        if: ${{ always() && inputs.evidence_path != '' && steps.evidence-stage.outcome == 'success' }}
+        if: ${{ always() && steps.evidence-policy.outputs.required == 'true' && inputs.evidence_path != '' && steps.evidence-stage.outcome == 'success' }}
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -311,7 +412,7 @@ jobs:
           retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Write execution receipt
-        if: ${{ always() }}
+        if: ${{ always() && steps.evidence-policy.outputs.required == 'true' }}
         shell: bash
         env:
           SOURCE_SHA: ${{ steps.report.outputs.source_sha }}
@@ -385,7 +486,7 @@ jobs:
           PY
 
       - name: Validate execution receipt contract
-        if: ${{ always() }}
+        if: ${{ always() && steps.evidence-policy.outputs.required == 'true' }}
         shell: bash
         env:
           RECEIPT_PATH: ${{ steps.report.outputs.receipt_path }}
@@ -420,7 +521,8 @@ jobs:
           PY
 
       - name: Upload execution receipt
-        if: ${{ always() }}
+        id: receipt-upload
+        if: ${{ always() && steps.evidence-policy.outputs.required == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.report.outputs.receipt_artifact_name }}
@@ -428,8 +530,23 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
 
+      - name: Resolve validation outcome
+        id: result
+        if: ${{ always() }}
+        shell: bash
+        env:
+          EXECUTE: ${{ steps.routing.outputs.execute }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$EXECUTE" != "true" ]]; then
+            echo "outcome=skipped" >> "$GITHUB_OUTPUT"
+          else
+            echo "outcome=$TOOLING_OUTCOME" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Propagate coding-tooling failure
-        if: ${{ steps.tooling.outcome != 'success' || steps.report-upload.outcome != 'success' || (inputs.evidence_path != '' && (steps.evidence-stage.outcome != 'success' || steps.evidence-upload.outcome != 'success')) }}
+        if: ${{ steps.routing.outputs.execute == 'true' && (steps.tooling.outcome != 'success' || (steps.evidence-policy.outputs.required == 'true' && (steps.report-upload.outcome != 'success' || steps.receipt-upload.outcome != 'success' || (inputs.evidence_path != '' && (steps.evidence-stage.outcome != 'success' || steps.evidence-upload.outcome != 'success'))))) }}
         shell: bash
         env:
           OPERATION: ${{ inputs.operation }}
@@ -440,17 +557,26 @@ jobs:
           EVIDENCE_UPLOAD_OUTCOME: ${{ steps.evidence-upload.outcome }}
           TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
           REPORT_UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
+          RECEIPT_UPLOAD_OUTCOME: ${{ steps.receipt-upload.outcome }}
+          EVIDENCE_REQUIRED: ${{ steps.evidence-policy.outputs.required }}
         run: |
           set -euo pipefail
 
-          if [[ "$REPORT_UPLOAD_OUTCOME" != "success" ]]; then
+          if [[ "$EVIDENCE_REQUIRED" == "true" && "$REPORT_UPLOAD_OUTCOME" != "success" ]]; then
             exit 1
           fi
-          if [[ -n "$EVIDENCE_PATH" && "$EVIDENCE_STAGE_OUTCOME" != "success" ]]; then
+          if [[ "$EVIDENCE_REQUIRED" == "true" && "$RECEIPT_UPLOAD_OUTCOME" != "success" ]]; then
             exit 1
           fi
-          if [[ -n "$EVIDENCE_PATH" && "$EVIDENCE_UPLOAD_OUTCOME" != "success" ]]; then
+          if [[ "$EVIDENCE_REQUIRED" == "true" && -n "$EVIDENCE_PATH" && "$EVIDENCE_STAGE_OUTCOME" != "success" ]]; then
             exit 1
+          fi
+          if [[ "$EVIDENCE_REQUIRED" == "true" && -n "$EVIDENCE_PATH" && "$EVIDENCE_UPLOAD_OUTCOME" != "success" ]]; then
+            exit 1
+          fi
+
+          if [[ "$TOOLING_OUTCOME" == "success" ]]; then
+            exit 0
           fi
 
           if [[ "$OPERATION" != "foundation" || "$ALLOW_MISSING_FOUNDATION" != "true" ]]; then
