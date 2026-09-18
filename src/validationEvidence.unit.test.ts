@@ -22,8 +22,11 @@ type Identity = {
     setupCommand: string;
     command: string;
     environmentIdentity: string;
+    capabilityIdentity: string;
     runnerOs: string;
     runnerArch: string;
+    runnerImageOs: string;
+    runnerImageVersion: string;
   };
   inputFiles: Array<{ path: string; digest: string }>;
 };
@@ -36,9 +39,12 @@ type Resolver = {
     setupCommand: string;
     command: string;
     environmentIdentity: string;
+    capabilityIdentity: string;
     inputFiles: Array<{ path: string; digest: string }>;
     runnerOs?: string;
     runnerArch?: string;
+    runnerImageOs?: string;
+    runnerImageVersion?: string;
   }) => Identity;
   collectUnitClosure: (units: Manifest["units"], unitName: string) => string[];
   digestIdentity: (identity: Identity) => string;
@@ -70,6 +76,7 @@ function identity(overrides: Partial<Parameters<Resolver["buildIdentity"]>[0]> =
     setupCommand: "bun install --frozen-lockfile",
     command: "bun run test:unit",
     environmentIdentity: "bun-1.4.0",
+    capabilityIdentity: "moritzbrantner/reusable-workflows@ffffffffffffffffffffffffffffffffffffffff",
     inputFiles: [
       { path: "bun.lock", digest: `sha256:${"a".repeat(64)}` },
       { path: "package.json", digest: `sha256:${"b".repeat(64)}` },
@@ -78,6 +85,8 @@ function identity(overrides: Partial<Parameters<Resolver["buildIdentity"]>[0]> =
     ],
     runnerOs: "Linux",
     runnerArch: "X64",
+    runnerImageOs: "ubuntu24",
+    runnerImageVersion: "20260901.1",
     ...overrides,
   });
 }
@@ -100,7 +109,7 @@ describe("validation evidence fingerprint identity", () => {
     expect(result.manifest.units).not.toHaveProperty("docs");
   });
 
-  test("changes the fingerprint for declared input, command, or environment changes", () => {
+  test("changes the fingerprint for declared input, execution, or environment changes", () => {
     const base = identity();
     const baseDigest = resolver.digestIdentity(base);
 
@@ -113,10 +122,16 @@ describe("validation evidence fingerprint identity", () => {
     });
     const changedCommand = identity({ command: "bun run test:integration" });
     const changedEnvironment = identity({ environmentIdentity: "bun-1.4.1" });
+    const changedCapability = identity({
+      capabilityIdentity: "moritzbrantner/reusable-workflows@1111111111111111111111111111111111111111",
+    });
+    const changedRunnerImage = identity({ runnerImageVersion: "20260908.1" });
 
     expect(resolver.digestIdentity(changedInput)).not.toBe(baseDigest);
     expect(resolver.digestIdentity(changedCommand)).not.toBe(baseDigest);
     expect(resolver.digestIdentity(changedEnvironment)).not.toBe(baseDigest);
+    expect(resolver.digestIdentity(changedCapability)).not.toBe(baseDigest);
+    expect(resolver.digestIdentity(changedRunnerImage)).not.toBe(baseDigest);
   });
 
   test("does not invalidate a fingerprint for an unrelated manifest unit", () => {
