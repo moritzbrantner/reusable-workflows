@@ -34,7 +34,7 @@ on:
         type: boolean
         default: false
       install_mode:
-        description: Let coding-tooling install supported consumer dependencies or skip installation.
+        description: Let coding-tooling install supported consumer dependencies or skip installation. A declared environment-v1 setup is authoritative for run operations.
         required: false
         type: string
         default: auto
@@ -43,13 +43,18 @@ on:
         required: false
         type: string
         default: .artifacts/coding-tooling/report.json
+      evidence_path:
+        description: Optional repository-relative file or directory produced by the declared validation tier and preserved as an opaque repository-evidence artifact.
+        required: false
+        type: string
+        default: ""
       timeout_minutes:
         description: Maximum job runtime.
         required: false
         type: number
         default: 30
       artifact_retention_days:
-        description: Retention period for the coding-tooling report and execution receipt artifacts.
+        description: Retention period for the coding-tooling report, repository evidence, and execution receipt artifacts.
         required: false
         type: number
         default: 7
@@ -63,6 +68,15 @@ on:
       report_path:
         description: Repository-relative path used for the machine-readable coding-tooling JSON report.
         value: ${{ jobs.coding-tooling.outputs.report_path }}
+      evidence_artifact_name:
+        description: Name of the optional repository-evidence artifact.
+        value: ${{ jobs.coding-tooling.outputs.evidence_artifact_name }}
+      evidence_artifact_digest:
+        description: SHA-256 digest reported by actions/upload-artifact for the optional repository-evidence artifact.
+        value: ${{ jobs.coding-tooling.outputs.evidence_artifact_digest }}
+      evidence_path:
+        description: Repository-relative path preserved as optional repository evidence.
+        value: ${{ jobs.coding-tooling.outputs.evidence_path }}
       receipt_artifact_name:
         description: Name of the uploaded execution receipt artifact.
         value: ${{ jobs.coding-tooling.outputs.receipt_artifact_name }}
@@ -84,6 +98,9 @@ jobs:
       artifact_name: ${{ steps.report.outputs.artifact_name }}
       artifact_digest: ${{ steps.report-upload.outputs.artifact-digest }}
       report_path: ${{ steps.report.outputs.report_path }}
+      evidence_artifact_name: ${{ steps.report.outputs.evidence_artifact_name }}
+      evidence_artifact_digest: ${{ steps.evidence-upload.outputs.artifact-digest }}
+      evidence_path: ${{ steps.report.outputs.evidence_path }}
       receipt_artifact_name: ${{ steps.report.outputs.receipt_artifact_name }}
       receipt_path: ${{ steps.report.outputs.receipt_path }}
       outcome: ${{ steps.tooling.outcome }}
@@ -94,7 +111,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@25e0dd76ae901347f40f9997b9223eb256e001e9
+        uses: moritzbrantner/coding-tooling@3f7e2387dda68fd27ddd72a8b995f126678ff4ff
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -110,6 +127,7 @@ jobs:
         shell: bash
         env:
           REPORT_PATH: ${{ inputs.report_path }}
+          EVIDENCE_PATH: ${{ inputs.evidence_path }}
         run: |
           set -euo pipefail
           source_sha="$(git rev-parse HEAD)"
@@ -117,6 +135,8 @@ jobs:
           {
             echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}"
             echo "report_path=$REPORT_PATH"
+            echo "evidence_artifact_name=repository-evidence-${{ inputs.operation }}-${{ inputs.tier }}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "evidence_path=$EVIDENCE_PATH"
             echo "receipt_artifact_name=execution-receipt-coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}"
             echo "receipt_path=.artifacts/reusable-workflows/coding-tooling-validation-receipt.json"
             echo "source_sha=$source_sha"
@@ -128,6 +148,7 @@ jobs:
         env:
           OPERATION: ${{ inputs.operation }}
           REPORT_PATH: ${{ inputs.report_path }}
+          EVIDENCE_PATH: ${{ inputs.evidence_path }}
         run: |
           {
             echo "## coding-tooling validation"
@@ -135,8 +156,11 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`25e0dd76ae901347f40f9997b9223eb256e001e9\`"
+            echo "- coding-tooling revision: \`3f7e2387dda68fd27ddd72a8b995f126678ff4ff\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
+            if [[ -n "$EVIDENCE_PATH" ]]; then
+              echo "- Repository evidence: \`$EVIDENCE_PATH\`"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [[ "$OPERATION" == "foundation" && -f "$REPORT_PATH" ]]; then
@@ -217,6 +241,73 @@ jobs:
           if-no-files-found: warn
           retention-days: ${{ inputs.artifact_retention_days }}
 
+      - name: Stage repository evidence
+        id: evidence-stage
+        if: ${{ always() && inputs.evidence_path != '' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          EVIDENCE_PATH: ${{ inputs.evidence_path }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import shutil
+          from pathlib import Path
+
+          root = Path.cwd().resolve()
+          raw = os.environ["EVIDENCE_PATH"]
+          requested = Path(raw)
+          if requested.is_absolute():
+              raise SystemExit("evidence_path must be repository-relative")
+
+          unresolved = root / requested
+          if unresolved.is_symlink():
+              raise SystemExit("evidence_path must not be a symlink")
+
+          source = unresolved.resolve(strict=True)
+          try:
+              relative = source.relative_to(root)
+          except ValueError as error:
+              raise SystemExit("evidence_path must stay inside the repository") from error
+
+          if source.is_dir():
+              symlinks = [path for path in source.rglob("*") if path.is_symlink()]
+              if symlinks:
+                  raise SystemExit(
+                      "evidence_path directory must not contain symlinks: "
+                      + ", ".join(str(path.relative_to(root)) for path in symlinks[:5])
+                  )
+          elif not source.is_file():
+              raise SystemExit("evidence_path must name a regular file or directory")
+
+          stage_root = Path(os.environ["RUNNER_TEMP"]) / "repository-evidence"
+          if stage_root.exists():
+              shutil.rmtree(stage_root)
+          target = stage_root / relative
+          target.parent.mkdir(parents=True, exist_ok=True)
+
+          if source.is_dir():
+              shutil.copytree(source, target)
+          else:
+              shutil.copy2(source, target)
+
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
+              handle.write(f"staged_path={stage_root}\n")
+          PY
+
+      - name: Upload repository evidence
+        id: evidence-upload
+        if: ${{ always() && inputs.evidence_path != '' && steps.evidence-stage.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.report.outputs.evidence_artifact_name }}
+          include-hidden-files: true
+          path: ${{ steps.evidence-stage.outputs.staged_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
       - name: Write execution receipt
         if: ${{ always() }}
         shell: bash
@@ -227,6 +318,11 @@ jobs:
           REPORT_ARTIFACT_NAME: ${{ steps.report.outputs.artifact_name }}
           REPORT_PATH: ${{ steps.report.outputs.report_path }}
           REPORT_DIGEST: ${{ steps.report-upload.outputs.artifact-digest }}
+          EVIDENCE_STAGE_OUTCOME: ${{ steps.evidence-stage.outcome }}
+          EVIDENCE_UPLOAD_OUTCOME: ${{ steps.evidence-upload.outcome }}
+          EVIDENCE_ARTIFACT_NAME: ${{ steps.report.outputs.evidence_artifact_name }}
+          EVIDENCE_PATH: ${{ steps.report.outputs.evidence_path }}
+          EVIDENCE_DIGEST: ${{ steps.evidence-upload.outputs.artifact-digest }}
           RECEIPT_PATH: ${{ steps.report.outputs.receipt_path }}
         run: |
           set -euo pipefail
@@ -236,7 +332,26 @@ jobs:
           import os
           from pathlib import Path
 
-          digest = os.environ.get("REPORT_DIGEST") or None
+          report_digest = os.environ.get("REPORT_DIGEST") or None
+          evidence_digest = os.environ.get("EVIDENCE_DIGEST") or None
+          evidence = [
+              {
+                  "role": "coding-tooling-report",
+                  "name": os.environ["REPORT_ARTIFACT_NAME"],
+                  "path": os.environ["REPORT_PATH"],
+                  "digest": f"sha256:{report_digest}" if report_digest else None,
+              }
+          ]
+          if os.environ.get("EVIDENCE_PATH"):
+              evidence.append(
+                  {
+                      "role": "repository-evidence",
+                      "name": os.environ["EVIDENCE_ARTIFACT_NAME"],
+                      "path": os.environ["EVIDENCE_PATH"],
+                      "digest": f"sha256:{evidence_digest}" if evidence_digest else None,
+                  }
+              )
+
           receipt = {
               "schemaVersion": 1,
               "kind": "reusable-workflows/execution-receipt",
@@ -250,16 +365,11 @@ jobs:
                   "steps": {
                       "codingTooling": os.environ["TOOLING_OUTCOME"],
                       "reportUpload": os.environ["REPORT_UPLOAD_OUTCOME"],
+                      "repositoryEvidenceStage": os.environ.get("EVIDENCE_STAGE_OUTCOME") or "skipped",
+                      "repositoryEvidenceUpload": os.environ.get("EVIDENCE_UPLOAD_OUTCOME") or "skipped",
                   },
               },
-              "evidence": [
-                  {
-                      "role": "coding-tooling-report",
-                      "name": os.environ["REPORT_ARTIFACT_NAME"],
-                      "path": os.environ["REPORT_PATH"],
-                      "digest": f"sha256:{digest}" if digest else None,
-                  }
-              ],
+              "evidence": evidence,
               "run": {
                   "id": os.environ["GITHUB_RUN_ID"],
                   "attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
@@ -295,12 +405,13 @@ jobs:
           assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
           assert receipt["result"]["outcome"] in outcomes
           assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
-          assert isinstance(receipt["evidence"], list) and len(receipt["evidence"]) == 1
-          evidence = receipt["evidence"][0]
-          assert evidence["role"] == "coding-tooling-report"
-          assert isinstance(evidence["name"], str) and evidence["name"]
-          assert isinstance(evidence["path"], str) and evidence["path"]
-          assert evidence["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", evidence["digest"])
+          assert isinstance(receipt["evidence"], list) and 1 <= len(receipt["evidence"]) <= 2
+          for index, evidence in enumerate(receipt["evidence"]):
+              expected_role = "coding-tooling-report" if index == 0 else "repository-evidence"
+              assert evidence["role"] == expected_role
+              assert isinstance(evidence["name"], str) and evidence["name"]
+              assert isinstance(evidence["path"], str) and evidence["path"]
+              assert evidence["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", evidence["digest"])
           assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
           assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
           assert receipt["run"]["callerWorkflowRef"] is None or isinstance(receipt["run"]["callerWorkflowRef"], str)
@@ -316,18 +427,27 @@ jobs:
           retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Propagate coding-tooling failure
-        if: ${{ steps.tooling.outcome != 'success' || steps.report-upload.outcome != 'success' }}
+        if: ${{ steps.tooling.outcome != 'success' || steps.report-upload.outcome != 'success' || (inputs.evidence_path != '' && (steps.evidence-stage.outcome != 'success' || steps.evidence-upload.outcome != 'success')) }}
         shell: bash
         env:
           OPERATION: ${{ inputs.operation }}
           ALLOW_MISSING_FOUNDATION: ${{ inputs.allow_missing_foundation }}
           REPORT_PATH: ${{ inputs.report_path }}
+          EVIDENCE_PATH: ${{ inputs.evidence_path }}
+          EVIDENCE_STAGE_OUTCOME: ${{ steps.evidence-stage.outcome }}
+          EVIDENCE_UPLOAD_OUTCOME: ${{ steps.evidence-upload.outcome }}
           TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
           REPORT_UPLOAD_OUTCOME: ${{ steps.report-upload.outcome }}
         run: |
           set -euo pipefail
 
           if [[ "$REPORT_UPLOAD_OUTCOME" != "success" ]]; then
+            exit 1
+          fi
+          if [[ -n "$EVIDENCE_PATH" && "$EVIDENCE_STAGE_OUTCOME" != "success" ]]; then
+            exit 1
+          fi
+          if [[ -n "$EVIDENCE_PATH" && "$EVIDENCE_UPLOAD_OUTCOME" != "success" ]]; then
             exit 1
           fi
 
