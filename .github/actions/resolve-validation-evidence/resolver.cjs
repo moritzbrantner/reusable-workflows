@@ -164,10 +164,7 @@ function buildIdentity({
 }
 
 function digestIdentity(identity) {
-  return `sha256:${crypto
-    .createHash("sha256")
-    .update(JSON.stringify(identity))
-    .digest("hex")}`;
+  return `sha256:${crypto.createHash("sha256").update(JSON.stringify(identity)).digest("hex")}`;
 }
 
 function buildFingerprint({
@@ -261,10 +258,7 @@ function publishOutputs(plan, fingerprintPath) {
   setOutput("fingerprint_available", String(plan.available));
   setOutput("fingerprint_digest", plan.fingerprintDigest || "");
   setOutput("fingerprint_path", fingerprintPath);
-  setOutput(
-    "unit_closure_json",
-    JSON.stringify(plan.identity?.unitClosure || []),
-  );
+  setOutput("unit_closure_json", JSON.stringify(plan.identity?.unitClosure || []));
   setOutput(
     "input_files_json",
     JSON.stringify((plan.identity?.inputFiles || []).map((entry) => entry.path)),
@@ -330,9 +324,7 @@ function main() {
     ).normalized;
     manifestPath = manifestLocation.normalized;
     outputPath = outputLocation.normalized;
-    const manifest = parseManifest(
-      JSON.parse(fs.readFileSync(manifestLocation.resolved, "utf8")),
-    );
+    const manifest = parseManifest(JSON.parse(fs.readFileSync(manifestLocation.resolved, "utf8")));
 
     plan = buildFingerprint({
       sourceSha,
