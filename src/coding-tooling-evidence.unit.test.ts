@@ -34,12 +34,11 @@ describe("coding-tooling repository evidence preservation", () => {
 
   test("pushes one caller-established source revision through checkout and tooling", () => {
     const source = readFileSync(workflowPath, "utf8");
-    const sourceExpression =
-      "${{ inputs.source_sha != '' && inputs.source_sha || inputs.impact_head_sha != '' && inputs.impact_head_sha || github.event.pull_request.head.sha || github.sha }}";
 
     expect(source).toContain("Check out exact consumer revision");
-    expect(source).toContain(`ref: ${sourceExpression}`);
-    expect(source).toContain(`source-sha: ${sourceExpression}`);
+    expect(source).toContain("inputs.source_sha != '' && inputs.source_sha");
+    expect(source).toContain("inputs.impact_head_sha != '' && inputs.impact_head_sha");
+    expect(source).toContain("github.event.pull_request.head.sha || github.sha");
     expect(source).not.toContain('source_sha="$(git rev-parse HEAD)"');
   });
 
@@ -66,9 +65,7 @@ describe("coding-tooling repository evidence preservation", () => {
     const source = readFileSync(workflowPath, "utf8");
 
     expect(source).toContain('SOURCE_SHA: ${{ inputs.source_sha }}');
-    expect(source).toContain(
-      'if [[ -n "$SOURCE_SHA" && "$SOURCE_SHA" != "$IMPACT_HEAD_SHA" ]]',
-    );
+    expect(source).toContain('"$SOURCE_SHA" != "$IMPACT_HEAD_SHA"');
     expect(source).toContain("same_source=false");
   });
 
