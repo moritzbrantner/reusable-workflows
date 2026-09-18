@@ -102,7 +102,6 @@ jobs:
       artifact_key: reusable-workflows-web-dist-v1
       bun_version: "1.4.0"
       cache_bun: true
-      setup_command: "bun install --frozen-lockfile"
       build_command: "bun run build && bun run size:check:dist"
       artifact_paths: dist
       reuse_across_runs: true
@@ -234,7 +233,6 @@ jobs:
       unlighthouse_command: "bun scripts/run-unlighthouse.mjs"
       benchmark_command: "bun run bench"
       bundle_size_command: "bun run size:check:dist"
-      api_report_command: "bun run api:check"
       metrics_command: "bun scripts/write-current-build-metrics.ts"
       artifact_paths: |
         .unlighthouse
