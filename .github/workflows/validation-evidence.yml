@@ -170,6 +170,7 @@ jobs:
           setup_command: ${{ inputs.setup_command }}
           command: ${{ inputs.command }}
           environment_identity: ${{ inputs.environment_identity }}
+          capability_identity: ${{ format('{0}@{1}', steps.workflow-source.outputs.repository, steps.workflow-source.outputs.sha) }}
 
       - name: Define validation evidence metadata
         id: metadata
