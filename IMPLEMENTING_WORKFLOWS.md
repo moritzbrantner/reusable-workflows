@@ -92,7 +92,7 @@ The `coding-tooling` Action is private. Public consumers should use `fast-valida
 
 ### Impact-aware evidence reuse
 
-When a repository has an explicit `.github/validation-impact.json`, `validation-evidence.yml` can execute one declared validation unit against an exact source SHA and reuse a retained successful receipt only when its full evidence fingerprint matches.
+When a repository has an explicit `.github/validation-impact.json`, `validation-evidence.yml` can execute one declared validation unit against an exact source SHA and reuse a retained successful receipt only when its full evidence fingerprint matches, including the exact adapter revision and runner image identity.
 
 Use this for iterative PR checks where unrelated commits should not force recomputation. Keep the unit's real toolchain/config files in its declared inputs or `globalInputs`, and use `environment_identity` only for additional caller-owned identity that is not represented by tracked files.
 
