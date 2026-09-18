@@ -359,7 +359,14 @@ jobs:
       artifact_paths: ""
 
   package-publish-npm:
-    needs: fast-validation
+    needs:
+      - fast-validation
+      - build-artifact-reuse
+    permissions:
+      actions: read
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/package-publish.yml
     with:
       package_manager: npm
@@ -367,8 +374,16 @@ jobs:
       bun_version: ""
       install_command: ""
       publish_enabled: false
-      validate_command: "echo smoke npm package validate"
-      build_command: "echo smoke npm package build"
+      prebuilt_artifact_run_id: ${{ needs.build-artifact-reuse.outputs.producer_run_id }}
+      prebuilt_artifact_receipt_name: ${{ needs.build-artifact-reuse.outputs.receipt_artifact_name }}
+      prebuilt_artifact_name: ${{ needs.build-artifact-reuse.outputs.artifact_name }}
+      prebuilt_artifact_digest: ${{ needs.build-artifact-reuse.outputs.artifact_digest }}
+      prebuilt_source_sha: ${{ needs.build-artifact-reuse.outputs.source_sha }}
+      prebuilt_artifact_key: ${{ needs.build-artifact-reuse.outputs.artifact_key }}
+      prebuilt_identity_digest: ${{ needs.build-artifact-reuse.outputs.identity_digest }}
+      prebuilt_artifact_destination: .artifacts/package-publish-smoke
+      validate_command: "exit 91"
+      build_command: "exit 92"
       artifact_paths: ""
 
   package-publish-cargo:
