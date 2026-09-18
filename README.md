@@ -203,4 +203,6 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/validation-impact/validation-evidence/build-artifact/reuse/release-qualification/promotion path. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
+`validate.yml` dogfoods the live `.github/validation-impact.json` policy on pull requests: semantic validation always runs, while the ordinary web build and actionlint run only when their declared inputs are invalidated or when impact planning fails closed. `main` and explicit full/deep requests keep their broad validation behavior.
+
+`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/validation-impact/validation-evidence/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.

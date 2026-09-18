@@ -43,6 +43,7 @@ describe("workflow catalog", () => {
         ".github/workflows/link-validation.yml",
         ".github/workflows/performance-validation.yml",
         ".github/workflows/storybook-validation.yml",
+        ".github/workflows/validation-impact.yml",
       ]),
     );
     expect(validateWorkflow?.dependencies).not.toContain(".github/workflows/fast-validation.yml");
