@@ -112,6 +112,60 @@ function matchesAny(file, patterns) {
   return patterns.some((pattern) => globToRegExp(pattern).test(file));
 }
 
+function buildIdentity({
+  unitName,
+  manifest,
+  workingDirectory,
+  setupCommand,
+  command,
+  environmentIdentity,
+  inputFiles,
+  runnerOs = "",
+  runnerArch = "",
+}) {
+  const closure = collectUnitClosure(manifest.units, unitName);
+  const patterns = stableUnique([
+    ...manifest.globalInputs,
+    ...closure.flatMap((name) => manifest.units[name].inputs),
+  ]);
+  const relevantUnits = {};
+  for (const name of closure) {
+    relevantUnits[name] = {
+      inputs: [...manifest.units[name].inputs],
+      dependsOn: [...manifest.units[name].dependsOn],
+    };
+  }
+
+  return {
+    schemaVersion: 1,
+    kind: "reusable-workflows/validation-evidence-identity",
+    identityVersion: 1,
+    unit: unitName,
+    unitClosure: closure,
+    declaredPatterns: patterns,
+    manifest: {
+      globalInputs: [...manifest.globalInputs],
+      units: relevantUnits,
+    },
+    execution: {
+      workingDirectory,
+      setupCommand,
+      command,
+      environmentIdentity,
+      runnerOs,
+      runnerArch,
+    },
+    inputFiles,
+  };
+}
+
+function digestIdentity(identity) {
+  return `sha256:${crypto
+    .createHash("sha256")
+    .update(JSON.stringify(identity))
+    .digest("hex")}`;
+}
+
 function buildFingerprint({
   sourceSha,
   unitName,
@@ -133,38 +187,18 @@ function buildFingerprint({
     path: entry.path,
     digest: hashGitBlob(entry.objectId),
   }));
-
-  const relevantUnits = {};
-  for (const name of closure) {
-    relevantUnits[name] = {
-      inputs: [...manifest.units[name].inputs],
-      dependsOn: [...manifest.units[name].dependsOn],
-    };
-  }
-
-  const identity = {
-    schemaVersion: 1,
-    kind: "reusable-workflows/validation-evidence-identity",
-    identityVersion: 1,
-    unit: unitName,
-    unitClosure: closure,
-    declaredPatterns: patterns,
-    manifest: {
-      globalInputs: [...manifest.globalInputs],
-      units: relevantUnits,
-    },
-    execution: {
-      workingDirectory,
-      setupCommand,
-      command,
-      environmentIdentity,
-      runnerOs: process.env.RUNNER_OS || "",
-      runnerArch: process.env.RUNNER_ARCH || "",
-    },
+  const identity = buildIdentity({
+    unitName,
+    manifest,
+    workingDirectory,
+    setupCommand,
+    command,
+    environmentIdentity,
     inputFiles,
-  };
-  const serializedIdentity = JSON.stringify(identity);
-  const digest = `sha256:${crypto.createHash("sha256").update(serializedIdentity).digest("hex")}`;
+    runnerOs: process.env.RUNNER_OS || "",
+    runnerArch: process.env.RUNNER_ARCH || "",
+  });
+  const digest = digestIdentity(identity);
 
   return {
     schemaVersion: 1,
@@ -311,7 +345,9 @@ function main() {
 
 module.exports = {
   buildFingerprint,
+  buildIdentity,
   collectUnitClosure,
+  digestIdentity,
   fallbackPlan,
   stableUnique,
 };
