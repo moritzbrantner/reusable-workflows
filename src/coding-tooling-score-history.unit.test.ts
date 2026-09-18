@@ -8,7 +8,7 @@ const workflowPath = path.resolve(
   ".github/workflows/coding-tooling-score-history.yml",
 );
 const source = readFileSync(workflowPath, "utf8");
-const codingToolingRevision = "3f7e2387dda68fd27ddd72a8b995f126678ff4ff";
+const codingToolingRevision = "02005dc3921ec86f72afa11aa85669fc8fde4ff0";
 
 describe("coding-tooling score history workflow", () => {
   test("delegates score and attribution semantics to one immutable coding-tooling revision", () => {
