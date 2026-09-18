@@ -49,9 +49,7 @@ type Resolver = {
 };
 
 const require = createRequire(import.meta.url);
-const resolver = require(
-  "../.github/actions/resolve-validation-evidence/resolver.cjs",
-) as Resolver;
+const resolver = require("../.github/actions/resolve-validation-evidence/resolver.cjs") as Resolver;
 
 function manifest(): Manifest {
   return {
@@ -74,7 +72,8 @@ function identity(overrides: Partial<Parameters<Resolver["buildIdentity"]>[0]> =
     setupCommand: "bun install --frozen-lockfile",
     command: "bun run test:unit",
     environmentIdentity: "bun-1.4.0",
-    capabilityIdentity: "moritzbrantner/reusable-workflows@ffffffffffffffffffffffffffffffffffffffff",
+    capabilityIdentity:
+      "moritzbrantner/reusable-workflows@ffffffffffffffffffffffffffffffffffffffff",
     inputFiles: [
       { path: "bun.lock", mode: "100644", digest: `sha256:${"a".repeat(64)}` },
       { path: "package.json", mode: "100644", digest: `sha256:${"b".repeat(64)}` },
@@ -112,15 +111,14 @@ describe("validation evidence fingerprint identity", () => {
 
     const changedInput = identity({
       inputFiles: base.inputFiles.map((entry) =>
-        entry.path === "src/ui/view.tsx"
-          ? { ...entry, digest: `sha256:${"e".repeat(64)}` }
-          : entry,
+        entry.path === "src/ui/view.tsx" ? { ...entry, digest: `sha256:${"e".repeat(64)}` } : entry,
       ),
     });
     const changedCommand = identity({ command: "bun run test:integration" });
     const changedEnvironment = identity({ environmentIdentity: "bun-1.4.1" });
     const changedCapability = identity({
-      capabilityIdentity: "moritzbrantner/reusable-workflows@1111111111111111111111111111111111111111",
+      capabilityIdentity:
+        "moritzbrantner/reusable-workflows@1111111111111111111111111111111111111111",
     });
     const changedRunnerImage = identity({
       runnerImageIdentity: "ubuntu24@20260908.1",
