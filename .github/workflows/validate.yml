@@ -60,7 +60,9 @@ jobs:
           bun-version: "1.4.0"
       - run: bun install --frozen-lockfile
       - name: Format resolver canonically
-        run: ./node_modules/.bin/oxfmt .github/actions/resolve-validation-impact/resolver.cjs
+        run: |
+          ./node_modules/.bin/oxfmt .github/actions/resolve-validation-impact/resolver.cjs
+          git diff --no-ext-diff --no-color -- .github/actions/resolve-validation-impact/resolver.cjs
       - name: Upload formatted resolver
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
