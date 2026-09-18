@@ -132,7 +132,7 @@ jobs:
         id: verification
         if: ${{ steps.existing-verification.outcome != 'success' }}
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@3f7e2387dda68fd27ddd72a8b995f126678ff4ff
+        uses: moritzbrantner/coding-tooling@02005dc3921ec86f72afa11aa85669fc8fde4ff0
         with:
           tier: ${{ inputs.tier }}
           config: ${{ inputs.config }}
@@ -144,7 +144,7 @@ jobs:
         id: score
         if: ${{ always() }}
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@3f7e2387dda68fd27ddd72a8b995f126678ff4ff
+        uses: moritzbrantner/coding-tooling@02005dc3921ec86f72afa11aa85669fc8fde4ff0
         with:
           operation: score
           validation-report: .artifacts/coding-tooling/history-run.json
@@ -156,7 +156,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: moritzbrantner/coding-tooling
-          ref: 3f7e2387dda68fd27ddd72a8b995f126678ff4ff
+          ref: 02005dc3921ec86f72afa11aa85669fc8fde4ff0
           path: .coding-tooling-source
           persist-credentials: false
 
