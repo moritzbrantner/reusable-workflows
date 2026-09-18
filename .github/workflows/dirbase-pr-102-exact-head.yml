@@ -25,7 +25,6 @@ jobs:
         with:
           repository: moritzbrantner/dirbase
           ref: f766d21445e5b4fb0f02c3f10b811a712caf3d5c
-          persist-credentials: false
 
       - name: Verify exact source revision
         run: test "$(git rev-parse HEAD)" = "f766d21445e5b4fb0f02c3f10b811a712caf3d5c"
