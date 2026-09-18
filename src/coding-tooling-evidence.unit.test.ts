@@ -2,10 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-const workflowPath = new URL(
-  "../.github/workflows/coding-tooling-validation.yml",
-  import.meta.url,
-);
+const workflowPath = new URL("../.github/workflows/coding-tooling-validation.yml", import.meta.url);
 
 describe("coding-tooling repository evidence preservation", () => {
   test("stages a literal repository-relative evidence path before artifact upload", () => {
