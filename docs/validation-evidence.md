@@ -23,7 +23,7 @@ Changes to unrelated validation units also do not invalidate the selected unit's
 
 ## Fail-safe reuse
 
-When `reuse_across_runs` is enabled, the workflow looks for a retained successful `validation-evidence` execution receipt with the same full fingerprint.
+Cross-run reuse is disabled by default. When the caller explicitly sets `reuse_across_runs: true`, the workflow looks for a retained successful `validation-evidence` execution receipt with the same full fingerprint.
 
 Reuse occurs only after the retained receipt, producer run, repository, unit name, fingerprint digest, and artifact coordinates are verified.
 
@@ -35,7 +35,8 @@ Any uncertainty executes validation normally:
 - expired artifact;
 - receipt download failure;
 - digest or coordinate mismatch;
-- invalid prior receipt.
+- invalid prior receipt;
+- a declared input that is a symlink, submodule, or another non-regular Git entry.
 
 A failed reuse lookup is therefore a performance miss, not a correctness failure.
 
@@ -54,6 +55,7 @@ jobs:
       setup_command: bun install --frozen-lockfile
       command: bun run test:unit
       environment_identity: bun-1.4.0
+      reuse_across_runs: true
 ```
 
 Callers should keep toolchain/configuration files in the validation impact manifest's relevant unit inputs or `globalInputs`. `environment_identity` is for additional caller-owned state that cannot be represented by tracked repository files.
