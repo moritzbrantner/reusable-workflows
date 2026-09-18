@@ -52,8 +52,8 @@ describe("repository validation impact scheduling", () => {
     const result = plan(["docs/validation-evidence.md"]);
 
     expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual(["semantic"]);
-    expect(result.reusableUnits).toEqual(["actionlint", "web-build"]);
+    expect(result.invalidatedUnits).toEqual([]);
+    expect(result.reusableUnits).toEqual(["actionlint", "semantic", "web-build"]);
   });
 
   test("invalidates the web build for application source changes", () => {
@@ -125,6 +125,9 @@ describe("repository validation impact scheduling", () => {
       "contains(needs.validation-impact.outputs.invalidated_units_json, '\"actionlint\"')",
     );
     expect(validate).toContain("needs.validation-impact.outputs.full_validation == 'true'");
+    expect(validate).toContain("impact_unit: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'semantic' || '' }}");
+    expect(validate).toContain("preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}");
+    expect(validate).toContain("github.event_name == 'pull_request' || github.event_name == 'push'");
     expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);
   });
 });
