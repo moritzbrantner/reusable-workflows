@@ -280,7 +280,9 @@ jobs:
           LOCATOR_NAME: ${{ steps.identity.outputs.reuse_locator_name }}
         run: |
           set -euo pipefail
-          gh api             "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&name=${LOCATOR_NAME}"             > "$RUNNER_TEMP/build-artifact-reuse-candidates.json"
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&name=${LOCATOR_NAME}" \
+            > "$RUNNER_TEMP/build-artifact-reuse-candidates.json"
           python3 - <<'PY'
           import json
           import os
