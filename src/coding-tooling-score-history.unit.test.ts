@@ -27,7 +27,9 @@ describe("coding-tooling score history workflow", () => {
 
   test("reuses exact current-run verification and falls back only when evidence reuse fails", () => {
     expect(source).toContain("Resolve current-run verification candidate");
-    expect(source).toContain("coding-tooling-run-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}");
+    expect(source).toContain(
+      "coding-tooling-run-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}",
+    );
     expect(source).toContain(
       "execution-receipt-coding-tooling-run-${{ inputs.tier }}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}",
     );
