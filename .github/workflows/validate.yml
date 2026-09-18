@@ -48,6 +48,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validation-impact:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/validation-impact.yml
+    permissions:
+      contents: read
+    with:
+      base_sha: ${{ github.event.pull_request.base.sha }}
+      head_sha: ${{ github.event.pull_request.head.sha }}
+
   coding-tooling-fast:
     uses: ./.github/workflows/coding-tooling-validation.yml
     permissions:
@@ -67,6 +76,20 @@ jobs:
       tier: fast
 
   artifact-build:
+    needs: [validation-impact]
+    if: >-
+      ${{
+        always() && (
+          github.event_name != 'pull_request' ||
+          needs.validation-impact.result != 'success' ||
+          needs.validation-impact.outputs.full_validation == 'true' ||
+          contains(needs.validation-impact.outputs.invalidated_units_json, '"web-build"') ||
+          contains(github.event.pull_request.labels.*.name, 'ci:full') ||
+          contains(github.event.pull_request.labels.*.name, 'ci:e2e') ||
+          contains(github.event.pull_request.labels.*.name, 'ci:storybook') ||
+          contains(github.event.pull_request.labels.*.name, 'ci:links')
+        )
+      }}
     uses: ./.github/workflows/build-artifact.yml
     permissions:
       actions: read
@@ -191,9 +214,14 @@ jobs:
     needs: [coding-tooling-fast, artifact-build, actionlint]
     if: >-
       ${{
-        (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-        (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
-        (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
+        always() &&
+        needs.coding-tooling-fast.result == 'success' &&
+        (needs.artifact-build.result == 'success' || needs.artifact-build.result == 'skipped') &&
+        (needs.actionlint.result == 'success' || needs.actionlint.result == 'skipped') && (
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
+          (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
+        )
       }}
     uses: ./.github/workflows/performance-validation.yml
     permissions:
@@ -217,6 +245,17 @@ jobs:
       upload_artifacts_on: ${{ github.event_name == 'pull_request' && 'failure' || 'always' }}
 
   actionlint:
+    needs: [validation-impact]
+    if: >-
+      ${{
+        always() && (
+          github.event_name != 'pull_request' ||
+          needs.validation-impact.result != 'success' ||
+          needs.validation-impact.outputs.full_validation == 'true' ||
+          contains(needs.validation-impact.outputs.invalidated_units_json, '"actionlint"') ||
+          contains(github.event.pull_request.labels.*.name, 'ci:full')
+        )
+      }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
