@@ -76,9 +76,6 @@ jobs:
       contents: write
     with:
       tier: fast
-      validation_report_artifact_name: ${{ needs.coding-tooling-fast.outputs.artifact_name }}
-      validation_receipt_artifact_name: ${{ needs.coding-tooling-fast.outputs.receipt_artifact_name }}
-      validation_source_sha: ${{ github.sha }}
 
   artifact-build:
     needs: [validation-impact]
