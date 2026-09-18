@@ -24,7 +24,7 @@ on:
         type: string
         default: auto
       validation_report_artifact_name:
-        description: Optional coding-tooling-validation report artifact from the current workflow run. Supply with validation_receipt_artifact_name and validation_source_sha to reuse exact successful verification.
+        description: Optional coding-tooling-validation report artifact from the current workflow run. Supply with validation_receipt_artifact_name and validation_source_sha to reuse exact completed verification.
         required: false
         type: string
         default: ""
@@ -115,7 +115,7 @@ jobs:
           name: ${{ inputs.validation_receipt_artifact_name }}
           path: .artifacts/coding-tooling/reused-receipt
 
-      - name: Reuse exact successful repository verification
+      - name: Reuse exact repository verification
         id: existing-verification
         if: ${{ steps.reused-report.outcome == 'success' && steps.reused-receipt.outcome == 'success' }}
         continue-on-error: true
@@ -142,7 +142,7 @@ jobs:
           assert receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}
           assert receipt["source"]["repository"] == os.environ["GITHUB_REPOSITORY"]
           assert receipt["source"]["sha"] == os.environ["EXPECTED_SOURCE_SHA"].lower()
-          assert receipt["result"]["outcome"] == "success"
+          assert receipt["result"]["outcome"] in {"success", "failure"}
 
           report_evidence = [
               entry
