@@ -6,7 +6,7 @@ on:
       - ci/dirbase-102-exact-head
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: dirbase-pr-102-rustfmt-capture
@@ -22,9 +22,10 @@ jobs:
         with:
           repository: moritzbrantner/dirbase
           ref: f766d21445e5b4fb0f02c3f10b811a712caf3d5c
+          path: dirbase
 
       - name: Verify exact source revision
-        run: test "$(git rev-parse HEAD)" = "f766d21445e5b4fb0f02c3f10b811a712caf3d5c"
+        run: test "$(git -C dirbase rev-parse HEAD)" = "f766d21445e5b4fb0f02c3f10b811a712caf3d5c"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
@@ -32,22 +33,30 @@ jobs:
           toolchain: "1.89.0"
           components: rustfmt
 
-      - name: Capture canonical rustfmt output
+      - name: Format exact dirbase head
+        working-directory: dirbase
+        run: cargo fmt --all
+
+      - name: Check out diagnostic host branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: moritzbrantner/reusable-workflows
+          ref: ci/dirbase-102-exact-head
+          path: host
+
+      - name: Persist canonical formatted sources on diagnostic branch
         run: |
           set -euo pipefail
-          cargo fmt --all
-          mkdir -p .artifacts/rustfmt
-          git diff --name-only -- '*.rs' > .artifacts/rustfmt/manifest.txt
-          test -s .artifacts/rustfmt/manifest.txt
+          rm -rf host/.artifacts/dirbase-pr-102-rustfmt
+          mkdir -p host/.artifacts/dirbase-pr-102-rustfmt
+          git -C dirbase diff --name-only -- '*.rs' > host/.artifacts/dirbase-pr-102-rustfmt/manifest.txt
+          test -s host/.artifacts/dirbase-pr-102-rustfmt/manifest.txt
           while IFS= read -r path; do
-            mkdir -p ".artifacts/rustfmt/$(dirname "$path")"
-            cp "$path" ".artifacts/rustfmt/$path"
-          done < .artifacts/rustfmt/manifest.txt
-
-      - name: Upload formatted sources
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: dirbase-pr-102-rustfmt-f766d21445e5
-          path: .artifacts/rustfmt
-          if-no-files-found: error
-          retention-days: 1
+            mkdir -p "host/.artifacts/dirbase-pr-102-rustfmt/$(dirname "$path")"
+            cp "dirbase/$path" "host/.artifacts/dirbase-pr-102-rustfmt/$path"
+          done < host/.artifacts/dirbase-pr-102-rustfmt/manifest.txt
+          git -C host config user.name github-actions[bot]
+          git -C host config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C host add .artifacts/dirbase-pr-102-rustfmt
+          git -C host commit -m "ci: persist dirbase rustfmt output"
+          git -C host push origin HEAD:ci/dirbase-102-exact-head
