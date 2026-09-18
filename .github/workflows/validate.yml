@@ -49,13 +49,13 @@ concurrency:
 
 jobs:
   validation-impact:
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     uses: ./.github/workflows/validation-impact.yml
     permissions:
       contents: read
     with:
-      base_sha: ${{ github.event.pull_request.base.sha }}
-      head_sha: ${{ github.event.pull_request.head.sha }}
+      base_sha: ${{ github.event.pull_request.base.sha || github.event.before }}
+      head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
 
   coding-tooling-fast:
     uses: ./.github/workflows/coding-tooling-validation.yml
@@ -66,10 +66,15 @@ jobs:
       tier: fast
       component: "."
       report_path: .artifacts/coding-tooling/fast.json
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      impact_base_sha: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
+      impact_head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      impact_unit: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'semantic' || '' }}
 
   coding-tooling-score-history:
     needs: [coding-tooling-fast]
-    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.coding-tooling-fast.outputs.outcome == 'success' }}
     uses: ./.github/workflows/coding-tooling-score-history.yml
     permissions:
       actions: read
@@ -82,7 +87,7 @@ jobs:
     if: >-
       ${{
         always() && (
-          github.event_name != 'pull_request' ||
+          github.event_name == 'workflow_dispatch' ||
           needs.validation-impact.result != 'success' ||
           needs.validation-impact.outputs.full_validation == 'true' ||
           contains(needs.validation-impact.outputs.invalidated_units_json, '"web-build"') ||
@@ -212,14 +217,18 @@ jobs:
         linkinator-report.json
 
   performance-validation:
-    needs: [coding-tooling-fast, artifact-build, actionlint]
+    needs: [coding-tooling-fast, artifact-build, actionlint, validation-impact]
     if: >-
       ${{
         always() &&
         needs.coding-tooling-fast.result == 'success' &&
         (needs.artifact-build.result == 'success' || needs.artifact-build.result == 'skipped') &&
         (needs.actionlint.result == 'success' || needs.actionlint.result == 'skipped') && (
-          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'push' && github.ref == 'refs/heads/main' && (
+            needs.validation-impact.result != 'success' ||
+            needs.validation-impact.outputs.full_validation == 'true' ||
+            contains(needs.validation-impact.outputs.invalidated_units_json, '"web-build"')
+          )) ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
           (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
         )
@@ -249,7 +258,7 @@ jobs:
     if: >-
       ${{
         always() && (
-          github.event_name != 'pull_request' ||
+          github.event_name == 'workflow_dispatch' ||
           needs.validation-impact.result != 'success' ||
           needs.validation-impact.outputs.full_validation == 'true' ||
           contains(needs.validation-impact.outputs.invalidated_units_json, '"actionlint"') ||

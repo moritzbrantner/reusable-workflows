@@ -34,12 +34,11 @@ describe("coding-tooling repository evidence preservation", () => {
 
   test("pushes one caller-established source revision through checkout and tooling", () => {
     const source = readFileSync(workflowPath, "utf8");
-    const sourceExpression =
-      "${{ inputs.source_sha != '' && inputs.source_sha || github.event.pull_request.head.sha || github.sha }}";
 
     expect(source).toContain("Check out exact consumer revision");
-    expect(source).toContain(`ref: ${sourceExpression}`);
-    expect(source).toContain(`source-sha: ${sourceExpression}`);
+    expect(source).toContain("inputs.source_sha != '' && inputs.source_sha");
+    expect(source).toContain("inputs.impact_head_sha != '' && inputs.impact_head_sha");
+    expect(source).toContain("github.event.pull_request.head.sha || github.sha");
     expect(source).not.toContain('source_sha="$(git rev-parse HEAD)"');
   });
 
@@ -49,5 +48,34 @@ describe("coding-tooling repository evidence preservation", () => {
     expect(source).toContain(
       "uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858",
     );
+  });
+
+  test("skips reusable validation units without spending a coding-tooling run", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("Resolve validation impact");
+    expect(source).toContain("Resolve validation routing");
+    expect(source).toContain("impact_unit:");
+    expect(source).toContain("steps.routing.outputs.execute == 'true'");
+    expect(source).toContain("full_validation");
+    expect(source).toContain("invalidated_units_json");
+  });
+
+  test("fails open to execution when impact evidence is not for the pushed source", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("SOURCE_SHA: ${{ inputs.source_sha }}");
+    expect(source).toContain('"$SOURCE_SHA" != "$IMPACT_HEAD_SHA"');
+    expect(source).toContain("same_source=false");
+  });
+
+  test("preserves successful evidence only when requested", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("preserve_success_evidence:");
+    expect(source).toContain("Resolve evidence preservation");
+    expect(source).toContain("steps.evidence-policy.outputs.required == 'true'");
+    expect(source).toContain("TOOLING_OUTCOME: ${{ steps.tooling.outcome }}");
+    expect(source).toContain("PRESERVE_SUCCESS: ${{ inputs.preserve_success_evidence }}");
   });
 });

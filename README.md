@@ -54,7 +54,7 @@ source development -> local validation -> done
 ### Preferred core validation
 
 - `command-validation.yml` — runtime-neutral adapter around one optional repository-owned setup command and one validation command. Emits Execution Receipt v1.
-- `coding-tooling-validation.yml` — invokes `coding-tooling` for a declared operation/tier and transports its report plus Execution Receipt v1.
+- `coding-tooling-validation.yml` — invokes `coding-tooling` for a declared operation/tier. Failed runs preserve the report plus Execution Receipt v1 automatically; successful runs preserve them only when the caller requests durable evidence. Callers may also provide exact base/head coordinates plus a validation-impact unit so a proven reusable unit skips the tooling run.
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
 - `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
@@ -203,6 +203,6 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`validate.yml` dogfoods the live `.github/validation-impact.json` policy on pull requests: semantic validation always runs, while the ordinary web build and actionlint run only when their declared inputs are invalidated or when impact planning fails closed. `main` and explicit full/deep requests keep their broad validation behavior.
+`validate.yml` dogfoods the live `.github/validation-impact.json` policy on pull requests and `main` pushes. Documentation-only changes can skip semantic validation entirely; web builds, actionlint, and the expensive post-build lanes run only when their declared inputs are invalidated or impact planning fails closed. Successful pull-request semantic runs do not upload durable report/receipt artifacts by default; `main` opts in because score history consumes that evidence. Explicit full/deep requests remain available.
 
 `smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/validation-impact/validation-evidence/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
