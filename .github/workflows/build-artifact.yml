@@ -574,7 +574,6 @@ jobs:
           CARGO_CACHE_OUTCOME: ${{ steps.cargo-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
-          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
         run: |
