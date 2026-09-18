@@ -231,7 +231,7 @@ function buildFingerprint({
   };
 }
 
-function fallbackPlan({ sourceSha, unitName, manifestPath, reason }) {
+function fallbackPlan({ sourceSha, manifestPath, reason }) {
   return {
     schemaVersion: 1,
     kind: "reusable-workflows/validation-evidence-fingerprint",
