@@ -51,6 +51,7 @@ jobs:
       artifact_key: reusable-workflows-smoke-artifact-v1
       bun_version: "1.4.0"
       cache_bun: true
+      cache_cargo: true
       build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
       artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
       reuse_across_runs: true
@@ -64,6 +65,7 @@ jobs:
       artifact_key: reusable-workflows-smoke-artifact-v1
       bun_version: "1.4.0"
       cache_bun: true
+      cache_cargo: true
       build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
       artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
       reuse_across_runs: true
