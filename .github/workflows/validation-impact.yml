@@ -1,0 +1,94 @@
+name: Validation Impact
+
+on:
+  workflow_call:
+    outputs:
+      changed_files_json:
+        description: Stable JSON array of changed repository-relative files.
+        value: ${{ jobs.validation-impact.outputs.changed_files_json }}
+      invalidated_units_json:
+        description: Stable JSON array of validation units that must run.
+        value: ${{ jobs.validation-impact.outputs.invalidated_units_json }}
+      reusable_units_json:
+        description: Stable JSON array of validation units whose declared inputs remain valid.
+        value: ${{ jobs.validation-impact.outputs.reusable_units_json }}
+      full_validation:
+        description: Whether uncertainty or a declared global input requires the caller's full validation path.
+        value: ${{ jobs.validation-impact.outputs.full_validation }}
+      plan_digest:
+        description: SHA-256 digest of the deterministic impact plan.
+        value: ${{ jobs.validation-impact.outputs.plan_digest }}
+      plan_path:
+        description: Repository-relative path of the generated impact plan.
+        value: ${{ jobs.validation-impact.outputs.plan_path }}
+    inputs:
+      base_sha:
+        description: Exact 40-character base commit SHA.
+        required: true
+        type: string
+      head_sha:
+        description: Exact 40-character head commit SHA.
+        required: true
+        type: string
+      manifest_path:
+        description: Repository-relative consumer-owned validation impact manifest.
+        required: false
+        type: string
+        default: ".github/validation-impact.json"
+      output_path:
+        description: Repository-relative path for the generated impact plan.
+        required: false
+        type: string
+        default: ".artifacts/reusable-workflows/validation-impact.json"
+      timeout_minutes:
+        description: Maximum hosted impact-analysis runtime.
+        required: false
+        type: number
+        default: 10
+
+jobs:
+  validation-impact:
+    name: Validation Impact
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: read
+    outputs:
+      changed_files_json: ${{ steps.impact.outputs.changed_files_json }}
+      invalidated_units_json: ${{ steps.impact.outputs.invalidated_units_json }}
+      reusable_units_json: ${{ steps.impact.outputs.reusable_units_json }}
+      full_validation: ${{ steps.impact.outputs.full_validation }}
+      plan_digest: ${{ steps.impact.outputs.plan_digest }}
+      plan_path: ${{ steps.impact.outputs.plan_path }}
+    steps:
+      - name: Check out caller repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 1
+
+      - name: Prepare exact impact revisions
+        continue-on-error: true
+        shell: bash
+        env:
+          BASE_SHA: ${{ inputs.base_sha }}
+          HEAD_SHA: ${{ inputs.head_sha }}
+        run: |
+          set -euo pipefail
+
+          if ! git cat-file -e "${HEAD_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "${HEAD_SHA}"
+          fi
+          git checkout --detach "${HEAD_SHA}"
+
+          if ! git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 origin "${BASE_SHA}"
+          fi
+
+      - name: Resolve validation impact
+        id: impact
+        uses: moritzbrantner/reusable-workflows/.github/actions/resolve-validation-impact@a4001a9b0729c80017f84f9246373ecaa63604d9
+        with:
+          base_sha: ${{ inputs.base_sha }}
+          head_sha: ${{ inputs.head_sha }}
+          manifest_path: ${{ inputs.manifest_path }}
+          output_path: ${{ inputs.output_path }}
