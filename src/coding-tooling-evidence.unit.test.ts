@@ -43,7 +43,7 @@ describe("coding-tooling repository evidence preservation", () => {
     const source = readFileSync(workflowPath, "utf8");
 
     expect(source).toContain(
-      "uses: moritzbrantner/coding-tooling@3f7e2387dda68fd27ddd72a8b995f126678ff4ff",
+      "uses: moritzbrantner/coding-tooling@a630598d369ac94d0f549dce5c859b9dd28b250c",
     );
   });
 });

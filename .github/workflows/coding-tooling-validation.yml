@@ -113,7 +113,7 @@ jobs:
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@3f7e2387dda68fd27ddd72a8b995f126678ff4ff
+        uses: moritzbrantner/coding-tooling@a630598d369ac94d0f549dce5c859b9dd28b250c
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -158,7 +158,7 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`3f7e2387dda68fd27ddd72a8b995f126678ff4ff\`"
+            echo "- coding-tooling revision: \`a630598d369ac94d0f549dce5c859b9dd28b250c\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
             if [[ -n "$EVIDENCE_PATH" ]]; then
               echo "- Repository evidence: \`$EVIDENCE_PATH\`"

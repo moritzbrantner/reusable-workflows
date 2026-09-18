@@ -33,11 +33,13 @@ export type ValidationState = {
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const artifactPromotionWorkflowPath = ".github/workflows/artifact-promotion.yml";
 const codingToolingWorkflowPath = ".github/workflows/coding-tooling-validation.yml";
+const buildArtifactWorkflowPath = ".github/workflows/build-artifact.yml";
 const commandValidationWorkflowPath = ".github/workflows/command-validation.yml";
 const deliverQualifiedExpoStoresWorkflowPath =
   ".github/workflows/deliver-qualified-expo-stores.yml";
 const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
+const validationEvidenceWorkflowPath = ".github/workflows/validation-evidence.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
 const immutableDownloadArtifactUse = /uses:\s*actions\/download-artifact@[0-9a-f]{40}(?:\s|$)/m;
@@ -187,18 +189,32 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
   }
 
-  for (const workflowPath of [commandValidationWorkflowPath, releaseQualificationWorkflowPath]) {
+  for (const workflowPath of [
+    buildArtifactWorkflowPath,
+    commandValidationWorkflowPath,
+    releaseQualificationWorkflowPath,
+    validationEvidenceWorkflowPath,
+  ]) {
     const source = state.workflowSources[workflowPath];
     if (!source) {
       continue;
     }
     if (
       !source.includes(".repository-environment.toml") ||
-      !source.includes("bash scripts/codex-environment.sh setup") ||
-      !source.includes("Verify environment-v1 preserves tracked state")
+      !source.includes("bash scripts/codex-environment.sh setup")
     ) {
       errors.push(
         `${path.basename(workflowPath)} must use the standard environment-v1 setup seam when the repository declares environment-v1`,
+      );
+    }
+    if (!source.includes("Diagnose environment-v1 tracked state after")) {
+      errors.push(
+        `${path.basename(workflowPath)} must keep environment tracked-state inspection on the failure-diagnostic path`,
+      );
+    }
+    if (source.includes("steps.environment-state.outcome == 'success'")) {
+      errors.push(
+        `${path.basename(workflowPath)} must not gate successful execution on environment diagnostics`,
       );
     }
   }

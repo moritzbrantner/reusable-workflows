@@ -420,21 +420,21 @@ jobs:
         working-directory: .
         run: bash scripts/codex-environment.sh setup
 
-      - name: Verify environment-v1 preserves tracked state
+      - name: Run repository validation
+        id: command
+        if: ${{ steps.reuse.outputs.hit != 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') }}
+        continue-on-error: true
+        run: ${{ inputs.command }}
+
+      - name: Diagnose environment-v1 tracked state after validation failure
         id: environment-state
-        if: ${{ steps.environment-setup.outcome == 'success' }}
+        if: ${{ steps.reuse.outputs.hit != 'true' && steps.environment.outputs.detected == 'true' && (steps.environment-setup.outcome == 'failure' || steps.command.outcome == 'failure') }}
         continue-on-error: true
         working-directory: .
         run: |
           set -euo pipefail
           git diff --exit-code
           git diff --cached --exit-code
-
-      - name: Run repository validation
-        id: command
-        if: ${{ steps.reuse.outputs.hit != 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') && (steps.environment-state.outcome == 'success' || steps.environment-state.outcome == 'skipped') }}
-        continue-on-error: true
-        run: ${{ inputs.command }}
 
       - name: Determine validation outcome
         id: status
@@ -444,14 +444,13 @@ jobs:
           REUSE_HIT: ${{ steps.reuse.outputs.hit }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
-          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
           COMMAND_OUTCOME: ${{ steps.command.outcome }}
         run: |
           set -euo pipefail
           outcome=failure
           if [[ "$REUSE_HIT" == "true" ]]; then
             outcome=success
-          elif [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]]             && [[ "$ENVIRONMENT_SETUP_OUTCOME" == "success" || "$ENVIRONMENT_SETUP_OUTCOME" == "skipped" ]]             && [[ "$ENVIRONMENT_STATE_OUTCOME" == "success" || "$ENVIRONMENT_STATE_OUTCOME" == "skipped" ]]             && [[ "$COMMAND_OUTCOME" == "success" ]]; then
+          elif [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]]             && [[ "$ENVIRONMENT_SETUP_OUTCOME" == "success" || "$ENVIRONMENT_SETUP_OUTCOME" == "skipped" ]]             && [[ "$COMMAND_OUTCOME" == "success" ]]; then
             outcome=success
           fi
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
