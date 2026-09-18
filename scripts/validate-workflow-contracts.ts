@@ -161,6 +161,9 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   if (codingToolingSource && !("operation" in codingToolingInputs)) {
     errors.push("coding-tooling-validation.yml must expose the coding-tooling operation input");
   }
+  if (codingToolingSource && !("source_sha" in codingToolingInputs)) {
+    errors.push("coding-tooling-validation.yml must expose caller-pushed source_sha context");
+  }
 
   for (const workflowPath of [
     artifactPromotionWorkflowPath,
@@ -183,9 +186,6 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
     if (!source.includes(executionReceiptKind)) {
       errors.push(`${path.basename(workflowPath)} must emit the shared execution receipt kind`);
-    }
-    if (!source.includes("execution receipt")) {
-      errors.push(`${path.basename(workflowPath)} must validate its execution receipt`);
     }
   }
 

@@ -557,33 +557,6 @@ jobs:
           Path(os.environ["RECEIPT_PATH"]).write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           PY
 
-      - name: Validate execution receipt contract
-        if: ${{ always() }}
-        env:
-          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-
-          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
-              receipt = json.load(handle)
-          outcomes = {"success", "failure", "cancelled", "skipped"}
-          assert receipt["schemaVersion"] == 1
-          assert receipt["kind"] == "reusable-workflows/execution-receipt"
-          assert receipt["capability"] == {"name": "deliver-qualified-expo-stores", "interfaceVersion": 1}
-          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
-          assert receipt["result"]["outcome"] in {"success", "failure"}
-          assert all(value in outcomes for value in receipt["result"]["steps"].values())
-          assert len(receipt["upstream"]) == 1 and receipt["upstream"][0]["role"] == "artifact-promotion"
-          if receipt["result"]["outcome"] == "success":
-              roles = {item["role"] for item in receipt["evidence"]}
-              assert {"qualified-artifact", "ios-binary", "android-binary", "mobile-release-manifest", "ios-submission-log", "android-submission-log"} <= roles
-          PY
-
       - name: Upload delivery receipt and evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

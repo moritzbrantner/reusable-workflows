@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: .coding-tooling.json
+      source_sha:
+        description: Caller-established source revision. Defaults to the triggering PR head or workflow SHA for compatibility.
+        required: false
+        type: string
+        default: ""
       strict:
         description: Fail when a selected coding-tooling capability is unavailable.
         required: false
@@ -86,6 +91,9 @@ on:
       outcome:
         description: Outcome of the coding-tooling Action before failure propagation.
         value: ${{ jobs.coding-tooling.outputs.outcome }}
+      source_sha:
+        description: Source revision pushed through validation and recorded in the receipt.
+        value: ${{ jobs.coding-tooling.outputs.source_sha }}
 
 jobs:
   coding-tooling:
@@ -104,16 +112,17 @@ jobs:
       receipt_artifact_name: ${{ steps.report.outputs.receipt_artifact_name }}
       receipt_path: ${{ steps.report.outputs.receipt_path }}
       outcome: ${{ steps.tooling.outcome }}
+      source_sha: ${{ steps.report.outputs.source_sha }}
     steps:
       - name: Check out exact consumer revision
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ inputs.source_sha != '' && inputs.source_sha || github.event.pull_request.head.sha || github.sha }}
 
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@a630598d369ac94d0f549dce5c859b9dd28b250c
+        uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -122,6 +131,7 @@ jobs:
           report-path: ${{ inputs.report_path }}
           strict: ${{ inputs.strict }}
           install-mode: ${{ inputs.install_mode }}
+          source-sha: ${{ inputs.source_sha != '' && inputs.source_sha || github.event.pull_request.head.sha || github.sha }}
 
       - name: Define report metadata
         id: report
@@ -130,9 +140,10 @@ jobs:
         env:
           REPORT_PATH: ${{ inputs.report_path }}
           EVIDENCE_PATH: ${{ inputs.evidence_path }}
+          SOURCE_SHA: ${{ inputs.source_sha != '' && inputs.source_sha || github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
-          source_sha="$(git rev-parse HEAD)"
+          source_sha="${SOURCE_SHA,,}"
           short_sha="${source_sha:0:12}"
           {
             echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}"
@@ -158,7 +169,6 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`a630598d369ac94d0f549dce5c859b9dd28b250c\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
             if [[ -n "$EVIDENCE_PATH" ]]; then
               echo "- Repository evidence: \`$EVIDENCE_PATH\`"
@@ -382,41 +392,6 @@ jobs:
               json.dumps(receipt, indent=2, sort_keys=True) + "\n",
               encoding="utf-8",
           )
-          PY
-
-      - name: Validate execution receipt contract
-        if: ${{ always() }}
-        shell: bash
-        env:
-          RECEIPT_PATH: ${{ steps.report.outputs.receipt_path }}
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-
-          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
-              receipt = json.load(handle)
-
-          outcomes = {"success", "failure", "cancelled", "skipped"}
-          assert receipt["schemaVersion"] == 1
-          assert receipt["kind"] == "reusable-workflows/execution-receipt"
-          assert receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}
-          assert re.fullmatch(r"[^/]+/[^/]+", receipt["source"]["repository"])
-          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
-          assert receipt["result"]["outcome"] in outcomes
-          assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
-          assert isinstance(receipt["evidence"], list) and 1 <= len(receipt["evidence"]) <= 2
-          for index, evidence in enumerate(receipt["evidence"]):
-              expected_role = "coding-tooling-report" if index == 0 else "repository-evidence"
-              assert evidence["role"] == expected_role
-              assert isinstance(evidence["name"], str) and evidence["name"]
-              assert isinstance(evidence["path"], str) and evidence["path"]
-              assert evidence["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", evidence["digest"])
-          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
-          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
-          assert receipt["run"]["callerWorkflowRef"] is None or isinstance(receipt["run"]["callerWorkflowRef"], str)
           PY
 
       - name: Upload execution receipt

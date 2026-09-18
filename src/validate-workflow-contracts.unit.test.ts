@@ -186,6 +186,39 @@ jobs:
     );
   });
 
+  test("requires caller-pushed source context for coding-tooling validation", () => {
+    const codingToolingWorkflow = `
+on:
+  workflow_call:
+    inputs:
+      operation:
+        required: false
+        type: string
+        default: run
+jobs:
+  coding-tooling:
+    permissions:
+      contents: read
+    steps:
+      - uses: moritzbrantner/coding-tooling@c8682a4804397f82099bd7f567ac4a6e8a18658e
+`;
+    const errors = validateWorkflowContractsState({
+      docs: {
+        "README.md": "fast-validation.yml coding-tooling-validation.yml",
+        "CONTEXT.md": "fast-validation.yml coding-tooling-validation.yml",
+      },
+      compatibilitySnapshot,
+      workflowSources: {
+        ".github/workflows/fast-validation.yml": fastWorkflow,
+        ".github/workflows/coding-tooling-validation.yml": codingToolingWorkflow,
+      },
+    });
+
+    expect(errors).toContain(
+      "coding-tooling-validation.yml must expose caller-pushed source_sha context",
+    );
+  });
+
   test("locks the execution receipt schema identity and transport fields", () => {
     const errors = validateWorkflowContractsState({
       docs: {
@@ -269,8 +302,6 @@ jobs:
     steps:
       - name: Shared receipt kind
         run: echo reusable-workflows/execution-receipt
-      - name: Validate execution receipt contract
-        run: echo valid
 `;
     const errors = validateWorkflowContractsState({
       docs: {

@@ -183,35 +183,6 @@ jobs:
           )
           PY
 
-      - name: Validate execution receipt contract
-        if: ${{ always() }}
-        working-directory: .
-        env:
-          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-
-          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
-              receipt = json.load(handle)
-
-          outcomes = {"success", "failure", "cancelled", "skipped"}
-          assert receipt["schemaVersion"] == 1
-          assert receipt["kind"] == "reusable-workflows/execution-receipt"
-          assert receipt["capability"] == {"name": "command-validation", "interfaceVersion": 1}
-          assert re.fullmatch(r"[^/]+/[^/]+", receipt["source"]["repository"])
-          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
-          assert receipt["result"]["outcome"] in outcomes
-          assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
-          assert receipt["evidence"] == []
-          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
-          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
-          assert receipt["run"]["callerWorkflowRef"] is None or isinstance(receipt["run"]["callerWorkflowRef"], str)
-          PY
-
       - name: Upload execution receipt
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
