@@ -27,6 +27,9 @@ inputs:
     description: Optional caller-owned opaque toolchain/environment identity.
     required: false
     default: ""
+  capability_identity:
+    description: Exact reusable validation-capability implementation identity.
+    required: true
   output_path:
     description: Repository-relative path for the generated fingerprint plan.
     required: false
