@@ -93,6 +93,7 @@ jobs:
       manifest_path: examples/validation-impact.json
       command: "echo smoke validation evidence"
       environment_identity: smoke-validation-evidence-v1
+      reuse_across_runs: false
       artifact_retention_days: 1
 
   validation-evidence-reuse:
@@ -107,6 +108,7 @@ jobs:
       manifest_path: examples/validation-impact.json
       command: "echo smoke validation evidence"
       environment_identity: smoke-validation-evidence-v1
+      reuse_across_runs: true
       artifact_retention_days: 1
 
   validation-evidence-result:
