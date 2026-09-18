@@ -32,6 +32,13 @@ describe("coding-tooling repository evidence preservation", () => {
     expect(source).toContain("evidence_path directory must not contain symlinks");
   });
 
+  test("validates the pull request head instead of GitHub's synthetic merge revision", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("Check out exact consumer revision");
+    expect(source).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
+  });
+
   test("pins the environment-v1-aware coding-tooling action", () => {
     const source = readFileSync(workflowPath, "utf8");
 

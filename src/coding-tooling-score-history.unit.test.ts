@@ -8,7 +8,7 @@ const workflowPath = path.resolve(
   ".github/workflows/coding-tooling-score-history.yml",
 );
 const source = readFileSync(workflowPath, "utf8");
-const codingToolingRevision = "01527f7be1607416bf9cc81a3a3e4d2bfb7355f2";
+const codingToolingRevision = "3f7e2387dda68fd27ddd72a8b995f126678ff4ff";
 
 describe("coding-tooling score history workflow", () => {
   test("delegates score and attribution semantics to one immutable coding-tooling revision", () => {
@@ -25,6 +25,27 @@ describe("coding-tooling score history workflow", () => {
     expect(source).not.toMatch(/minimum[_ -]?score/i);
   });
 
+  test("reuses exact current-run verification and falls back only when evidence reuse fails", () => {
+    expect(source).toContain("Resolve current-run verification candidate");
+    expect(source).toContain(
+      "coding-tooling-run-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}",
+    );
+    expect(source).toContain(
+      "execution-receipt-coding-tooling-run-${{ inputs.tier }}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}",
+    );
+    expect(source).toContain("Reuse exact current-run repository verification");
+    expect(source).toContain(
+      'receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}',
+    );
+    expect(source).toContain(
+      'receipt["source"]["sha"] == os.environ["EXPECTED_SOURCE_SHA"].lower()',
+    );
+    expect(source).toContain('receipt["result"]["outcome"] in {"success", "failure"}');
+    expect(source).toMatch(
+      /Capture repository verification[\s\S]*steps\.existing-verification\.outcome != 'success'/,
+    );
+  });
+
   test("reserves a serialized data-only persistence branch", () => {
     expect(source).toContain("cancel-in-progress: false");
     expect(source).toContain('git check-ref-format --branch "$history_branch"');
@@ -34,7 +55,7 @@ describe("coding-tooling score history workflow", () => {
   });
 
   test("does not project workflow inputs into repository environment state", () => {
-    expect(source).not.toMatch(/^\s+env:\s*$/m);
+    expect(source).not.toMatch(/^    env:\s*$/m);
     expect(source).not.toContain("$HISTORY_BRANCH");
     expect(source).not.toContain("$VALIDATION_TIER");
   });

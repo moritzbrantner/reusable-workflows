@@ -31,7 +31,8 @@
     "adoption:check:strict": "bun scripts/check-adoption.ts --strict",
     "contracts:generate": "bun scripts/generate-workflow-manifest.ts",
     "validate:contracts": "bun scripts/validate-workflow-contracts.ts",
-    "validate:fast": "bun run format:check && bun run lint && bun run check-types && bun run build && bun run test:unit && bun run validate:contracts && bun run size:check:dist",
+    "validate:semantic": "bun run format:check && bun run lint && bun run check-types && bun run test:unit && bun run validate:contracts",
+    "validate:fast": "bun run validate:semantic && bun run build && bun run size:check:dist",
     "verify": "bun run validate:fast && bun run storybook:build && bun run test:storybook && bun run bench"
   },
   "dependencies": {

@@ -33,8 +33,8 @@ jobs:
     with:
       source_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
       setup_command: "npm install --global bun@1.4.0"
-      qualification_command: "bun run validate:fast"
-      build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build"
+      qualification_command: "bun run validate:semantic"
+      build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"
       artifact_paths: dist
       artifact_retention_days: 7
       timeout_minutes: 30
