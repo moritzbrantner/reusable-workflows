@@ -140,6 +140,9 @@ on:
       outcome:
         description: Artifact-build or reuse outcome before final failure propagation.
         value: ${{ jobs.build-artifact.outputs.outcome }}
+      reuse_lookup_ms:
+        description: Observed time spent resolving and verifying a cross-run reuse candidate.
+        value: ${{ jobs.build-artifact.outputs.reuse_lookup_ms }}
 
 jobs:
   build-artifact:
@@ -168,6 +171,7 @@ jobs:
       receipt_artifact_name: ${{ steps.result.outputs.receipt_artifact_name }}
       receipt_path: ${{ steps.metadata.outputs.receipt_path }}
       outcome: ${{ steps.status.outputs.outcome }}
+      reuse_lookup_ms: ${{ steps.reuse-timing.outputs.reuse_lookup_ms }}
     steps:
       - name: Validate exact source and artifact identity
         id: coordinates
@@ -237,7 +241,18 @@ jobs:
           print(hashlib.sha256(value.encode("utf-8")).hexdigest())
           PY
           )"
-          echo "identity_digest=sha256:${identity_hash}" >> "$GITHUB_OUTPUT"
+          short_sha="${SOURCE_SHA:0:12}"
+          short_identity="${identity_hash:0:12}"
+          {
+            echo "identity_digest=sha256:${identity_hash}"
+            echo "reuse_locator_name=reuse-receipt-build-artifact-${short_sha}-${short_identity}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Start artifact reuse lookup timing
+        id: reuse-timing-start
+        if: ${{ inputs.reuse_across_runs && steps.coordinates.outcome == 'success' && steps.identity.outcome == 'success' }}
+        working-directory: .
+        run: echo "started_ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
 
       - name: Find reusable artifact receipt
         id: reuse-candidate
@@ -246,18 +261,10 @@ jobs:
         working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
-          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
+          LOCATOR_NAME: ${{ steps.identity.outputs.reuse_locator_name }}
         run: |
           set -euo pipefail
-          short_sha="${SOURCE_SHA:0:12}"
-          identity_hash="${IDENTITY_DIGEST#sha256:}"
-          short_identity="${identity_hash:0:12}"
-          receipt_prefix="execution-receipt-build-artifact-${short_sha}-${short_identity}-"
-          export RECEIPT_PREFIX="$receipt_prefix"
-          gh api --paginate --slurp \
-            "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
-            > "$RUNNER_TEMP/build-artifact-reuse-candidates.json"
+          gh api             "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&name=${LOCATOR_NAME}"             > "$RUNNER_TEMP/build-artifact-reuse-candidates.json"
           python3 - <<'PY'
           import json
           import os
@@ -268,26 +275,16 @@ jobs:
               .joinpath("build-artifact-reuse-candidates.json")
               .read_text(encoding="utf-8")
           )
-          pages = payload if isinstance(payload, list) else [payload]
-          artifacts = [
-              artifact
-              for page in pages
-              for artifact in page.get("artifacts", [])
-          ]
-          prefix = os.environ["RECEIPT_PREFIX"]
+          locator_name = os.environ["LOCATOR_NAME"]
           candidates = []
-          for artifact in artifacts:
-              if artifact.get("expired") is not False:
-                  continue
-              name = artifact.get("name") or ""
-              if not name.startswith(prefix):
+          for artifact in payload.get("artifacts", []):
+              if artifact.get("expired") is not False or artifact.get("name") != locator_name:
                   continue
               workflow_run = artifact.get("workflow_run") or {}
               run_id = workflow_run.get("id")
               artifact_id = artifact.get("id")
-              if not isinstance(run_id, int) or not isinstance(artifact_id, int):
-                  continue
-              candidates.append(artifact)
+              if isinstance(run_id, int) and isinstance(artifact_id, int):
+                  candidates.append(artifact)
 
           candidates.sort(
               key=lambda artifact: (
@@ -303,8 +300,7 @@ jobs:
               else:
                   candidate = candidates[0]
                   handle.write("candidate_found=true\n")
-                  handle.write(f"receipt_artifact_id={candidate['id']}\n")
-                  handle.write(f"receipt_artifact_name={candidate['name']}\n")
+                  handle.write(f"locator_artifact_id={candidate['id']}\n")
                   handle.write(f"producer_run_id={candidate['workflow_run']['id']}\n")
           PY
 
@@ -314,7 +310,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          artifact-ids: ${{ steps.reuse-candidate.outputs.receipt_artifact_id }}
+          artifact-ids: ${{ steps.reuse-candidate.outputs.locator_artifact_id }}
           path: ${{ runner.temp }}/build-artifact-reuse-receipt
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
@@ -329,22 +325,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RECEIPT_DIRECTORY: ${{ runner.temp }}/build-artifact-reuse-receipt
-          RECEIPT_ARTIFACT_ID: ${{ steps.reuse-candidate.outputs.receipt_artifact_id }}
-          RECEIPT_ARTIFACT_NAME: ${{ steps.reuse-candidate.outputs.receipt_artifact_name }}
           PRODUCER_RUN_ID: ${{ steps.reuse-candidate.outputs.producer_run_id }}
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
           ARTIFACT_KEY: ${{ inputs.artifact_key }}
           IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
         run: |
           set -euo pipefail
-          gh api --paginate --slurp \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${PRODUCER_RUN_ID}/artifacts?per_page=100" \
-            > "$RUNNER_TEMP/build-artifact-reuse-producer-artifacts.json"
           python3 - <<'PY'
           import json
           import os
           import re
+          import subprocess
           from pathlib import Path
+          from urllib.parse import quote
 
           receipt_paths = list(
               Path(os.environ["RECEIPT_DIRECTORY"]).rglob("build-artifact-receipt.json")
@@ -380,27 +373,38 @@ jobs:
           assert re.fullmatch(r"sha256:[0-9a-f]{64}", artifact.get("digest") or "")
           assert isinstance(artifact.get("name"), str) and artifact["name"]
 
-          pages = json.loads(
-              Path(os.environ["RUNNER_TEMP"])
-              .joinpath("build-artifact-reuse-producer-artifacts.json")
-              .read_text(encoding="utf-8")
+          short_sha = expected_source[:12]
+          short_identity = expected_identity.removeprefix("sha256:")[:12]
+          primary_receipt_name = (
+              f"execution-receipt-build-artifact-{short_sha}-{short_identity}-"
+              f"{producer_run_id}-{receipt['run']['attempt']}"
           )
-          pages = pages if isinstance(pages, list) else [pages]
-          producer_artifacts = [
-              item for page in pages for item in page.get("artifacts", [])
-          ]
+
+          def producer_artifacts(name: str):
+              response = subprocess.run(
+                  [
+                      "gh",
+                      "api",
+                      (
+                          f"repos/{os.environ['GITHUB_REPOSITORY']}/actions/runs/"
+                          f"{producer_run_id}/artifacts?per_page=10&name={quote(name)}"
+                      ),
+                  ],
+                  check=True,
+                  text=True,
+                  capture_output=True,
+              )
+              return json.loads(response.stdout).get("artifacts", [])
+
           receipt_matches = [
               item
-              for item in producer_artifacts
-              if str(item.get("id")) == os.environ["RECEIPT_ARTIFACT_ID"]
-              and item.get("name") == os.environ["RECEIPT_ARTIFACT_NAME"]
-              and item.get("expired") is False
+              for item in producer_artifacts(primary_receipt_name)
+              if item.get("name") == primary_receipt_name and item.get("expired") is False
           ]
           artifact_matches = [
               item
-              for item in producer_artifacts
-              if item.get("name") == artifact["name"]
-              and item.get("expired") is False
+              for item in producer_artifacts(artifact["name"])
+              if item.get("name") == artifact["name"] and item.get("expired") is False
           ]
           assert len(receipt_matches) == 1, receipt_matches
           assert len(artifact_matches) == 1, artifact_matches
@@ -411,10 +415,20 @@ jobs:
           with output.open("a", encoding="utf-8") as handle:
               handle.write("hit=true\n")
               handle.write(f"producer_run_id={producer_run_id}\n")
-              handle.write(f"receipt_artifact_name={os.environ['RECEIPT_ARTIFACT_NAME']}\n")
+              handle.write(f"receipt_artifact_name={primary_receipt_name}\n")
               handle.write(f"artifact_name={artifact['name']}\n")
               handle.write(f"artifact_digest={raw_digest}\n")
           PY
+
+      - name: Record artifact reuse lookup timing
+        id: reuse-timing
+        if: ${{ always() && steps.reuse-timing-start.outcome == 'success' }}
+        working-directory: .
+        env:
+          STARTED_MS: ${{ steps.reuse-timing-start.outputs.started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "reuse_lookup_ms=$((now_ms - STARTED_MS))" >> "$GITHUB_OUTPUT"
 
       - name: Set up Bun
         id: bun-setup
