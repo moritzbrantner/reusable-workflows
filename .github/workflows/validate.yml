@@ -68,12 +68,17 @@ jobs:
       report_path: .artifacts/coding-tooling/fast.json
 
   coding-tooling-score-history:
+    needs: [coding-tooling-fast]
     if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     uses: ./.github/workflows/coding-tooling-score-history.yml
     permissions:
+      actions: read
       contents: write
     with:
       tier: fast
+      validation_report_artifact_name: ${{ needs.coding-tooling-fast.outputs.artifact_name }}
+      validation_receipt_artifact_name: ${{ needs.coding-tooling-fast.outputs.receipt_artifact_name }}
+      validation_source_sha: ${{ github.sha }}
 
   artifact-build:
     needs: [validation-impact]
