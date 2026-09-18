@@ -117,7 +117,9 @@ describe("repository validation impact scheduling", () => {
       "utf8",
     );
 
-    expect(validate).not.toContain(\n      "uses: ./.github/workflows/validation-impact.yml",\n    );
+    expect(validate).not.toContain(
+      "uses: ./.github/workflows/validation-impact.yml",
+    );
     expect(validate).not.toContain("impact_unit:");
     expect(validate).not.toContain("reuse_across_runs: true");
     expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
@@ -130,6 +132,9 @@ describe("repository validation impact scheduling", () => {
     expect(validate).toContain(
       "contains(github.event.pull_request.labels.*.name, 'ci:e2e')",
     );
-    expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);
+    expect(smoke).toMatch(/push:
+\s+branches:
+\s+- main
+\s+paths:/);
   });
 });
