@@ -124,12 +124,8 @@ describe("repository validation impact scheduling", () => {
     expect(validate).toContain(
       "preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
     );
-    expect(validate).toContain(
-      "(github.event_name == 'push' && github.ref == 'refs/heads/main')",
-    );
-    expect(validate).toContain(
-      "contains(github.event.pull_request.labels.*.name, 'ci:e2e')",
-    );
+    expect(validate).toContain("(github.event_name == 'push' && github.ref == 'refs/heads/main')");
+    expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:e2e')");
     expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);
   });
 });
