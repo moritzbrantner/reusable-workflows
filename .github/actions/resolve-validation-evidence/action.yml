@@ -1,0 +1,51 @@
+name: Resolve validation evidence fingerprint
+description: Resolve a deterministic validation-unit fingerprint from consumer-declared inputs and execution identity.
+
+inputs:
+  source_sha:
+    description: Exact 40-character source commit SHA checked out in the workspace.
+    required: true
+  unit_name:
+    description: Validation unit declared in the consumer-owned validation impact manifest.
+    required: true
+  manifest_path:
+    description: Repository-relative validation impact manifest.
+    required: false
+    default: .github/validation-impact.json
+  working_directory:
+    description: Repository-relative validation working directory.
+    required: false
+    default: .
+  setup_command:
+    description: Repository-owned setup command included in execution identity.
+    required: false
+    default: ""
+  command:
+    description: Repository-owned validation command included in execution identity.
+    required: true
+  environment_identity:
+    description: Optional caller-owned opaque toolchain/environment identity.
+    required: false
+    default: ""
+  output_path:
+    description: Repository-relative path for the generated fingerprint plan.
+    required: false
+    default: .artifacts/reusable-workflows/validation-evidence-fingerprint.json
+
+outputs:
+  fingerprint_available:
+    description: Whether a reusable deterministic fingerprint was proven.
+  fingerprint_digest:
+    description: SHA-256 digest of the validation evidence identity.
+  fingerprint_path:
+    description: Repository-relative generated fingerprint-plan path.
+  unit_closure_json:
+    description: Stable JSON array of the selected validation unit and its dependency closure.
+  input_files_json:
+    description: Stable JSON array of tracked input files included in the fingerprint.
+  reason:
+    description: Auditable reason for fingerprint availability or fallback.
+
+runs:
+  using: node24
+  main: resolver.cjs
