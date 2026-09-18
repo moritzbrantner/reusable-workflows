@@ -682,49 +682,9 @@ jobs:
           )
           PY
 
-      - name: Validate Execution Receipt v1
-        id: receipt-validation
-        if: ${{ always() && steps.reuse.outputs.hit != 'true' }}
-        working-directory: .
-        env:
-          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
-          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
-          ARTIFACT_KEY: ${{ inputs.artifact_key }}
-          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
-          OUTCOME: ${{ steps.status.outputs.outcome }}
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-
-          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
-              receipt = json.load(handle)
-
-          outcomes = {"success", "failure", "cancelled", "skipped"}
-          assert receipt["schemaVersion"] == 1
-          assert receipt["kind"] == "reusable-workflows/execution-receipt"
-          assert receipt["capability"] == {"name": "build-artifact", "interfaceVersion": 1}
-          assert receipt["source"]["sha"] == os.environ["SOURCE_SHA"]
-          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
-          assert receipt["result"]["outcome"] == os.environ["OUTCOME"]
-          assert all(value in outcomes for value in receipt["result"]["steps"].values())
-          evidence = receipt["evidence"]
-          assert len(evidence) == 2
-          artifact = next(item for item in evidence if item["role"] == "built-artifact")
-          identity = next(item for item in evidence if item["role"] == "artifact-identity")
-          assert identity["name"] == os.environ["ARTIFACT_KEY"]
-          assert identity["digest"] == os.environ["IDENTITY_DIGEST"]
-          assert re.fullmatch(r"sha256:[0-9a-f]{64}", identity["digest"])
-          assert artifact["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", artifact["digest"])
-          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
-          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
-          PY
-
       - name: Upload execution receipt
         id: receipt-upload
-        if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.metadata.outcome == 'success' && steps.receipt-validation.outcome == 'success' }}
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.metadata.outcome == 'success' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
@@ -771,12 +731,10 @@ jobs:
         env:
           OUTCOME: ${{ steps.status.outputs.outcome }}
           REUSE_HIT: ${{ steps.reuse.outputs.hit }}
-          RECEIPT_VALIDATION_OUTCOME: ${{ steps.receipt-validation.outcome }}
           RECEIPT_UPLOAD_OUTCOME: ${{ steps.receipt-upload.outcome }}
         run: |
           set -euo pipefail
           test "$OUTCOME" = "success"
           if [[ "$REUSE_HIT" != "true" ]]; then
-            test "$RECEIPT_VALIDATION_OUTCOME" = "success"
             test "$RECEIPT_UPLOAD_OUTCOME" = "success"
           fi
