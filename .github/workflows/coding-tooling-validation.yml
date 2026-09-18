@@ -169,7 +169,6 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`${{ steps.tooling.outcome }}\`"
-            echo "- coding-tooling revision: \`a630598d369ac94d0f549dce5c859b9dd28b250c\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
             if [[ -n "$EVIDENCE_PATH" ]]; then
               echo "- Repository evidence: \`$EVIDENCE_PATH\`"
