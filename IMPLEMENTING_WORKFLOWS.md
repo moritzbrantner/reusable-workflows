@@ -86,9 +86,23 @@ jobs:
       strict: true
 ```
 
-The adapter checks out the consumer, invokes an exact-pinned `coding-tooling` Action, uploads `.artifacts/coding-tooling/report.json` by default, writes a job summary, and propagates the tooling result. Tier contents remain in `coding-tooling` defaults or the consumer's `.coding-tooling.json`.
+The adapter checks out the consumer, invokes an exact-pinned `coding-tooling` Action, writes a job summary, and propagates the tooling result. Failed runs preserve the report and execution receipt automatically. Successful runs stay artifact-free by default; set `preserve_success_evidence: true` only when a downstream consumer such as score history needs durable success evidence. Tier contents remain in `coding-tooling` defaults or the consumer's `.coding-tooling.json`.
 
 The `coding-tooling` Action is private. Public consumers should use `fast-validation.yml` or other public command-driven capabilities instead.
+
+### Impact-aware execution routing
+
+When a repository already owns a `.github/validation-impact.json`, the coding-tooling adapter can use the same plan before spending the validation tier:
+
+```yaml
+    with:
+      tier: fast
+      impact_base_sha: ${{ github.event.pull_request.base.sha }}
+      impact_head_sha: ${{ github.event.pull_request.head.sha }}
+      impact_unit: semantic
+```
+
+A successful impact plan that proves the selected unit reusable skips the coding-tooling execution inside the same hosted job. Missing, invalid, or uncertain impact evidence fails open to executing validation rather than silently skipping it. This avoids adding a second prerequisite runner to the fast path.
 
 ### Impact-aware evidence reuse
 
