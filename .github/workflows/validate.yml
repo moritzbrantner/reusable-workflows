@@ -12,6 +12,9 @@ on:
       - ready_for_review
       - labeled
       - unlabeled
+  merge_group:
+    types:
+      - checks_requested
   workflow_dispatch:
     inputs:
       run_full_validation:
@@ -112,6 +115,7 @@ jobs:
       ${{
         !cancelled() && needs.artifact-build.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e)) ||
           (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:e2e')))
         )
@@ -144,6 +148,7 @@ jobs:
       ${{
         !cancelled() && needs.artifact-build.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_storybook)) ||
           (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:storybook')))
         )
@@ -180,6 +185,7 @@ jobs:
       ${{
         !cancelled() && needs.artifact-build.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_link_validation)) ||
           (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:links')))
         )
@@ -219,6 +225,7 @@ jobs:
         (needs.artifact-build.result == 'success' || needs.artifact-build.result == 'skipped') &&
         (needs.actionlint.result == 'success' || needs.actionlint.result == 'skipped') && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          github.event_name == 'merge_group' ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
           (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
         )
