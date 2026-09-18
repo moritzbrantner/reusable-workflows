@@ -25,6 +25,9 @@ on:
       - "src/app/workflowCatalog.ts"
       - "src/validate-workflow-contracts.test.ts"
       - "examples/validation-impact.json"
+  merge_group:
+    types:
+      - checks_requested
   workflow_dispatch:
 
 permissions:
