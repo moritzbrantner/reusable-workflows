@@ -117,9 +117,7 @@ describe("repository validation impact scheduling", () => {
       "utf8",
     );
 
-    expect(validate).not.toContain(
-      "uses: ./.github/workflows/validation-impact.yml",
-    );
+    expect(validate).not.toContain("uses: ./.github/workflows/validation-impact.yml");
     expect(validate).not.toContain("impact_unit:");
     expect(validate).not.toContain("reuse_across_runs: true");
     expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
