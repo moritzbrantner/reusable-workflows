@@ -143,6 +143,18 @@ on:
       reuse_lookup_ms:
         description: Observed time spent resolving and verifying a cross-run reuse candidate.
         value: ${{ jobs.build-artifact.outputs.reuse_lookup_ms }}
+      setup_ms:
+        description: Observed producer setup time on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.setup_ms }}
+      build_ms:
+        description: Observed build-command time on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.build_ms }}
+      upload_ms:
+        description: Observed built-artifact upload time on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.upload_ms }}
+      artifact_bytes:
+        description: Uncompressed bytes represented by artifact_paths on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.artifact_bytes }}
 
 jobs:
   build-artifact:
@@ -172,6 +184,10 @@ jobs:
       receipt_path: ${{ steps.metadata.outputs.receipt_path }}
       outcome: ${{ steps.status.outputs.outcome }}
       reuse_lookup_ms: ${{ steps.reuse-timing.outputs.reuse_lookup_ms }}
+      setup_ms: ${{ steps.timing-setup.outputs.setup_ms }}
+      build_ms: ${{ steps.timing-build.outputs.build_ms }}
+      upload_ms: ${{ steps.timing-upload.outputs.upload_ms }}
+      artifact_bytes: ${{ steps.artifact-size.outputs.artifact_bytes }}
     steps:
       - name: Validate exact source and artifact identity
         id: coordinates
@@ -430,6 +446,12 @@ jobs:
           now_ms="$(date +%s%3N)"
           echo "reuse_lookup_ms=$((now_ms - STARTED_MS))" >> "$GITHUB_OUTPUT"
 
+      - name: Start artifact producer timing
+        id: producer-timing-start
+        if: ${{ steps.reuse.outputs.hit != 'true' }}
+        working-directory: .
+        run: echo "started_ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Bun
         id: bun-setup
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.bun_version != '' }}
@@ -527,11 +549,32 @@ jobs:
         working-directory: .
         run: bash scripts/codex-environment.sh setup
 
+      - name: Record artifact setup timing
+        id: timing-setup
+        if: ${{ steps.reuse.outputs.hit != 'true' && steps.producer-timing-start.outcome == 'success' }}
+        working-directory: .
+        env:
+          STARTED_MS: ${{ steps.producer-timing-start.outputs.started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "setup_ms=$((now_ms - STARTED_MS))" >> "$GITHUB_OUTPUT"
+          echo "build_started_ms=$now_ms" >> "$GITHUB_OUTPUT"
+
       - name: Build artifact once
         id: build
         if: ${{ steps.reuse.outputs.hit != 'true' && (steps.bun-setup.outcome == 'success' || steps.bun-setup.outcome == 'skipped') && (steps.node-setup.outcome == 'success' || steps.node-setup.outcome == 'skipped') && (steps.rust-setup.outcome == 'success' || steps.rust-setup.outcome == 'skipped') && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') }}
         continue-on-error: true
         run: ${{ inputs.build_command }}
+
+      - name: Record artifact build timing
+        id: timing-build
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.timing-setup.outcome == 'success' }}
+        working-directory: .
+        env:
+          BUILD_STARTED_MS: ${{ steps.timing-setup.outputs.build_started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "build_ms=$((now_ms - BUILD_STARTED_MS))" >> "$GITHUB_OUTPUT"
 
       - name: Diagnose environment-v1 tracked state after build failure
         id: environment-state
@@ -561,6 +604,43 @@ jobs:
             echo "receipt_path=.artifacts/reusable-workflows/build-artifact-receipt.json"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Measure artifact input bytes
+        id: artifact-size
+        if: ${{ steps.build.outcome == 'success' }}
+        env:
+          ARTIFACT_PATHS: ${{ inputs.artifact_paths }}
+        run: |
+          python3 - <<'PY'
+          import glob
+          import os
+          from pathlib import Path
+
+          files = set()
+          for raw in os.environ["ARTIFACT_PATHS"].splitlines():
+              pattern = raw.strip()
+              if not pattern:
+                  continue
+              matches = glob.glob(pattern, recursive=True)
+              if not matches and Path(pattern).exists():
+                  matches = [pattern]
+              for match in matches:
+                  path = Path(match)
+                  if path.is_dir():
+                      files.update(child.resolve() for child in path.rglob("*") if child.is_file())
+                  elif path.is_file():
+                      files.add(path.resolve())
+
+          total = sum(path.stat().st_size for path in files)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"artifact_bytes={total}\n")
+          PY
+
+      - name: Start artifact upload timing
+        id: timing-upload-start
+        if: ${{ steps.build.outcome == 'success' }}
+        working-directory: .
+        run: echo "upload_started_ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
+
       - name: Upload built artifact
         id: artifact
         if: ${{ steps.build.outcome == 'success' }}
@@ -571,6 +651,16 @@ jobs:
           path: ${{ inputs.artifact_paths }}
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Record artifact upload timing
+        id: timing-upload
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.timing-upload-start.outcome == 'success' }}
+        working-directory: .
+        env:
+          UPLOAD_STARTED_MS: ${{ steps.timing-upload-start.outputs.upload_started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "upload_ms=$((now_ms - UPLOAD_STARTED_MS))" >> "$GITHUB_OUTPUT"
 
       - name: Determine artifact-build outcome
         id: status
@@ -612,6 +702,28 @@ jobs:
             outcome=success
           fi
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+      - name: Report artifact reuse timing
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          REUSE_HIT: ${{ steps.reuse.outputs.hit }}
+          REUSE_LOOKUP_MS: ${{ steps.reuse-timing.outputs.reuse_lookup_ms }}
+          SETUP_MS: ${{ steps.timing-setup.outputs.setup_ms }}
+          BUILD_MS: ${{ steps.timing-build.outputs.build_ms }}
+          UPLOAD_MS: ${{ steps.timing-upload.outputs.upload_ms }}
+          ARTIFACT_BYTES: ${{ steps.artifact-size.outputs.artifact_bytes }}
+        run: |
+          {
+            echo "### Artifact reuse timing"
+            echo
+            echo "- reused: ${REUSE_HIT:-false}"
+            echo "- reuse lookup + verification: ${REUSE_LOOKUP_MS:-0} ms"
+            echo "- producer setup: ${SETUP_MS:-0} ms"
+            echo "- build command: ${BUILD_MS:-0} ms"
+            echo "- artifact upload: ${UPLOAD_MS:-0} ms"
+            echo "- uncompressed artifact bytes: ${ARTIFACT_BYTES:-0}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Write build execution receipt
         if: ${{ always() && steps.reuse.outputs.hit != 'true' }}
@@ -742,6 +854,17 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+          path: ${{ steps.metadata.outputs.receipt_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Upload identity-addressed reuse receipt
+        id: reuse-locator-upload
+        if: ${{ inputs.reuse_across_runs && steps.status.outputs.outcome == 'success' && steps.receipt-upload.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.identity.outputs.reuse_locator_name }}
           path: ${{ steps.metadata.outputs.receipt_path }}
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
