@@ -25,11 +25,13 @@ describe("coding-tooling score history workflow", () => {
     expect(source).not.toMatch(/minimum[_ -]?score/i);
   });
 
-  test("reuses exact hosted verification and falls back only when evidence reuse fails", () => {
-    expect(source).toContain("validation_report_artifact_name");
-    expect(source).toContain("validation_receipt_artifact_name");
-    expect(source).toContain("validation_source_sha");
-    expect(source).toContain("Reuse exact repository verification");
+  test("reuses exact current-run verification and falls back only when evidence reuse fails", () => {
+    expect(source).toContain("Resolve current-run verification candidate");
+    expect(source).toContain("coding-tooling-run-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}");
+    expect(source).toContain(
+      "execution-receipt-coding-tooling-run-${{ inputs.tier }}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}",
+    );
+    expect(source).toContain("Reuse exact current-run repository verification");
     expect(source).toContain(
       'receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}',
     );
@@ -51,7 +53,7 @@ describe("coding-tooling score history workflow", () => {
   });
 
   test("does not project workflow inputs into repository environment state", () => {
-    expect(source).not.toMatch(/^\s+env:\s*$/m);
+    expect(source).not.toMatch(/^    env:\s*$/m);
     expect(source).not.toContain("$HISTORY_BRANCH");
     expect(source).not.toContain("$VALIDATION_TIER");
   });
