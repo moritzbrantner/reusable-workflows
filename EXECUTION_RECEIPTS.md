@@ -25,7 +25,9 @@ The receipt deliberately does **not** copy semantic report contents. For example
 - `coding-tooling-validation.yml`
 - `release-qualification.yml`
 
-Each emitter validates the receipt shape before uploading it. Release qualification also validates its provenance predicate before attesting the artifact; artifact promotion verifies that signed predicate and raw artifact archive before emitting a promotion receipt. The repository contract validator locks the shared receipt identity, optional upstream-reference shape, provenance schema, immutable attestation/download Action pins, receipt outputs, and provenance/promotion outputs so these transport seams cannot silently disappear.
+Emitters write the receipt from source and execution context that the workflow already owns, then upload it without reparsing their own output. The receipt schema and emitter contracts are tested in this repository; persisted or cross-workflow receipts are verified by the consumer when they cross a trust boundary. Release qualification still validates its provenance predicate before attesting the artifact, and artifact promotion still verifies that signed predicate and raw artifact archive before emitting a promotion receipt. The repository contract validator locks the shared receipt identity, optional upstream-reference shape, provenance schema, immutable attestation/download Action pins, receipt outputs, and provenance/promotion outputs so these transport seams cannot silently disappear.
+
+Revision provenance follows the same push-first rule: a caller-established source SHA is propagated through checkout, validation, and receipt metadata. Workflows may derive a Git revision only as a compatibility fallback when the caller did not supply one; they should not repeatedly rediscover HEAD inside an already-established execution context.
 
 ## Compatibility
 
