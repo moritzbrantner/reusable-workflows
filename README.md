@@ -58,6 +58,7 @@ source development -> local validation -> done
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
 - `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
+- `validation-impact.yml` — compares exact base/head revisions against a consumer-owned impact manifest, emits invalidated/reusable validation units, and fails closed to full validation when impact cannot be proven.
 - `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA and returns one source-bound artifact plus Execution Receipt v1. By default it builds and uploads normally; opt-in `reuse_across_runs` first resolves a still-retained artifact with the same exact build identity and returns its original `producer_run_id` without rerunning setup or the build. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
 

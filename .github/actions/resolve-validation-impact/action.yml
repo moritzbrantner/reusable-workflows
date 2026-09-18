@@ -1,0 +1,36 @@
+name: Resolve validation impact
+description: Resolve which consumer-owned validation units are invalidated by an exact base/head change.
+
+inputs:
+  base_sha:
+    description: Exact 40-character base commit SHA.
+    required: true
+  head_sha:
+    description: Exact 40-character head commit SHA.
+    required: true
+  manifest_path:
+    description: Repository-relative consumer-owned validation impact manifest.
+    required: false
+    default: .github/validation-impact.json
+  output_path:
+    description: Repository-relative path for the generated impact plan.
+    required: false
+    default: .artifacts/reusable-workflows/validation-impact.json
+
+outputs:
+  changed_files_json:
+    description: Stable JSON array of changed repository-relative files.
+  invalidated_units_json:
+    description: Stable JSON array of validation units that must run.
+  reusable_units_json:
+    description: Stable JSON array of validation units whose declared inputs were not invalidated.
+  full_validation:
+    description: Whether uncertainty or an explicitly global input requires the caller's full validation path.
+  plan_digest:
+    description: SHA-256 digest of the deterministic impact plan.
+  plan_path:
+    description: Repository-relative path of the generated impact plan.
+
+runs:
+  using: node24
+  main: resolver.cjs

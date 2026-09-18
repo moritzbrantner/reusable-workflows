@@ -40,6 +40,9 @@ Caller-owned policy for when validation, qualification, promotion, or delivery r
 **Environment Integrity Canary**  
 `environment-v1-canary.yml`, which verifies the standard environment-v1 setup is idempotent over tracked state and reconstructs the declared semantic environment.
 
+**Validation Impact Adapter**  
+`validation-impact.yml`, a fail-closed hosted adapter that compares exact revisions and resolves a consumer-owned validation-unit dependency manifest into invalidated and reusable units. It transports impact evidence; the consumer remains authoritative for validation semantics and lifecycle policy.
+
 **Build Artifact Adapter**  
 `build-artifact.yml`, an ordinary-CI producer for one exact source SHA. It runs a caller-owned build command exactly once, preserves the artifact with its archive digest, binds caller-owned semantic identity plus runner/build context into deterministic identity evidence, and emits Execution Receipt v1. It does not qualify a release, promote, publish, or deploy.
 
@@ -87,6 +90,7 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 16. Store identity, App Store Connect/Play Console metadata, EAS build/submit profiles, TestFlight groups, Play tracks/rollouts, and final public exposure remain caller/application policy.
 17. Concurrency policy belongs in caller workflows unless an API/persistent writer requires capability-local serialization.
 18. `toolchain-refresh.yml` owns only hosted freshness orchestration; toolchain semantics and acceptance stay with platform-upgrader/environment-v1/the consumer.
+19. `validation-impact.yml` may resolve only consumer-declared file inputs and validation-unit dependencies. Unclassified, malformed, unavailable, or changed impact configuration must fail closed to full validation; the adapter must not infer framework-specific validation semantics.
 
 ## Capability classes
 
@@ -97,6 +101,7 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 - `coding-tooling-score-history.yml`
 - `public-contract-validation.yml`
 - `environment-v1-canary.yml`
+- `validation-impact.yml`
 - `build-artifact.yml`
 - `fast-validation.yml`
 
