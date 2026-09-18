@@ -105,8 +105,10 @@ jobs:
       receipt_path: ${{ steps.report.outputs.receipt_path }}
       outcome: ${{ steps.tooling.outcome }}
     steps:
-      - name: Check out consumer repository
+      - name: Check out exact consumer revision
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Run coding-tooling
         id: tooling
