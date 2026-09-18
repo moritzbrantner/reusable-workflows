@@ -36,10 +36,10 @@ on:
         type: string
         default: ""
       reuse_across_runs:
-        description: Reuse a retained successful receipt only when its full validation fingerprint matches.
+        description: Explicitly opt in to reusing a retained successful receipt only when its full validation fingerprint matches.
         required: false
         type: boolean
-        default: true
+        default: false
       timeout_minutes:
         description: Maximum validation job runtime.
         required: false
@@ -151,6 +151,12 @@ jobs:
               output.write(f"sha={sha.lower()}\n")
           PY
 
+      - name: Reserve reusable-workflow source path
+        working-directory: .
+        run: |
+          set -euo pipefail
+          test ! -e .reusable-workflows-source
+
       - name: Check out exact reusable-workflow source
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -171,6 +177,11 @@ jobs:
           command: ${{ inputs.command }}
           environment_identity: ${{ inputs.environment_identity }}
           capability_identity: ${{ format('{0}@{1}', steps.workflow-source.outputs.repository, steps.workflow-source.outputs.sha) }}
+
+      - name: Remove reusable-workflow source
+        if: ${{ always() }}
+        working-directory: .
+        run: rm -rf -- .reusable-workflows-source
 
       - name: Define validation evidence metadata
         id: metadata
