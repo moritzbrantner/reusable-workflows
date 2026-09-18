@@ -1,0 +1,31 @@
+name: Repository Diagnostics
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-diagnostics
+  cancel-in-progress: true
+
+jobs:
+  coding-tooling-findings:
+    uses: ./.github/workflows/coding-tooling-validation.yml
+    permissions:
+      contents: read
+    with:
+      operation: findings
+      report_path: .artifacts/coding-tooling/findings.json
+
+  coding-tooling-bootstrap-plan:
+    uses: ./.github/workflows/coding-tooling-validation.yml
+    permissions:
+      contents: read
+    with:
+      operation: bootstrap-plan
+      install_mode: none
+      report_path: .artifacts/coding-tooling/bootstrap-plan.json

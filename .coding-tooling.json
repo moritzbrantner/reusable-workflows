@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "profile": "repository-foundation-v1",
   "tiers": {
-    "fast": ["format:check", "lint", "typecheck", "build", "test:unit"],
+    "fast": ["format:check", "lint", "typecheck", "test:unit", "test:integration"],
     "full": [
       "format:check",
       "lint",
@@ -18,9 +18,9 @@
       "benchmark"
     ]
   },
-  "requiredCapabilities": ["format:check", "lint", "typecheck", "build", "test:unit"],
+  "requiredCapabilities": ["format:check", "lint", "typecheck", "test:unit", "test:integration"],
   "optionalCapabilities": [
-    "test:integration",
+    "build",
     "test:e2e",
     "test:accessibility",
     "test:visual",
@@ -35,7 +35,7 @@
       "typecheck": ["bun", "run", "check-types"],
       "build": ["bun", "run", "build"],
       "test:unit": ["bun", "run", "test:unit"],
-      "test:integration": ["bun", "run", "test:integration"],
+      "test:integration": ["bun", "run", "validate:contracts"],
       "test:e2e": ["bun", "run", "test:e2e"],
       "test:accessibility": ["bun", "run", "test:a11y"],
       "test:visual": ["bun", "run", "test:visual"],
