@@ -406,6 +406,10 @@ function digestPlan(serializedPlan) {
   return `sha256:${crypto.createHash("sha256").update(serializedPlan).digest("hex")}`;
 }
 
+function actionInput(name, fallback = "") {
+  return process.env[`INPUT_${name}`] || fallback;
+}
+
 function setOutput(name, value) {
   const output = process.env.GITHUB_OUTPUT;
   if (!output) {
@@ -449,11 +453,13 @@ function writeSummary(plan, digest) {
 }
 
 function main() {
-  const baseSha = process.env.INPUT_BASE_SHA || "";
-  const headSha = process.env.INPUT_HEAD_SHA || "";
-  const manifestInput = process.env.INPUT_MANIFEST_PATH || ".github/validation-impact.json";
-  const outputInput =
-    process.env.INPUT_OUTPUT_PATH || ".artifacts/reusable-workflows/validation-impact.json";
+  const baseSha = actionInput("BASE_SHA");
+  const headSha = actionInput("HEAD_SHA");
+  const manifestInput = actionInput("MANIFEST_PATH", ".github/validation-impact.json");
+  const outputInput = actionInput(
+    "OUTPUT_PATH",
+    ".artifacts/reusable-workflows/validation-impact.json",
+  );
 
   let manifestPath = manifestInput;
   let planPath = outputInput;
