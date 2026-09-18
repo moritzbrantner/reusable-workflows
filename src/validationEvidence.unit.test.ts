@@ -25,8 +25,7 @@ type Identity = {
     capabilityIdentity: string;
     runnerOs: string;
     runnerArch: string;
-    runnerImageOs: string;
-    runnerImageVersion: string;
+    runnerImageIdentity: string;
   };
   inputFiles: Array<{ path: string; mode: string; digest: string }>;
 };
@@ -43,8 +42,7 @@ type Resolver = {
     inputFiles: Array<{ path: string; mode: string; digest: string }>;
     runnerOs?: string;
     runnerArch?: string;
-    runnerImageOs?: string;
-    runnerImageVersion?: string;
+    runnerImageIdentity?: string;
   }) => Identity;
   collectUnitClosure: (units: Manifest["units"], unitName: string) => string[];
   digestIdentity: (identity: Identity) => string;
@@ -85,8 +83,7 @@ function identity(overrides: Partial<Parameters<Resolver["buildIdentity"]>[0]> =
     ],
     runnerOs: "Linux",
     runnerArch: "X64",
-    runnerImageOs: "ubuntu24",
-    runnerImageVersion: "20260901.1",
+    runnerImageIdentity: "ubuntu24@20260901.1",
     ...overrides,
   });
 }
@@ -125,7 +122,9 @@ describe("validation evidence fingerprint identity", () => {
     const changedCapability = identity({
       capabilityIdentity: "moritzbrantner/reusable-workflows@1111111111111111111111111111111111111111",
     });
-    const changedRunnerImage = identity({ runnerImageVersion: "20260908.1" });
+    const changedRunnerImage = identity({
+      runnerImageIdentity: "ubuntu24@20260908.1",
+    });
     const changedMode = identity({
       inputFiles: base.inputFiles.map((entry) =>
         entry.path === "src/ui/view.tsx" ? { ...entry, mode: "100755" } : entry,
