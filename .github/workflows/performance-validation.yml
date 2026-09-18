@@ -83,6 +83,11 @@ on:
         required: false
         type: string
         default: "**/Cargo.lock"
+      cargo_tool_cache_key:
+        description: Exact caller-owned identity for cached cargo-installed CLI binaries. Empty disables this disposable environment cache.
+        required: false
+        type: string
+        default: ""
       install_playwright:
         required: false
         type: boolean
@@ -91,6 +96,16 @@ on:
         required: false
         type: string
         default: ""
+      cache_playwright_browsers:
+        description: Cache Playwright browser payloads by runner, lockfile, and requested browser set.
+        required: false
+        type: boolean
+        default: true
+      playwright_cache_dependency_path:
+        description: Lockfile glob used to key the Playwright browser payload cache.
+        required: false
+        type: string
+        default: "**/bun.lock"
       artifact_paths:
         required: false
         type: string
@@ -204,9 +219,37 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Configure cached Cargo tool root
+        if: ${{ inputs.cargo_tool_cache_key != '' }}
+        working-directory: .
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/reusable-workflows-cargo-tools"
+          echo "CARGO_INSTALL_ROOT=$root" >> "$GITHUB_ENV"
+          echo "$root/bin" >> "$GITHUB_PATH"
+
+      - name: Cache cargo-installed tools
+        if: ${{ inputs.cargo_tool_cache_key != '' }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/reusable-workflows-cargo-tools
+          key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-${{ inputs.cargo_tool_cache_key }}
+
       - name: Install dependencies
         if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
+
+      - name: Configure Playwright browser cache
+        if: ${{ inputs.install_playwright && inputs.cache_playwright_browsers }}
+        working-directory: .
+        run: echo "PLAYWRIGHT_BROWSERS_PATH=$RUNNER_TEMP/reusable-workflows-playwright" >> "$GITHUB_ENV"
+
+      - name: Cache Playwright browser payloads
+        if: ${{ inputs.install_playwright && inputs.cache_playwright_browsers }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/reusable-workflows-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles(inputs.playwright_cache_dependency_path) }}-${{ inputs.install_playwright_browsers }}
 
       - name: Install Playwright browsers
         if: ${{ inputs.install_playwright }}
