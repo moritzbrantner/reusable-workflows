@@ -66,7 +66,9 @@ describe("coding-tooling repository evidence preservation", () => {
     const source = readFileSync(workflowPath, "utf8");
 
     expect(source).toContain('SOURCE_SHA: ${{ inputs.source_sha }}');
-    expect(source).toContain('if [[ -n "$SOURCE_SHA" && "$SOURCE_SHA" != "$IMPACT_HEAD_SHA" ]]');
+    expect(source).toContain(
+      'if [[ -n "$SOURCE_SHA" && "$SOURCE_SHA" != "$IMPACT_HEAD_SHA" ]]',
+    );
     expect(source).toContain("same_source=false");
   });
 
