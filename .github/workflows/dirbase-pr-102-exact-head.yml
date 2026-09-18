@@ -1,0 +1,55 @@
+name: Dirbase PR 102 exact-head validation
+
+on:
+  push:
+    branches:
+      - ci/dirbase-102-exact-head
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dirbase-pr-102-exact-head
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out dirbase exact head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          repository: moritzbrantner/dirbase
+          ref: f766d21445e5b4fb0f02c3f10b811a712caf3d5c
+          persist-credentials: false
+
+      - name: Verify exact source revision
+        run: test "$(git rev-parse HEAD)" = "f766d21445e5b4fb0f02c3f10b811a712caf3d5c"
+
+      - name: Set up dirbase toolchain
+        uses: ./.github/actions/setup-project
+        with:
+          rust-components: rustfmt,clippy
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run Rust tests
+        env:
+          DIRBASE_REBUILD_UI: "1"
+          NO_PROXY: 127.0.0.1,localhost
+          no_proxy: 127.0.0.1,localhost
+        run: cargo test --all-features --verbose -- --test-threads=1
+
+      - name: Validate repository test-matrix contract
+        run: python3 scripts/render_test_matrix.py --check
+
+      - name: Validate architecture contract
+        env:
+          NO_PROXY: 127.0.0.1,localhost
+          no_proxy: 127.0.0.1,localhost
+        run: bash scripts/architecture-contract.sh
