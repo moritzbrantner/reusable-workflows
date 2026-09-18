@@ -28,7 +28,7 @@ type Identity = {
     runnerImageOs: string;
     runnerImageVersion: string;
   };
-  inputFiles: Array<{ path: string; digest: string }>;
+  inputFiles: Array<{ path: string; mode: string; digest: string }>;
 };
 
 type Resolver = {
@@ -40,7 +40,7 @@ type Resolver = {
     command: string;
     environmentIdentity: string;
     capabilityIdentity: string;
-    inputFiles: Array<{ path: string; digest: string }>;
+    inputFiles: Array<{ path: string; mode: string; digest: string }>;
     runnerOs?: string;
     runnerArch?: string;
     runnerImageOs?: string;
@@ -78,10 +78,10 @@ function identity(overrides: Partial<Parameters<Resolver["buildIdentity"]>[0]> =
     environmentIdentity: "bun-1.4.0",
     capabilityIdentity: "moritzbrantner/reusable-workflows@ffffffffffffffffffffffffffffffffffffffff",
     inputFiles: [
-      { path: "bun.lock", digest: `sha256:${"a".repeat(64)}` },
-      { path: "package.json", digest: `sha256:${"b".repeat(64)}` },
-      { path: "src/core/model.ts", digest: `sha256:${"c".repeat(64)}` },
-      { path: "src/ui/view.tsx", digest: `sha256:${"d".repeat(64)}` },
+      { path: "bun.lock", mode: "100644", digest: `sha256:${"a".repeat(64)}` },
+      { path: "package.json", mode: "100644", digest: `sha256:${"b".repeat(64)}` },
+      { path: "src/core/model.ts", mode: "100644", digest: `sha256:${"c".repeat(64)}` },
+      { path: "src/ui/view.tsx", mode: "100644", digest: `sha256:${"d".repeat(64)}` },
     ],
     runnerOs: "Linux",
     runnerArch: "X64",
@@ -126,12 +126,18 @@ describe("validation evidence fingerprint identity", () => {
       capabilityIdentity: "moritzbrantner/reusable-workflows@1111111111111111111111111111111111111111",
     });
     const changedRunnerImage = identity({ runnerImageVersion: "20260908.1" });
+    const changedMode = identity({
+      inputFiles: base.inputFiles.map((entry) =>
+        entry.path === "src/ui/view.tsx" ? { ...entry, mode: "100755" } : entry,
+      ),
+    });
 
     expect(resolver.digestIdentity(changedInput)).not.toBe(baseDigest);
     expect(resolver.digestIdentity(changedCommand)).not.toBe(baseDigest);
     expect(resolver.digestIdentity(changedEnvironment)).not.toBe(baseDigest);
     expect(resolver.digestIdentity(changedCapability)).not.toBe(baseDigest);
     expect(resolver.digestIdentity(changedRunnerImage)).not.toBe(baseDigest);
+    expect(resolver.digestIdentity(changedMode)).not.toBe(baseDigest);
   });
 
   test("does not invalidate a fingerprint for an unrelated manifest unit", () => {
