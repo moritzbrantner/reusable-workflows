@@ -123,8 +123,7 @@ function buildIdentity({
   inputFiles,
   runnerOs = "",
   runnerArch = "",
-  runnerImageOs = "",
-  runnerImageVersion = "",
+  runnerImageIdentity = "",
 }) {
   const closure = collectUnitClosure(manifest.units, unitName);
   const patterns = stableUnique([
@@ -158,8 +157,7 @@ function buildIdentity({
       capabilityIdentity,
       runnerOs,
       runnerArch,
-      runnerImageOs,
-      runnerImageVersion,
+      runnerImageIdentity,
     },
     inputFiles,
   };
@@ -182,6 +180,7 @@ function buildFingerprint({
   command,
   environmentIdentity,
   capabilityIdentity,
+  runnerImageIdentity,
 }) {
   const closure = collectUnitClosure(manifest.units, unitName);
   const patterns = stableUnique([
@@ -213,8 +212,7 @@ function buildFingerprint({
     inputFiles,
     runnerOs: process.env.RUNNER_OS || "",
     runnerArch: process.env.RUNNER_ARCH || "",
-    runnerImageOs: process.env.ImageOS || "",
-    runnerImageVersion: process.env.ImageVersion || "",
+    runnerImageIdentity,
   });
   const digest = digestIdentity(identity);
 
@@ -303,6 +301,7 @@ function main() {
   const command = actionInput("COMMAND");
   const environmentIdentity = actionInput("ENVIRONMENT_IDENTITY");
   const capabilityIdentity = actionInput("CAPABILITY_IDENTITY");
+  const runnerImageIdentity = actionInput("RUNNER_IMAGE_IDENTITY");
   const outputInput = actionInput(
     "OUTPUT_PATH",
     ".artifacts/reusable-workflows/validation-evidence-fingerprint.json",
@@ -317,6 +316,9 @@ function main() {
     }
     if (!capabilityIdentity) {
       throw new Error("capability_identity must not be empty.");
+    }
+    if (!runnerImageIdentity) {
+      throw new Error("runner_image_identity is unavailable.");
     }
     assertCheckedOutHead(sourceSha);
     const manifestLocation = resolveInsideRepository(manifestInput, "manifest_path");
@@ -342,6 +344,7 @@ function main() {
       command,
       environmentIdentity,
       capabilityIdentity,
+      runnerImageIdentity,
     });
     fs.mkdirSync(path.dirname(outputLocation.resolved), { recursive: true });
     fs.writeFileSync(outputLocation.resolved, JSON.stringify(plan, null, 2), "utf8");
