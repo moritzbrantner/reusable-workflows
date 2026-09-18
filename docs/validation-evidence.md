@@ -13,7 +13,8 @@ A reusable fingerprint is derived from:
 - the exact tracked Git blob bytes matching those declared patterns;
 - the setup command and validation command;
 - the working directory;
-- runner OS/architecture;
+- exact reusable validation-adapter revision;
+- runner OS/architecture and GitHub runner image version;
 - an optional caller-owned `environment_identity`.
 
 The exact source SHA is recorded in the execution receipt but is deliberately not part of the reusable fingerprint. This allows a validation result to survive commits that change only inputs unrelated to that validation unit.
