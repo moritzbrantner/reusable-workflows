@@ -123,7 +123,6 @@ jobs:
         env:
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
-          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
           COMMAND_OUTCOME: ${{ steps.command.outcome }}
         run: |
           set -euo pipefail
