@@ -32,23 +32,23 @@
     },
     "web-build": {
       "inputs": [
-      ".github/workflows/**",
-      ".repository-environment.toml",
-      "bun.lock",
-      "contracts/workflows.json",
-      "index.html",
-      "package.json",
-      "public/**",
-      "scripts/check-bundle-size.ts",
-      "scripts/codex-environment.sh",
-      "scripts/generate-agent-pages.ts",
-      "scripts/generate-workflow-manifest.ts",
-      "scripts/workflow-catalog-data.ts",
-      "scripts/workflow-catalog-plugin.ts",
-      "src/**",
-      "tsconfig.json",
-      "vite.config.ts"
-]
+        ".github/workflows/**",
+        ".repository-environment.toml",
+        "bun.lock",
+        "contracts/workflows.json",
+        "index.html",
+        "package.json",
+        "public/**",
+        "scripts/check-bundle-size.ts",
+        "scripts/codex-environment.sh",
+        "scripts/generate-agent-pages.ts",
+        "scripts/generate-workflow-manifest.ts",
+        "scripts/workflow-catalog-data.ts",
+        "scripts/workflow-catalog-plugin.ts",
+        "src/**",
+        "tsconfig.json",
+        "vite.config.ts"
+      ]
     },
     "actionlint": {
       "inputs": [".github/workflows/**"]
