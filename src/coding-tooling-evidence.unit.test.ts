@@ -2,7 +2,10 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-const workflowPath = new URL("../.github/workflows/coding-tooling-validation.yml", import.meta.url);
+const workflowPath = new URL(
+  "../.github/workflows/coding-tooling-validation.yml",
+  import.meta.url,
+);
 
 describe("coding-tooling repository evidence preservation", () => {
   test("stages a literal repository-relative evidence path before artifact upload", () => {
@@ -11,7 +14,9 @@ describe("coding-tooling repository evidence preservation", () => {
     expect(source).toContain("evidence_path:");
     expect(source).toContain("Stage repository evidence");
     expect(source).toContain('raw = os.environ["EVIDENCE_PATH"]');
-    expect(source).toContain('stage_root = Path(os.environ["RUNNER_TEMP"]) / "repository-evidence"');
+    expect(source).toContain(
+      'stage_root = Path(os.environ["RUNNER_TEMP"]) / "repository-evidence"',
+    );
     expect(source).toContain("target = stage_root / relative");
     expect(source).toContain("path: ${{ steps.evidence-stage.outputs.staged_path }}");
     expect(source).not.toContain("path: ${{ inputs.evidence_path }}");
