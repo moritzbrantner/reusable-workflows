@@ -103,8 +103,8 @@ jobs:
               raise SystemExit("Reusable workflow identity is unavailable.")
 
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"repository={repository}\\n")
-              output.write(f"sha={sha.lower()}\\n")
+              output.write(f"repository={repository}\n")
+              output.write(f"sha={sha.lower()}\n")
           PY
 
       - name: Check out exact reusable-workflow source
