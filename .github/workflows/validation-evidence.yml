@@ -128,6 +128,17 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$(printf '%s' "$SOURCE_SHA" | tr '[:upper:]' '[:lower:]')"
 
+      - name: Resolve runner image identity
+        id: runner-image
+        working-directory: .
+        run: |
+          set -euo pipefail
+          identity=""
+          if [[ -n "${ImageOS:-}" && -n "${ImageVersion:-}" ]]; then
+            identity="${ImageOS}@${ImageVersion}"
+          fi
+          echo "identity=$identity" >> "$GITHUB_OUTPUT"
+
       - name: Resolve exact reusable-workflow identity
         id: workflow-source
         working-directory: .
@@ -177,6 +188,7 @@ jobs:
           command: ${{ inputs.command }}
           environment_identity: ${{ inputs.environment_identity }}
           capability_identity: ${{ format('{0}@{1}', steps.workflow-source.outputs.repository, steps.workflow-source.outputs.sha) }}
+          runner_image_identity: ${{ steps.runner-image.outputs.identity }}
 
       - name: Remove reusable-workflow source
         if: ${{ always() }}
