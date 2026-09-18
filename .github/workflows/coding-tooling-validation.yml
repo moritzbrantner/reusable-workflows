@@ -192,7 +192,7 @@ jobs:
         id: tooling
         if: ${{ steps.routing.outputs.execute == 'true' }}
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@a630598d369ac94d0f549dce5c859b9dd28b250c
+        uses: moritzbrantner/coding-tooling@02005dc3921ec86f72afa11aa85669fc8fde4ff0
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -259,7 +259,7 @@ jobs:
             echo "- Operation: \`${{ inputs.operation }}\`"
             echo "- Tier: \`${{ inputs.tier }}\`"
             echo "- Outcome: \`$outcome\`"
-            echo "- coding-tooling revision: \`a630598d369ac94d0f549dce5c859b9dd28b250c\`"
+            echo "- coding-tooling revision: \`02005dc3921ec86f72afa11aa85669fc8fde4ff0\`"
             echo "- Report path: \`${{ inputs.report_path }}\`"
             if [[ -n "$EVIDENCE_PATH" ]]; then
               echo "- Repository evidence: \`$EVIDENCE_PATH\`"
