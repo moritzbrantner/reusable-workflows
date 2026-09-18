@@ -23,12 +23,16 @@ const workflowSlugs = [
   "public-contract-validation",
   "release-qualification",
   "release-template",
+  "repository-diagnostics",
+  "smoke-integration-prebuilt",
   "smoke-reusable-workflows",
   "stage-validation",
   "storybook-validation",
   "toolchain-refresh",
   "validate",
   "validate-repo",
+  "validation-evidence",
+  "validation-impact",
 ];
 
 test("renders the reusable workflow reference page", async ({ page }) => {
@@ -264,7 +268,7 @@ test("only shows the uses relationship card when a workflow calls other workflow
   await page.goto("/validate");
 
   await expect(page.getByText("Uses these workflows", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Fast Validation/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Coding Tooling Validation/ })).toBeVisible();
 });
 
 for (const slug of workflowSlugs) {
