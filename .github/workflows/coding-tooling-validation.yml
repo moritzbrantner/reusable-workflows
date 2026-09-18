@@ -155,7 +155,7 @@ jobs:
           base_sha: ${{ inputs.impact_base_sha }}
           head_sha: ${{ inputs.impact_head_sha }}
           manifest_path: ${{ inputs.impact_manifest_path }}
-          output_path: .artifacts/reusable-workflows/coding-tooling-impact.json
+          output_path: .git/reusable-workflows/coding-tooling-impact.json
 
       - name: Resolve validation routing
         id: routing
