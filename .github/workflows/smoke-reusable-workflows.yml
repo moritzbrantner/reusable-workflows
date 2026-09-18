@@ -171,7 +171,9 @@ jobs:
       artifact_retention_days: 1
 
   consume-build-artifact:
-    needs: build-artifact-reuse
+    needs:
+      - build-artifact
+      - build-artifact-reuse
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -183,6 +185,7 @@ jobs:
           REUSED: ${{ needs.build-artifact-reuse.outputs.reused }}
         run: test "$REUSED" = "true"
       - name: Consume exact build artifact
+        id: consume
         uses: ./.github/actions/consume-build-artifact
         with:
           producer_run_id: ${{ needs.build-artifact-reuse.outputs.producer_run_id }}
@@ -194,8 +197,24 @@ jobs:
           identity_digest: ${{ needs.build-artifact-reuse.outputs.identity_digest }}
           destination_path: .artifacts/consumed-build-artifact
           github_token: ${{ github.token }}
-      - name: Verify consumed bytes
-        run: test "$(cat .artifacts/consumed-build-artifact/artifact.txt)" = "verified build artifact"
+      - name: Verify consumed bytes and reuse timing
+        env:
+          REUSE_LOOKUP_MS: ${{ needs.build-artifact-reuse.outputs.reuse_lookup_ms }}
+          SETUP_MS: ${{ needs.build-artifact.outputs.setup_ms }}
+          BUILD_MS: ${{ needs.build-artifact.outputs.build_ms }}
+          UPLOAD_MS: ${{ needs.build-artifact.outputs.upload_ms }}
+          ARTIFACT_BYTES: ${{ needs.build-artifact.outputs.artifact_bytes }}
+          CONSUME_MS: ${{ steps.consume.outputs.consume_ms }}
+          MATERIALIZED_BYTES: ${{ steps.consume.outputs.materialized_bytes }}
+        run: |
+          test "$(cat .artifacts/consumed-build-artifact/artifact.txt)" = "verified build artifact"
+          [[ "$REUSE_LOOKUP_MS" =~ ^[0-9]+$ ]]
+          [[ "$SETUP_MS" =~ ^[0-9]+$ ]]
+          [[ "$BUILD_MS" =~ ^[0-9]+$ ]]
+          [[ "$UPLOAD_MS" =~ ^[0-9]+$ ]]
+          [[ "$ARTIFACT_BYTES" =~ ^[0-9]+$ ]]
+          [[ "$CONSUME_MS" =~ ^[0-9]+$ ]]
+          [[ "$MATERIALIZED_BYTES" =~ ^[0-9]+$ ]]
 
   command-validation:
     needs: fast-validation

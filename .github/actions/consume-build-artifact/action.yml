@@ -43,10 +43,21 @@ outputs:
   source_sha:
     description: Verified source SHA.
     value: ${{ inputs.source_sha }}
+  consume_ms:
+    description: Observed receipt verification, download, and materialization time.
+    value: ${{ steps.metrics.outputs.consume_ms }}
+  materialized_bytes:
+    description: Uncompressed bytes materialized into destination_path.
+    value: ${{ steps.metrics.outputs.materialized_bytes }}
 
 runs:
   using: composite
   steps:
+    - name: Start verified artifact consumption timing
+      id: timing-start
+      shell: bash
+      run: echo "started_ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
+
     - name: Validate consumer coordinates
       shell: bash
       env:
@@ -179,3 +190,26 @@ runs:
         set -euo pipefail
         test -d "$DESTINATION_PATH"
         test -n "$(find "$DESTINATION_PATH" -mindepth 1 -print -quit)"
+
+    - name: Measure verified artifact consumption
+      id: metrics
+      shell: bash
+      env:
+        DESTINATION_PATH: ${{ inputs.destination_path }}
+        STARTED_MS: ${{ steps.timing-start.outputs.started_ms }}
+      run: |
+        set -euo pipefail
+        now_ms="$(date +%s%3N)"
+        bytes="$(python3 - <<'PY'
+        from pathlib import Path
+        import os
+
+        root = Path(os.environ["DESTINATION_PATH"])
+        total = sum(path.stat().st_size for path in root.rglob("*") if path.is_file())
+        print(total)
+        PY
+        )"
+        {
+          echo "consume_ms=$((now_ms - STARTED_MS))"
+          echo "materialized_bytes=$bytes"
+        } >> "$GITHUB_OUTPUT"

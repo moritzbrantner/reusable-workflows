@@ -140,6 +140,21 @@ on:
       outcome:
         description: Artifact-build or reuse outcome before final failure propagation.
         value: ${{ jobs.build-artifact.outputs.outcome }}
+      reuse_lookup_ms:
+        description: Observed time spent resolving and verifying a cross-run reuse candidate.
+        value: ${{ jobs.build-artifact.outputs.reuse_lookup_ms }}
+      setup_ms:
+        description: Observed producer setup time on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.setup_ms }}
+      build_ms:
+        description: Observed build-command time on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.build_ms }}
+      upload_ms:
+        description: Observed built-artifact upload time on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.upload_ms }}
+      artifact_bytes:
+        description: Uncompressed bytes represented by artifact_paths on a reuse miss.
+        value: ${{ jobs.build-artifact.outputs.artifact_bytes }}
 
 jobs:
   build-artifact:
@@ -168,6 +183,11 @@ jobs:
       receipt_artifact_name: ${{ steps.result.outputs.receipt_artifact_name }}
       receipt_path: ${{ steps.metadata.outputs.receipt_path }}
       outcome: ${{ steps.status.outputs.outcome }}
+      reuse_lookup_ms: ${{ steps.reuse-timing.outputs.reuse_lookup_ms }}
+      setup_ms: ${{ steps.timing-setup.outputs.setup_ms }}
+      build_ms: ${{ steps.timing-build.outputs.build_ms }}
+      upload_ms: ${{ steps.timing-upload.outputs.upload_ms }}
+      artifact_bytes: ${{ steps.artifact-size.outputs.artifact_bytes }}
     steps:
       - name: Validate exact source and artifact identity
         id: coordinates
@@ -237,7 +257,18 @@ jobs:
           print(hashlib.sha256(value.encode("utf-8")).hexdigest())
           PY
           )"
-          echo "identity_digest=sha256:${identity_hash}" >> "$GITHUB_OUTPUT"
+          short_sha="${SOURCE_SHA:0:12}"
+          short_identity="${identity_hash:0:12}"
+          {
+            echo "identity_digest=sha256:${identity_hash}"
+            echo "reuse_locator_name=reuse-receipt-build-artifact-${short_sha}-${short_identity}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Start artifact reuse lookup timing
+        id: reuse-timing-start
+        if: ${{ inputs.reuse_across_runs && steps.coordinates.outcome == 'success' && steps.identity.outcome == 'success' }}
+        working-directory: .
+        run: echo "started_ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
 
       - name: Find reusable artifact receipt
         id: reuse-candidate
@@ -246,17 +277,11 @@ jobs:
         working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
-          IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
+          LOCATOR_NAME: ${{ steps.identity.outputs.reuse_locator_name }}
         run: |
           set -euo pipefail
-          short_sha="${SOURCE_SHA:0:12}"
-          identity_hash="${IDENTITY_DIGEST#sha256:}"
-          short_identity="${identity_hash:0:12}"
-          receipt_prefix="execution-receipt-build-artifact-${short_sha}-${short_identity}-"
-          export RECEIPT_PREFIX="$receipt_prefix"
-          gh api --paginate --slurp \
-            "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&name=${LOCATOR_NAME}" \
             > "$RUNNER_TEMP/build-artifact-reuse-candidates.json"
           python3 - <<'PY'
           import json
@@ -268,26 +293,16 @@ jobs:
               .joinpath("build-artifact-reuse-candidates.json")
               .read_text(encoding="utf-8")
           )
-          pages = payload if isinstance(payload, list) else [payload]
-          artifacts = [
-              artifact
-              for page in pages
-              for artifact in page.get("artifacts", [])
-          ]
-          prefix = os.environ["RECEIPT_PREFIX"]
+          locator_name = os.environ["LOCATOR_NAME"]
           candidates = []
-          for artifact in artifacts:
-              if artifact.get("expired") is not False:
-                  continue
-              name = artifact.get("name") or ""
-              if not name.startswith(prefix):
+          for artifact in payload.get("artifacts", []):
+              if artifact.get("expired") is not False or artifact.get("name") != locator_name:
                   continue
               workflow_run = artifact.get("workflow_run") or {}
               run_id = workflow_run.get("id")
               artifact_id = artifact.get("id")
-              if not isinstance(run_id, int) or not isinstance(artifact_id, int):
-                  continue
-              candidates.append(artifact)
+              if isinstance(run_id, int) and isinstance(artifact_id, int):
+                  candidates.append(artifact)
 
           candidates.sort(
               key=lambda artifact: (
@@ -303,8 +318,7 @@ jobs:
               else:
                   candidate = candidates[0]
                   handle.write("candidate_found=true\n")
-                  handle.write(f"receipt_artifact_id={candidate['id']}\n")
-                  handle.write(f"receipt_artifact_name={candidate['name']}\n")
+                  handle.write(f"locator_artifact_id={candidate['id']}\n")
                   handle.write(f"producer_run_id={candidate['workflow_run']['id']}\n")
           PY
 
@@ -314,7 +328,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          artifact-ids: ${{ steps.reuse-candidate.outputs.receipt_artifact_id }}
+          artifact-ids: ${{ steps.reuse-candidate.outputs.locator_artifact_id }}
           path: ${{ runner.temp }}/build-artifact-reuse-receipt
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
@@ -329,22 +343,19 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RECEIPT_DIRECTORY: ${{ runner.temp }}/build-artifact-reuse-receipt
-          RECEIPT_ARTIFACT_ID: ${{ steps.reuse-candidate.outputs.receipt_artifact_id }}
-          RECEIPT_ARTIFACT_NAME: ${{ steps.reuse-candidate.outputs.receipt_artifact_name }}
           PRODUCER_RUN_ID: ${{ steps.reuse-candidate.outputs.producer_run_id }}
           SOURCE_SHA: ${{ steps.coordinates.outputs.source_sha }}
           ARTIFACT_KEY: ${{ inputs.artifact_key }}
           IDENTITY_DIGEST: ${{ steps.identity.outputs.identity_digest }}
         run: |
           set -euo pipefail
-          gh api --paginate --slurp \
-            "repos/${GITHUB_REPOSITORY}/actions/runs/${PRODUCER_RUN_ID}/artifacts?per_page=100" \
-            > "$RUNNER_TEMP/build-artifact-reuse-producer-artifacts.json"
           python3 - <<'PY'
           import json
           import os
           import re
+          import subprocess
           from pathlib import Path
+          from urllib.parse import quote
 
           receipt_paths = list(
               Path(os.environ["RECEIPT_DIRECTORY"]).rglob("build-artifact-receipt.json")
@@ -380,27 +391,38 @@ jobs:
           assert re.fullmatch(r"sha256:[0-9a-f]{64}", artifact.get("digest") or "")
           assert isinstance(artifact.get("name"), str) and artifact["name"]
 
-          pages = json.loads(
-              Path(os.environ["RUNNER_TEMP"])
-              .joinpath("build-artifact-reuse-producer-artifacts.json")
-              .read_text(encoding="utf-8")
+          short_sha = expected_source[:12]
+          short_identity = expected_identity.removeprefix("sha256:")[:12]
+          primary_receipt_name = (
+              f"execution-receipt-build-artifact-{short_sha}-{short_identity}-"
+              f"{producer_run_id}-{receipt['run']['attempt']}"
           )
-          pages = pages if isinstance(pages, list) else [pages]
-          producer_artifacts = [
-              item for page in pages for item in page.get("artifacts", [])
-          ]
+
+          def producer_artifacts(name: str):
+              response = subprocess.run(
+                  [
+                      "gh",
+                      "api",
+                      (
+                          f"repos/{os.environ['GITHUB_REPOSITORY']}/actions/runs/"
+                          f"{producer_run_id}/artifacts?per_page=10&name={quote(name)}"
+                      ),
+                  ],
+                  check=True,
+                  text=True,
+                  capture_output=True,
+              )
+              return json.loads(response.stdout).get("artifacts", [])
+
           receipt_matches = [
               item
-              for item in producer_artifacts
-              if str(item.get("id")) == os.environ["RECEIPT_ARTIFACT_ID"]
-              and item.get("name") == os.environ["RECEIPT_ARTIFACT_NAME"]
-              and item.get("expired") is False
+              for item in producer_artifacts(primary_receipt_name)
+              if item.get("name") == primary_receipt_name and item.get("expired") is False
           ]
           artifact_matches = [
               item
-              for item in producer_artifacts
-              if item.get("name") == artifact["name"]
-              and item.get("expired") is False
+              for item in producer_artifacts(artifact["name"])
+              if item.get("name") == artifact["name"] and item.get("expired") is False
           ]
           assert len(receipt_matches) == 1, receipt_matches
           assert len(artifact_matches) == 1, artifact_matches
@@ -411,10 +433,26 @@ jobs:
           with output.open("a", encoding="utf-8") as handle:
               handle.write("hit=true\n")
               handle.write(f"producer_run_id={producer_run_id}\n")
-              handle.write(f"receipt_artifact_name={os.environ['RECEIPT_ARTIFACT_NAME']}\n")
+              handle.write(f"receipt_artifact_name={primary_receipt_name}\n")
               handle.write(f"artifact_name={artifact['name']}\n")
               handle.write(f"artifact_digest={raw_digest}\n")
           PY
+
+      - name: Record artifact reuse lookup timing
+        id: reuse-timing
+        if: ${{ always() && steps.reuse-timing-start.outcome == 'success' }}
+        working-directory: .
+        env:
+          STARTED_MS: ${{ steps.reuse-timing-start.outputs.started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "reuse_lookup_ms=$((now_ms - STARTED_MS))" >> "$GITHUB_OUTPUT"
+
+      - name: Start artifact producer timing
+        id: producer-timing-start
+        if: ${{ steps.reuse.outputs.hit != 'true' }}
+        working-directory: .
+        run: echo "started_ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
 
       - name: Set up Bun
         id: bun-setup
@@ -513,11 +551,32 @@ jobs:
         working-directory: .
         run: bash scripts/codex-environment.sh setup
 
+      - name: Record artifact setup timing
+        id: timing-setup
+        if: ${{ steps.reuse.outputs.hit != 'true' && steps.producer-timing-start.outcome == 'success' }}
+        working-directory: .
+        env:
+          STARTED_MS: ${{ steps.producer-timing-start.outputs.started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "setup_ms=$((now_ms - STARTED_MS))" >> "$GITHUB_OUTPUT"
+          echo "build_started_ms=$now_ms" >> "$GITHUB_OUTPUT"
+
       - name: Build artifact once
         id: build
         if: ${{ steps.reuse.outputs.hit != 'true' && (steps.bun-setup.outcome == 'success' || steps.bun-setup.outcome == 'skipped') && (steps.node-setup.outcome == 'success' || steps.node-setup.outcome == 'skipped') && (steps.rust-setup.outcome == 'success' || steps.rust-setup.outcome == 'skipped') && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') && (steps.environment-setup.outcome == 'success' || steps.environment-setup.outcome == 'skipped') }}
         continue-on-error: true
         run: ${{ inputs.build_command }}
+
+      - name: Record artifact build timing
+        id: timing-build
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.timing-setup.outcome == 'success' }}
+        working-directory: .
+        env:
+          BUILD_STARTED_MS: ${{ steps.timing-setup.outputs.build_started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "build_ms=$((now_ms - BUILD_STARTED_MS))" >> "$GITHUB_OUTPUT"
 
       - name: Diagnose environment-v1 tracked state after build failure
         id: environment-state
@@ -547,6 +606,43 @@ jobs:
             echo "receipt_path=.artifacts/reusable-workflows/build-artifact-receipt.json"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Measure artifact input bytes
+        id: artifact-size
+        if: ${{ steps.build.outcome == 'success' }}
+        env:
+          ARTIFACT_PATHS: ${{ inputs.artifact_paths }}
+        run: |
+          python3 - <<'PY'
+          import glob
+          import os
+          from pathlib import Path
+
+          files = set()
+          for raw in os.environ["ARTIFACT_PATHS"].splitlines():
+              pattern = raw.strip()
+              if not pattern:
+                  continue
+              matches = glob.glob(pattern, recursive=True)
+              if not matches and Path(pattern).exists():
+                  matches = [pattern]
+              for match in matches:
+                  path = Path(match)
+                  if path.is_dir():
+                      files.update(child.resolve() for child in path.rglob("*") if child.is_file())
+                  elif path.is_file():
+                      files.add(path.resolve())
+
+          total = sum(path.stat().st_size for path in files)
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"artifact_bytes={total}\n")
+          PY
+
+      - name: Start artifact upload timing
+        id: timing-upload-start
+        if: ${{ steps.build.outcome == 'success' }}
+        working-directory: .
+        run: echo "upload_started_ms=$(date +%s%3N)" >> "$GITHUB_OUTPUT"
+
       - name: Upload built artifact
         id: artifact
         if: ${{ steps.build.outcome == 'success' }}
@@ -557,6 +653,16 @@ jobs:
           path: ${{ inputs.artifact_paths }}
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Record artifact upload timing
+        id: timing-upload
+        if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.timing-upload-start.outcome == 'success' }}
+        working-directory: .
+        env:
+          UPLOAD_STARTED_MS: ${{ steps.timing-upload-start.outputs.upload_started_ms }}
+        run: |
+          now_ms="$(date +%s%3N)"
+          echo "upload_ms=$((now_ms - UPLOAD_STARTED_MS))" >> "$GITHUB_OUTPUT"
 
       - name: Determine artifact-build outcome
         id: status
@@ -598,6 +704,28 @@ jobs:
             outcome=success
           fi
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
+
+      - name: Report artifact reuse timing
+        if: ${{ always() }}
+        working-directory: .
+        env:
+          REUSE_HIT: ${{ steps.reuse.outputs.hit }}
+          REUSE_LOOKUP_MS: ${{ steps.reuse-timing.outputs.reuse_lookup_ms }}
+          SETUP_MS: ${{ steps.timing-setup.outputs.setup_ms }}
+          BUILD_MS: ${{ steps.timing-build.outputs.build_ms }}
+          UPLOAD_MS: ${{ steps.timing-upload.outputs.upload_ms }}
+          ARTIFACT_BYTES: ${{ steps.artifact-size.outputs.artifact_bytes }}
+        run: |
+          {
+            echo "### Artifact reuse timing"
+            echo
+            echo "- reused: ${REUSE_HIT:-false}"
+            echo "- reuse lookup + verification: ${REUSE_LOOKUP_MS:-0} ms"
+            echo "- producer setup: ${SETUP_MS:-0} ms"
+            echo "- build command: ${BUILD_MS:-0} ms"
+            echo "- artifact upload: ${UPLOAD_MS:-0} ms"
+            echo "- uncompressed artifact bytes: ${ARTIFACT_BYTES:-0}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Write build execution receipt
         if: ${{ always() && steps.reuse.outputs.hit != 'true' }}
@@ -688,6 +816,17 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
+          path: ${{ steps.metadata.outputs.receipt_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Upload identity-addressed reuse receipt
+        id: reuse-locator-upload
+        if: ${{ inputs.reuse_across_runs && steps.status.outputs.outcome == 'success' && steps.receipt-upload.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ steps.identity.outputs.reuse_locator_name }}
           path: ${{ steps.metadata.outputs.receipt_path }}
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
