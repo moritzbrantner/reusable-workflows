@@ -119,9 +119,12 @@ function buildIdentity({
   setupCommand,
   command,
   environmentIdentity,
+  capabilityIdentity,
   inputFiles,
   runnerOs = "",
   runnerArch = "",
+  runnerImageOs = "",
+  runnerImageVersion = "",
 }) {
   const closure = collectUnitClosure(manifest.units, unitName);
   const patterns = stableUnique([
@@ -152,8 +155,11 @@ function buildIdentity({
       setupCommand,
       command,
       environmentIdentity,
+      capabilityIdentity,
       runnerOs,
       runnerArch,
+      runnerImageOs,
+      runnerImageVersion,
     },
     inputFiles,
   };
@@ -175,6 +181,7 @@ function buildFingerprint({
   setupCommand,
   command,
   environmentIdentity,
+  capabilityIdentity,
 }) {
   const closure = collectUnitClosure(manifest.units, unitName);
   const patterns = stableUnique([
@@ -194,9 +201,12 @@ function buildFingerprint({
     setupCommand,
     command,
     environmentIdentity,
+    capabilityIdentity,
     inputFiles,
     runnerOs: process.env.RUNNER_OS || "",
     runnerArch: process.env.RUNNER_ARCH || "",
+    runnerImageOs: process.env.ImageOS || "",
+    runnerImageVersion: process.env.ImageVersion || "",
   });
   const digest = digestIdentity(identity);
 
@@ -284,6 +294,7 @@ function main() {
   const setupCommand = actionInput("SETUP_COMMAND");
   const command = actionInput("COMMAND");
   const environmentIdentity = actionInput("ENVIRONMENT_IDENTITY");
+  const capabilityIdentity = actionInput("CAPABILITY_IDENTITY");
   const outputInput = actionInput(
     "OUTPUT_PATH",
     ".artifacts/reusable-workflows/validation-evidence-fingerprint.json",
@@ -295,6 +306,9 @@ function main() {
   try {
     if (!UNIT_RE.test(unitName)) {
       throw new Error("unit_name contains unsupported characters.");
+    }
+    if (!capabilityIdentity) {
+      throw new Error("capability_identity must not be empty.");
     }
     assertCheckedOutHead(sourceSha);
     const manifestLocation = resolveInsideRepository(manifestInput, "manifest_path");
@@ -319,6 +333,7 @@ function main() {
       setupCommand,
       command,
       environmentIdentity,
+      capabilityIdentity,
     });
     fs.mkdirSync(path.dirname(outputLocation.resolved), { recursive: true });
     fs.writeFileSync(outputLocation.resolved, JSON.stringify(plan, null, 2), "utf8");
