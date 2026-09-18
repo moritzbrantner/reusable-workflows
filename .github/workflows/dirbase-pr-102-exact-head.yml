@@ -54,7 +54,6 @@ jobs:
         env:
           DIRBASE_REBUILD_UI: "1"
           NO_PROXY: 127.0.0.1,localhost
-          no_proxy: 127.0.0.1,localhost
         run: cargo test --all-features --verbose -- --test-threads=1
 
       - name: Validate repository test-matrix contract
@@ -63,5 +62,4 @@ jobs:
       - name: Validate architecture contract
         env:
           NO_PROXY: 127.0.0.1,localhost
-          no_proxy: 127.0.0.1,localhost
         run: bash scripts/architecture-contract.sh
