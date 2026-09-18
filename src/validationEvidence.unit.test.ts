@@ -111,7 +111,9 @@ describe("validation evidence fingerprint identity", () => {
 
     const changedInput = identity({
       inputFiles: base.inputFiles.map((entry) =>
-        entry.path === "src/ui/view.tsx" ? { ...entry, digest: `sha256:${"e".repeat(64)}` } : entry,
+        entry.path === "src/ui/view.tsx"
+          ? { path: entry.path, mode: entry.mode, digest: `sha256:${"e".repeat(64)}` }
+          : entry,
       ),
     });
     const changedCommand = identity({ command: "bun run test:integration" });
@@ -125,7 +127,9 @@ describe("validation evidence fingerprint identity", () => {
     });
     const changedMode = identity({
       inputFiles: base.inputFiles.map((entry) =>
-        entry.path === "src/ui/view.tsx" ? { ...entry, mode: "100755" } : entry,
+        entry.path === "src/ui/view.tsx"
+          ? { path: entry.path, mode: "100755", digest: entry.digest }
+          : entry,
       ),
     });
 
