@@ -616,12 +616,12 @@ jobs:
           {
             echo "## Validation evidence"
             echo
-            echo "- Unit: `$UNIT_NAME`"
-            echo "- Fingerprint: `${FINGERPRINT_DIGEST:-unavailable}`"
-            echo "- Reused: `$REUSED`"
-            echo "- Reason: `$REUSE_REASON`"
-            echo "- Producer run: `$PRODUCER_RUN_ID`"
-            echo "- Producer source: `$PRODUCER_SOURCE_SHA`"
+            echo "- Unit: \\`$UNIT_NAME\\`"
+            echo "- Fingerprint: \\`${FINGERPRINT_DIGEST:-unavailable}\\`"
+            echo "- Reused: \\`$REUSED\\`"
+            echo "- Reason: \\`$REUSE_REASON\\`"
+            echo "- Producer run: \\`$PRODUCER_RUN_ID\\`"
+            echo "- Producer source: \\`$PRODUCER_SOURCE_SHA\\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Propagate validation evidence failure
