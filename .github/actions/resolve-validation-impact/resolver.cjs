@@ -36,7 +36,7 @@ function normalizeRepoPath(value, label) {
 
 function normalizePattern(value, label) {
   const normalized = normalizeRepoPath(value, label);
-  if (/[\[\]{}]/.test(normalized)) {
+  if (["[", "]", "{", "}"].some((token) => normalized.includes(token))) {
     throw new Error(`${label} uses unsupported glob syntax; use only literals, *, **, and ?.`);
   }
   return normalized;
@@ -548,7 +548,7 @@ function main() {
     publishOutputs(plan, "", digest);
     writeSummary(plan, digest);
     process.stderr.write(
-      `Validation impact resolver fell back to full validation: ${plan.reasons[0]}\\n`,
+      `Validation impact resolver fell back to full validation: ${plan.reasons[0]}\n`,
     );
   }
 }
