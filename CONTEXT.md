@@ -44,7 +44,7 @@ Caller-owned policy for when validation, qualification, promotion, or delivery r
 `validation-impact.yml`, a fail-closed hosted adapter that compares exact revisions and resolves a consumer-owned validation-unit dependency manifest into invalidated and reusable units. It transports impact evidence; the consumer remains authoritative for validation semantics and lifecycle policy.
 
 **Validation Evidence Adapter**  
-`validation-evidence.yml`, an exact-source command-validation adapter that computes a deterministic fingerprint from the selected consumer-owned validation unit, its dependency/global inputs, tracked input bytes, command/setup identity, runner identity, and optional caller-owned environment identity. A verified successful retained receipt may be reused; uncertainty executes validation rather than skipping it.
+`validation-evidence.yml`, an exact-source command-validation adapter that computes a deterministic fingerprint from the selected consumer-owned validation unit, its dependency/global inputs, tracked input bytes, command/setup identity, the exact adapter revision, runner image identity, and optional caller-owned environment identity. A verified successful retained receipt may be reused; uncertainty executes validation rather than skipping it.
 
 **Build Artifact Adapter**  
 `build-artifact.yml`, an ordinary-CI producer for one exact source SHA. It runs a caller-owned build command exactly once, preserves the artifact with its archive digest, binds caller-owned semantic identity plus runner/build context into deterministic identity evidence, and emits Execution Receipt v1. It does not qualify a release, promote, publish, or deploy.
