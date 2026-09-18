@@ -58,6 +58,51 @@ on:
         required: false
         type: string
         default: ""
+      prebuilt_artifact_run_id:
+        description: Exact build-artifact producer run ID. Empty keeps the local validation/build path.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_receipt_name:
+        description: Exact build-artifact Execution Receipt artifact name.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_name:
+        description: Exact immutable build artifact name.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_digest:
+        description: Raw 64-character SHA-256 digest emitted by build-artifact.yml.
+        required: false
+        type: string
+        default: ""
+      prebuilt_source_sha:
+        description: Exact source SHA bound to the prebuilt artifact.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_key:
+        description: Caller-owned semantic artifact key bound to the prebuilt artifact.
+        required: false
+        type: string
+        default: ""
+      prebuilt_identity_digest:
+        description: sha256-prefixed deterministic artifact identity digest.
+        required: false
+        type: string
+        default: ""
+      prebuilt_artifact_destination:
+        description: Repository-root-relative empty/absent destination for verified extraction.
+        required: false
+        type: string
+        default: ""
+      npm_package_path:
+        description: Repository-root-relative verified npm tarball to publish. Use with a prebuilt artifact to publish the exact qualified bytes.
+        required: false
+        type: string
+        default: ""
       post_publish_command:
         required: false
         type: string
@@ -170,6 +215,7 @@ jobs:
       artifact_name: ${{ steps.artifact-name.outputs.name }}
       publish_status: ${{ steps.publish-command.outcome }}
     permissions:
+      actions: read
       contents: read
       id-token: write
       packages: write
@@ -188,6 +234,8 @@ jobs:
       GITHUB_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.prebuilt_source_sha != '' && inputs.prebuilt_source_sha || github.sha }}
 
       - name: Set artifact name
         id: artifact-name
@@ -204,6 +252,42 @@ jobs:
         run: |
           echo "::error::upload_artifacts_on must be one of: failure, always, never." >&2
           exit 1
+
+      - name: Validate prebuilt artifact coordinates
+        working-directory: .
+        env:
+          RUN_ID: ${{ inputs.prebuilt_artifact_run_id }}
+          RECEIPT_NAME: ${{ inputs.prebuilt_artifact_receipt_name }}
+          ARTIFACT_NAME: ${{ inputs.prebuilt_artifact_name }}
+          ARTIFACT_DIGEST: ${{ inputs.prebuilt_artifact_digest }}
+          SOURCE_SHA: ${{ inputs.prebuilt_source_sha }}
+          ARTIFACT_KEY: ${{ inputs.prebuilt_artifact_key }}
+          IDENTITY_DIGEST: ${{ inputs.prebuilt_identity_digest }}
+          DESTINATION: ${{ inputs.prebuilt_artifact_destination }}
+          NPM_PACKAGE_PATH: ${{ inputs.npm_package_path }}
+          PACKAGE_MANAGER: ${{ inputs.package_manager }}
+        run: |
+          set -euo pipefail
+          values=("$RUN_ID" "$RECEIPT_NAME" "$ARTIFACT_NAME" "$ARTIFACT_DIGEST" "$SOURCE_SHA" "$ARTIFACT_KEY" "$IDENTITY_DIGEST" "$DESTINATION")
+          populated=0
+          for value in "${values[@]}"; do
+            if [[ -n "$value" ]]; then
+              populated=$((populated + 1))
+            fi
+          done
+          if [[ "$populated" -ne 0 && "$populated" -ne "${#values[@]}" ]]; then
+            echo "::error::Prebuilt artifact coordinates must be supplied all-or-none." >&2
+            exit 2
+          fi
+          if [[ -n "$NPM_PACKAGE_PATH" ]]; then
+            if [[ "$PACKAGE_MANAGER" != "npm" || "$populated" -eq 0 ]]; then
+              echo "::error::npm_package_path requires package_manager=npm and a verified prebuilt artifact." >&2
+              exit 2
+            fi
+            case "$NPM_PACKAGE_PATH" in
+              /*|../*|*/../*|*/..) echo "::error::npm_package_path must stay inside the repository workspace." >&2; exit 2 ;;
+            esac
+          fi
 
       - name: Validate Rust toolchain
         if: ${{ inputs.package_manager == 'cargo' && inputs.rust_toolchain != '' }}
@@ -291,6 +375,20 @@ jobs:
           path: ${{ runner.temp }}/reusable-workflows-cargo-tools
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-${{ inputs.cargo_tool_cache_key }}
 
+      - name: Consume verified package artifact
+        if: ${{ inputs.prebuilt_artifact_run_id != '' }}
+        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@14d111fe589f21fe7254354713320ab0a832a101
+        with:
+          producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
+          receipt_artifact_name: ${{ inputs.prebuilt_artifact_receipt_name }}
+          artifact_name: ${{ inputs.prebuilt_artifact_name }}
+          artifact_digest: ${{ inputs.prebuilt_artifact_digest }}
+          source_sha: ${{ inputs.prebuilt_source_sha }}
+          artifact_key: ${{ inputs.prebuilt_artifact_key }}
+          identity_digest: ${{ inputs.prebuilt_identity_digest }}
+          destination_path: ${{ inputs.prebuilt_artifact_destination }}
+          github_token: ${{ github.token }}
+
       - name: Install dependencies
         if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
@@ -300,11 +398,11 @@ jobs:
         run: ${{ inputs.pre_publish_command }}
 
       - name: Validate package
-        if: ${{ inputs.validate_command != '' }}
+        if: ${{ inputs.validate_command != '' && inputs.prebuilt_artifact_run_id == '' }}
         run: ${{ inputs.validate_command }}
 
       - name: Build package
-        if: ${{ inputs.build_command != '' }}
+        if: ${{ inputs.build_command != '' && inputs.prebuilt_artifact_run_id == '' }}
         run: ${{ inputs.build_command }}
 
       - name: Verify publish credentials
@@ -337,6 +435,7 @@ jobs:
           CARGO_LOCKED: ${{ inputs.cargo_locked }}
           CARGO_REGISTRY: ${{ inputs.cargo_registry }}
           CARGO_PACKAGE: ${{ inputs.cargo_package }}
+          NPM_PACKAGE_PATH: ${{ inputs.npm_package_path }}
         run: |
           if [ -n "${PUBLISH_COMMAND}" ]; then
             eval "${PUBLISH_COMMAND}"
@@ -345,6 +444,14 @@ jobs:
 
           if [ "${PACKAGE_MANAGER}" = "npm" ]; then
             args=(publish)
+            if [ -n "${NPM_PACKAGE_PATH}" ]; then
+              package_path="${GITHUB_WORKSPACE}/${NPM_PACKAGE_PATH}"
+              test -f "${package_path}" || {
+                echo "::error::Verified npm package tarball not found: ${NPM_PACKAGE_PATH}" >&2
+                exit 2
+              }
+              args+=("${package_path}")
+            fi
 
             if [ "${NPM_PROVENANCE}" = "true" ]; then
               args+=(--provenance)
