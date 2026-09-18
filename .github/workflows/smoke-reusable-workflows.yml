@@ -91,6 +91,7 @@ jobs:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       unit_name: contracts
       manifest_path: examples/validation-impact.json
+      setup_command: "npm install --global bun@1.4.0"
       command: "echo smoke validation evidence"
       environment_identity: smoke-validation-evidence-v1
       reuse_across_runs: false
@@ -106,6 +107,7 @@ jobs:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       unit_name: contracts
       manifest_path: examples/validation-impact.json
+      setup_command: "npm install --global bun@1.4.0"
       command: "echo smoke validation evidence"
       environment_identity: smoke-validation-evidence-v1
       reuse_across_runs: true
