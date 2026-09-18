@@ -360,10 +360,10 @@ function assertCheckedOutHead(headSha) {
 
   const head = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" });
   const currentHead = head.status === 0 ? head.stdout.trim().toLowerCase() : "";
-  if (currentHead !== headSha.toLowerCase()) {
-    throw new Error(
-      `checkout HEAD ${currentHead || "<unavailable>"} does not match requested head ${headSha.toLowerCase()}.`,
-    );
+  const requestedHead = headSha.toLowerCase();
+  if (currentHead !== requestedHead) {
+    const actualHead = currentHead || "<unavailable>";
+    throw new Error(`checkout HEAD ${actualHead} does not match requested head ${requestedHead}.`);
   }
 }
 
