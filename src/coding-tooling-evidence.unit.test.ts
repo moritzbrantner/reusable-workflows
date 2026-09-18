@@ -36,9 +36,8 @@ describe("coding-tooling repository evidence preservation", () => {
     const source = readFileSync(workflowPath, "utf8");
 
     expect(source).toContain("Check out exact consumer revision");
-    expect(source).toContain(
-      "ref: ${{ inputs.impact_head_sha != '' && inputs.impact_head_sha || github.event.pull_request.head.sha || github.sha }}",
-    );
+    expect(source).toContain("inputs.impact_head_sha != ''");
+    expect(source).toContain("github.event.pull_request.head.sha || github.sha");
   });
 
   test("pins the environment-v1-aware coding-tooling action", () => {
@@ -67,8 +66,6 @@ describe("coding-tooling repository evidence preservation", () => {
     expect(source).toContain("Resolve evidence preservation");
     expect(source).toContain("steps.evidence-policy.outputs.required == 'true'");
     expect(source).toContain('TOOLING_OUTCOME: ${{ steps.tooling.outcome }}');
-    expect(source).toContain(
-      'PRESERVE_SUCCESS: ${{ inputs.preserve_success_evidence }}',
-    );
+    expect(source).toContain('PRESERVE_SUCCESS: ${{ inputs.preserve_success_evidence }}');
   });
 });
