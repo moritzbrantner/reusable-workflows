@@ -23,6 +23,21 @@ on:
         required: false
         type: string
         default: auto
+      validation_report_artifact_name:
+        description: Optional coding-tooling-validation report artifact from the current workflow run. Supply with validation_receipt_artifact_name and validation_source_sha to reuse exact successful verification.
+        required: false
+        type: string
+        default: ""
+      validation_receipt_artifact_name:
+        description: Optional coding-tooling-validation execution receipt artifact from the current workflow run.
+        required: false
+        type: string
+        default: ""
+      validation_source_sha:
+        description: Exact source SHA expected in the reused coding-tooling validation receipt.
+        required: false
+        type: string
+        default: ""
       history_branch:
         description: Reserved data-only branch used to persist history.json.
         required: false
@@ -44,19 +59,109 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout_minutes }}
     permissions:
+      actions: read
       contents: write
     steps:
       - name: Check out consumer repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.validation_source_sha != '' && inputs.validation_source_sha || github.sha }}
 
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.0
 
-      - name: Capture repository verification
+      - name: Validate reusable verification coordinates
+        id: verification-inputs
+        shell: bash
+        env:
+          REPORT_ARTIFACT_NAME: ${{ inputs.validation_report_artifact_name }}
+          RECEIPT_ARTIFACT_NAME: ${{ inputs.validation_receipt_artifact_name }}
+          SOURCE_SHA: ${{ inputs.validation_source_sha }}
+        run: |
+          set -euo pipefail
+          populated=0
+          for value in "$REPORT_ARTIFACT_NAME" "$RECEIPT_ARTIFACT_NAME" "$SOURCE_SHA"; do
+            if [[ -n "$value" ]]; then
+              populated=$((populated + 1))
+            fi
+          done
+          if [[ "$populated" -ne 0 && "$populated" -ne 3 ]]; then
+            echo "::error::validation_report_artifact_name, validation_receipt_artifact_name, and validation_source_sha must be supplied together." >&2
+            exit 2
+          fi
+          if [[ "$populated" -eq 3 && ! "$SOURCE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::validation_source_sha must be an exact 40-character commit SHA." >&2
+            exit 2
+          fi
+          echo "reuse=$([[ "$populated" -eq 3 ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Download reusable verification report
+        id: reused-report
+        if: ${{ steps.verification-inputs.outputs.reuse == 'true' }}
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@01527f7be1607416bf9cc81a3a3e4d2bfb7355f2
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.validation_report_artifact_name }}
+          path: .artifacts/coding-tooling/reused-report
+
+      - name: Download reusable verification receipt
+        id: reused-receipt
+        if: ${{ steps.verification-inputs.outputs.reuse == 'true' }}
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.validation_receipt_artifact_name }}
+          path: .artifacts/coding-tooling/reused-receipt
+
+      - name: Reuse exact successful repository verification
+        id: existing-verification
+        if: ${{ steps.reused-report.outcome == 'success' && steps.reused-receipt.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_SOURCE_SHA: ${{ inputs.validation_source_sha }}
+          REPORT_ARTIFACT_NAME: ${{ inputs.validation_report_artifact_name }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          report_paths = list(Path(".artifacts/coding-tooling/reused-report").rglob("*.json"))
+          receipt_paths = list(Path(".artifacts/coding-tooling/reused-receipt").rglob("*.json"))
+          assert len(report_paths) == 1, report_paths
+          assert len(receipt_paths) == 1, receipt_paths
+
+          receipt = json.loads(receipt_paths[0].read_text(encoding="utf-8"))
+          assert receipt["schemaVersion"] == 1
+          assert receipt["kind"] == "reusable-workflows/execution-receipt"
+          assert receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}
+          assert receipt["source"]["repository"] == os.environ["GITHUB_REPOSITORY"]
+          assert receipt["source"]["sha"] == os.environ["EXPECTED_SOURCE_SHA"].lower()
+          assert receipt["result"]["outcome"] == "success"
+
+          report_evidence = [
+              entry
+              for entry in receipt.get("evidence", [])
+              if entry.get("role") == "coding-tooling-report"
+          ]
+          assert len(report_evidence) == 1, report_evidence
+          assert report_evidence[0]["name"] == os.environ["REPORT_ARTIFACT_NAME"]
+
+          target = Path(".artifacts/coding-tooling/history-run.json")
+          target.parent.mkdir(parents=True, exist_ok=True)
+          shutil.copyfile(report_paths[0], target)
+          PY
+
+      - name: Capture repository verification
+        id: verification
+        if: ${{ steps.verification-inputs.outputs.reuse != 'true' || steps.existing-verification.outcome != 'success' }}
+        continue-on-error: true
+        uses: moritzbrantner/coding-tooling@3f7e2387dda68fd27ddd72a8b995f126678ff4ff
         with:
           tier: ${{ inputs.tier }}
           config: ${{ inputs.config }}
@@ -68,7 +173,7 @@ jobs:
         id: score
         if: ${{ always() }}
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@01527f7be1607416bf9cc81a3a3e4d2bfb7355f2
+        uses: moritzbrantner/coding-tooling@3f7e2387dda68fd27ddd72a8b995f126678ff4ff
         with:
           operation: score
           validation-report: .artifacts/coding-tooling/history-run.json
@@ -80,7 +185,7 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: moritzbrantner/coding-tooling
-          ref: 01527f7be1607416bf9cc81a3a3e4d2bfb7355f2
+          ref: 3f7e2387dda68fd27ddd72a8b995f126678ff4ff
           path: .coding-tooling-source
           persist-credentials: false
 
