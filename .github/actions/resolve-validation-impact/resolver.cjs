@@ -351,6 +351,18 @@ function resolveImpactPlan({ baseSha, headSha, manifestPath, changedFiles, manif
   });
 }
 
+function assertCheckedOutHead(headSha) {
+  if (!SHA_RE.test(headSha)) {
+    throw new Error("head_sha must be an exact 40-character commit SHA.");
+  }
+
+  const head = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" });
+  const currentHead = head.status === 0 ? head.stdout.trim().toLowerCase() : "";
+  if (currentHead !== headSha.toLowerCase()) {
+    throw new Error(`checkout HEAD ${currentHead || "<unavailable>"} does not match requested head ${headSha.toLowerCase()}.`);
+  }
+}
+
 function readChangedFiles(baseSha, headSha) {
   for (const revision of [baseSha, headSha]) {
     const probe = spawnSync("git", ["cat-file", "-e", `${revision}^{commit}`], {
@@ -453,17 +465,32 @@ function main() {
     manifestPath = manifestLocation.normalized;
     planPath = outputLocation.normalized;
 
-    let parsedManifest;
     try {
-      const rawManifest = JSON.parse(fs.readFileSync(manifestLocation.resolved, "utf8"));
-      parsedManifest = parseManifest(rawManifest);
+      assertCheckedOutHead(headSha);
     } catch (error) {
       plan = fallbackPlan({
         baseSha,
         headSha,
         manifestPath,
-        reason: `invalid-manifest: ${error instanceof Error ? error.message : String(error)}`,
+        reason: `head-checkout-unavailable: ${error instanceof Error ? error.message : String(error)}`,
       });
+    }
+
+    let parsedManifest;
+    try {
+      const rawManifest = JSON.parse(fs.readFileSync(manifestLocation.resolved, "utf8"));
+      parsedManifest = parseManifest(rawManifest);
+    } catch (error) {
+      if (plan) {
+        parsedManifest = undefined;
+      } else {
+        plan = fallbackPlan({
+        baseSha,
+        headSha,
+        manifestPath,
+          reason: `invalid-manifest: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
     }
 
     if (!plan) {
