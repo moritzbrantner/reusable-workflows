@@ -4,6 +4,7 @@ import type { AdoptionOptions, GeneratedWorkflow, PackageManager } from "./types
 type ContractPermissions = Record<string, string>;
 
 const workflowOwner = "moritzbrantner/reusable-workflows";
+const postMergeOnly = "${{ github.event_name != 'pull_request' }}";
 
 export function generateAdoptionWorkflows(options: AdoptionOptions): GeneratedWorkflow[] {
   const validateWorkflow = generateValidateWorkflow(options);
@@ -68,6 +69,7 @@ function generateValidateWorkflow(options: AdoptionOptions) {
     "  push:",
     "    branches:",
     "      - main",
+    "  workflow_dispatch:",
     "",
     "concurrency:",
     "  group: ${{ github.workflow }}-${{ github.ref }}",
@@ -167,6 +169,7 @@ function integrationValidationJob(options: AdoptionOptions) {
     options,
     {
       permissions: permissionsFor(".github/workflows/integration-validation.yml"),
+      if: postMergeOnly,
       with: {
         install_command: installCommand(options.packageManager),
         integration_command: runCommand(options.packageManager, "test:integration"),
@@ -181,6 +184,7 @@ function integrationValidationJob(options: AdoptionOptions) {
 function e2eValidationJob(options: AdoptionOptions) {
   return reusableJob("e2e-validation", ".github/workflows/e2e-validation.yml", options, {
     permissions: permissionsFor(".github/workflows/e2e-validation.yml"),
+    if: postMergeOnly,
     with: {
       install_command: installCommand(options.packageManager),
       build_command: runCommand(options.packageManager, "build"),
@@ -199,6 +203,7 @@ function storybookValidationJob(options: AdoptionOptions) {
     options,
     {
       permissions: permissionsFor(".github/workflows/storybook-validation.yml"),
+      if: postMergeOnly,
       with: {
         install_command: installCommand(options.packageManager),
         storybook_build_command: runCommand(options.packageManager, "storybook:build"),
@@ -215,6 +220,7 @@ function storybookValidationJob(options: AdoptionOptions) {
 function linkValidationJob(options: AdoptionOptions) {
   return reusableJob("link-validation", ".github/workflows/link-validation.yml", options, {
     permissions: permissionsFor(".github/workflows/link-validation.yml"),
+    if: postMergeOnly,
     with: {
       install_command: installCommand(options.packageManager),
       build_command: runCommand(options.packageManager, "build"),
@@ -235,6 +241,7 @@ function performanceValidationJob(options: AdoptionOptions) {
     options,
     {
       permissions: permissionsFor(".github/workflows/performance-validation.yml"),
+      if: postMergeOnly,
       with: {
         install_command: installCommand(options.packageManager),
         build_command: runCommand(options.packageManager, "build"),
@@ -255,18 +262,24 @@ function reusableJob(
   options: AdoptionOptions,
   config: {
     permissions: ContractPermissions;
+    if?: string;
     secrets?: Record<string, string>;
     with: Record<string, boolean | number | string>;
   },
 ) {
-  const lines = [
-    `${jobId}:`,
+  const lines = [`${jobId}:`];
+
+  if (config.if) {
+    lines.push(`  if: ${config.if}`);
+  }
+
+  lines.push(
     `  uses: ${workflowOwner}/${workflowPath}@${options.workflowRef}`,
     "  permissions:",
     ...objectLines(config.permissions, 4),
     "  with:",
     ...objectLines(config.with, 4),
-  ];
+  );
 
   if (config.secrets) {
     lines.push("  secrets:", ...objectLines(config.secrets, 4));
