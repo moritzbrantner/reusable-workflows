@@ -11,6 +11,7 @@ on:
       - "scripts/workflow-catalog-data.ts"
       - "src/app/workflowCatalog.ts"
       - "src/validate-workflow-contracts.test.ts"
+      - "examples/validation-impact.json"
   pull_request:
     paths:
       - ".github/actions/**"
@@ -21,6 +22,7 @@ on:
       - "scripts/workflow-catalog-data.ts"
       - "src/app/workflowCatalog.ts"
       - "src/validate-workflow-contracts.test.ts"
+      - "examples/validation-impact.json"
   workflow_dispatch:
 
 permissions:
@@ -42,6 +44,42 @@ jobs:
       bun_version: ""
       install_command: ""
       command: "echo smoke fast validation"
+
+  validation-impact:
+    needs: fast-validation
+    uses: ./.github/workflows/validation-impact.yml
+    with:
+      base_sha: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+      head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      manifest_path: examples/validation-impact.json
+
+  validation-impact-result:
+    needs: validation-impact
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify impact plan outputs
+        env:
+          CHANGED_FILES: ${{ needs.validation-impact.outputs.changed_files_json }}
+          INVALIDATED_UNITS: ${{ needs.validation-impact.outputs.invalidated_units_json }}
+          REUSABLE_UNITS: ${{ needs.validation-impact.outputs.reusable_units_json }}
+          FULL_VALIDATION: ${{ needs.validation-impact.outputs.full_validation }}
+          PLAN_DIGEST: ${{ needs.validation-impact.outputs.plan_digest }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          for name in ("CHANGED_FILES", "INVALIDATED_UNITS", "REUSABLE_UNITS"):
+              value = json.loads(os.environ[name])
+              assert isinstance(value, list)
+
+          assert os.environ["FULL_VALIDATION"] in {"true", "false"}
+          assert re.fullmatch(r"sha256:[0-9a-f]{64}", os.environ["PLAN_DIGEST"])
+          PY
 
   build-artifact:
     needs: fast-validation
