@@ -91,7 +91,7 @@ function detectDependencyCycle(units) {
 
   function visit(name, chain) {
     if (visiting.has(name)) {
-      throw new Error(`validation impact dependencies contain a cycle: ${[...chain, name].join(" -> ")}`);
+      throw new Error(\n        `validation impact dependencies contain a cycle: ${[...chain, name].join(" -> ")}`,\n      );
     }
     if (visited.has(name)) {
       return;
@@ -359,7 +359,7 @@ function assertCheckedOutHead(headSha) {
   const head = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" });
   const currentHead = head.status === 0 ? head.stdout.trim().toLowerCase() : "";
   if (currentHead !== headSha.toLowerCase()) {
-    throw new Error(`checkout HEAD ${currentHead || "<unavailable>"} does not match requested head ${headSha.toLowerCase()}.`);
+    throw new Error(\n      `checkout HEAD ${currentHead || "<unavailable>"} does not match requested head ${headSha.toLowerCase()}.`,\n    );
   }
 }
 
@@ -472,7 +472,7 @@ function main() {
         baseSha,
         headSha,
         manifestPath,
-        reason: `head-checkout-unavailable: ${error instanceof Error ? error.message : String(error)}`,
+        reason: `head-checkout-unavailable: ${\n          error instanceof Error ? error.message : String(error)\n        }`,
       });
     }
 
