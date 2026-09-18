@@ -25,6 +25,21 @@ describe("adoption generator", () => {
     expect(yaml).toContain("pages: write");
   });
 
+  test("keeps expensive generated validation off pull requests", () => {
+    const yaml = generatedText({
+      ...defaultAdoptionOptions("web-app"),
+      includePerformance: true,
+    });
+
+    expect(yaml).toContain("workflow_dispatch:");
+    expect(yaml).toContain("e2e-validation:\n    if: ${{ github.event_name != 'pull_request' }}");
+    expect(yaml).toContain("link-validation:\n    if: ${{ github.event_name != 'pull_request' }}");
+    expect(yaml).toContain(
+      "performance-validation:\n    if: ${{ github.event_name != 'pull_request' }}",
+    );
+    expect(yaml).not.toContain("fast-validation:\n    if:");
+  });
+
   test("never emits inherited secrets", () => {
     const yaml = generatedText(defaultAdoptionOptions("package"));
 

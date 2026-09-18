@@ -38,15 +38,16 @@ describe("workflow catalog", () => {
     expect(validateWorkflow?.dependencies).toEqual(
       expect.arrayContaining([
         ".github/workflows/build-artifact.yml",
+        ".github/workflows/coding-tooling-score-history.yml",
         ".github/workflows/coding-tooling-validation.yml",
         ".github/workflows/e2e-validation.yml",
         ".github/workflows/link-validation.yml",
         ".github/workflows/performance-validation.yml",
         ".github/workflows/storybook-validation.yml",
-        ".github/workflows/validation-impact.yml",
       ]),
     );
     expect(validateWorkflow?.dependencies).not.toContain(".github/workflows/fast-validation.yml");
+    expect(validateWorkflow?.dependencies).not.toContain(".github/workflows/validation-impact.yml");
   });
 
   test("parses deploy-pages.yml job metadata and frozen contract inputs", () => {

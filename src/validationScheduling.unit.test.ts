@@ -107,7 +107,7 @@ describe("repository validation impact scheduling", () => {
     expect(deployDocsPages).not.toContain('qualification_command: "bun run validate:fast"');
   });
 
-  test("wires PR impact outputs into expensive validation lanes", () => {
+  test("keeps impact reuse off the default validation lifecycle", () => {
     const validate = readFileSync(
       new URL("../.github/workflows/validate.yml", import.meta.url),
       "utf8",
@@ -117,23 +117,15 @@ describe("repository validation impact scheduling", () => {
       "utf8",
     );
 
-    expect(validate).toContain("uses: ./.github/workflows/validation-impact.yml");
-    expect(validate).toContain(
-      "contains(needs.validation-impact.outputs.invalidated_units_json, '\"web-build\"')",
-    );
-    expect(validate).toContain(
-      "contains(needs.validation-impact.outputs.invalidated_units_json, '\"actionlint\"')",
-    );
-    expect(validate).toContain("needs.validation-impact.outputs.full_validation == 'true'");
-    expect(validate).toContain(
-      "impact_unit: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'semantic' || '' }}",
-    );
+    expect(validate).not.toContain("uses: ./.github/workflows/validation-impact.yml");
+    expect(validate).not.toContain("impact_unit:");
+    expect(validate).not.toContain("reuse_across_runs: true");
+    expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
     expect(validate).toContain(
       "preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
     );
-    expect(validate).toContain(
-      "github.event_name == 'pull_request' || github.event_name == 'push'",
-    );
+    expect(validate).toContain("(github.event_name == 'push' && github.ref == 'refs/heads/main')");
+    expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:e2e')");
     expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);
   });
 });

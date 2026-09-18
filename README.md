@@ -26,8 +26,8 @@ The preferred shape lets an agent and hosted CI run the same repository-owned co
 
 ```text
 local agent handoff -> fast
-pull request        -> fast, optionally affected/deeper checks
-main                -> normal confidence suite
+pull request        -> fast
+main                -> broader confidence suite
 nightly             -> expensive/deep checks
 release candidate   -> qualify an exact commit/artifact
 stable release      -> promote/deliver the same qualified artifact
@@ -51,17 +51,22 @@ source development -> local validation -> done
 
 ## Current capabilities
 
-### Preferred core validation
+### Default validation
 
 - `command-validation.yml` — runtime-neutral adapter around one optional repository-owned setup command and one validation command. Emits Execution Receipt v1.
 - `coding-tooling-validation.yml` — invokes `coding-tooling` for a declared operation/tier. Failed runs preserve the report plus Execution Receipt v1 automatically; successful runs preserve them only when the caller requests durable evidence. Callers may also provide exact base/head coordinates plus a validation-impact unit so a proven reusable unit skips the tooling run.
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
 - `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
-- `validation-impact.yml` — compares exact base/head revisions against a consumer-owned impact manifest, emits invalidated/reusable validation units, and fails closed to full validation when impact cannot be proven.
-- `validation-evidence.yml` — runs one exact-source repository-owned validation unit and can reuse a retained successful receipt only when the unit's declared input/dependency fingerprint plus command and environment identity match exactly. Fingerprint/lookup uncertainty executes validation instead of skipping it.
 - `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA and returns one source-bound artifact plus Execution Receipt v1. By default it builds and uploads normally; opt-in `reuse_across_runs` first resolves a still-retained artifact with the same exact build identity and returns its original `producer_run_id` without rerunning setup or the build. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
+
+### Optional validation optimization
+
+These capabilities are available when validation cost is demonstrably high enough to justify extra routing state. They are not part of the default PR path.
+
+- `validation-impact.yml` — compares exact base/head revisions against a consumer-owned impact manifest, emits invalidated/reusable validation units, and fails closed to full validation when impact cannot be proven.
+- `validation-evidence.yml` — runs one exact-source repository-owned validation unit and can reuse a retained successful receipt only when the unit's declared input/dependency fingerprint plus command and environment identity match exactly. Fingerprint/lookup uncertainty executes validation instead of skipping it.
 
 ### Specialized / transitional validation
 
@@ -203,6 +208,6 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`validate.yml` dogfoods the live `.github/validation-impact.json` policy on pull requests and `main` pushes. Documentation-only changes can skip semantic validation entirely; web builds, actionlint, and the expensive post-build lanes run only when their declared inputs are invalidated or impact planning fails closed. Successful pull-request semantic runs do not upload durable report/receipt artifacts by default; `main` opts in because score history consumes that evidence. Explicit full/deep requests remain available.
+`validate.yml` keeps pull requests deliberately small: the fast semantic gate and workflow syntax are the default blockers. Build, browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. Validation-impact and cross-run evidence reuse remain opt-in capabilities rather than prerequisites for the happy path.
 
 `smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/validation-impact/validation-evidence/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.

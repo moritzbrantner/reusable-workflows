@@ -48,15 +48,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validation-impact:
-    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
-    uses: ./.github/workflows/validation-impact.yml
-    permissions:
-      contents: read
-    with:
-      base_sha: ${{ github.event.pull_request.base.sha || github.event.before }}
-      head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
   coding-tooling-fast:
     uses: ./.github/workflows/coding-tooling-validation.yml
     permissions:
@@ -68,9 +59,18 @@ jobs:
       report_path: .artifacts/coding-tooling/fast.json
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-      impact_base_sha: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
-      impact_head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-      impact_unit: ${{ (github.event_name == 'pull_request' || github.event_name == 'push') && 'semantic' || '' }}
+
+  actionlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Check workflow files
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
 
   coding-tooling-score-history:
     needs: [coding-tooling-fast]
@@ -83,18 +83,20 @@ jobs:
       tier: fast
 
   artifact-build:
-    needs: [validation-impact]
+    needs: [coding-tooling-fast, actionlint]
     if: >-
       ${{
-        always() && (
-          github.event_name == 'workflow_dispatch' ||
-          needs.validation-impact.result != 'success' ||
-          needs.validation-impact.outputs.full_validation == 'true' ||
-          contains(needs.validation-impact.outputs.invalidated_units_json, '"web-build"') ||
-          contains(github.event.pull_request.labels.*.name, 'ci:full') ||
-          contains(github.event.pull_request.labels.*.name, 'ci:e2e') ||
-          contains(github.event.pull_request.labels.*.name, 'ci:storybook') ||
-          contains(github.event.pull_request.labels.*.name, 'ci:links')
+        !cancelled() &&
+        needs.coding-tooling-fast.result == 'success' &&
+        needs.actionlint.result == 'success' && (
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_storybook || inputs.run_link_validation)) ||
+          (github.event_name == 'pull_request' && (
+            contains(github.event.pull_request.labels.*.name, 'ci:full') ||
+            contains(github.event.pull_request.labels.*.name, 'ci:e2e') ||
+            contains(github.event.pull_request.labels.*.name, 'ci:storybook') ||
+            contains(github.event.pull_request.labels.*.name, 'ci:links')
+          ))
         )
       }}
     uses: ./.github/workflows/build-artifact.yml
@@ -109,7 +111,6 @@ jobs:
       cache_bun: true
       build_command: "bun run build && bun run size:check:dist"
       artifact_paths: dist
-      reuse_across_runs: true
       artifact_retention_days: 1
 
   e2e-validation:
@@ -217,18 +218,13 @@ jobs:
         linkinator-report.json
 
   performance-validation:
-    needs: [coding-tooling-fast, artifact-build, actionlint, validation-impact]
+    needs: [coding-tooling-fast, actionlint]
     if: >-
       ${{
-        always() &&
+        !cancelled() &&
         needs.coding-tooling-fast.result == 'success' &&
-        (needs.artifact-build.result == 'success' || needs.artifact-build.result == 'skipped') &&
-        (needs.actionlint.result == 'success' || needs.actionlint.result == 'skipped') && (
-          (github.event_name == 'push' && github.ref == 'refs/heads/main' && (
-            needs.validation-impact.result != 'success' ||
-            needs.validation-impact.outputs.full_validation == 'true' ||
-            contains(needs.validation-impact.outputs.invalidated_units_json, '"web-build"')
-          )) ||
+        needs.actionlint.result == 'success' && (
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
           (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
         )
@@ -252,26 +248,3 @@ jobs:
         benchmark-results/*.md
         performance-results/current-build.md
       upload_artifacts_on: ${{ github.event_name == 'pull_request' && 'failure' || 'always' }}
-
-  actionlint:
-    needs: [validation-impact]
-    if: >-
-      ${{
-        always() && (
-          github.event_name == 'workflow_dispatch' ||
-          needs.validation-impact.result != 'success' ||
-          needs.validation-impact.outputs.full_validation == 'true' ||
-          contains(needs.validation-impact.outputs.invalidated_units_json, '"actionlint"') ||
-          contains(github.event.pull_request.labels.*.name, 'ci:full')
-        )
-      }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - name: Check workflow files
-        uses: docker://rhysd/actionlint:1.7.12
-        with:
-          args: -color

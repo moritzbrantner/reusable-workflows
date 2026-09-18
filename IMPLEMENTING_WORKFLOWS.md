@@ -90,7 +90,9 @@ The adapter checks out the consumer, invokes an exact-pinned `coding-tooling` Ac
 
 The `coding-tooling` Action is private. Public consumers should use `fast-validation.yml` or other public command-driven capabilities instead.
 
-### Impact-aware execution routing
+### Optional: impact-aware execution routing
+
+Prefer the simple lifecycle first. Add impact routing only after repeated measurements show that the fast gate itself is a material bottleneck.
 
 When a repository already owns a `.github/validation-impact.json`, the coding-tooling adapter can use the same plan before spending the validation tier:
 
@@ -104,7 +106,7 @@ with:
 
 A successful impact plan that proves the selected unit reusable skips the coding-tooling execution inside the same hosted job. Missing, invalid, or uncertain impact evidence fails open to executing validation rather than silently skipping it. This avoids adding a second prerequisite runner to the fast path.
 
-### Impact-aware evidence reuse
+### Optional: impact-aware evidence reuse
 
 When a repository has an explicit `.github/validation-impact.json`, `validation-evidence.yml` can execute one declared validation unit against an exact source SHA and, when the caller explicitly opts in with `reuse_across_runs: true`, reuse a retained successful receipt only when its full evidence fingerprint matches, including the exact adapter revision and runner image identity.
 
@@ -120,8 +122,8 @@ Lifecycle guidance is progressive rather than prescriptive:
 
 ```text
 local agent handoff -> fast
-pull request        -> fast, optionally affected or deeper checks
-main                -> normal confidence suite
+pull request        -> fast
+main                -> broader confidence suite
 nightly             -> expensive or deep checks
 release candidate   -> qualify an exact commit or artifact
 stable release      -> publish or promote that qualified immutable candidate

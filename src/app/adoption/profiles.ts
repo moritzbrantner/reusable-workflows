@@ -19,13 +19,15 @@ export const adoptionProfiles: AdoptionProfile[] = [
   {
     id: "web-app",
     label: "Web app",
-    description: "PR validation for a routed app with unit, link, and optional e2e coverage.",
+    description:
+      "Fast PR validation with deeper link and optional E2E coverage after merge or on demand.",
     options: { ...baseOptions },
   },
   {
     id: "monorepo-web-app",
     label: "Monorepo web app",
-    description: "Scoped validation for an app in `apps/web` with matching cache paths.",
+    description:
+      "Scoped fast PR validation for `apps/web`, with deeper checks after merge or on demand.",
     options: {
       ...baseOptions,
       profileId: "monorepo-web-app",
@@ -36,7 +38,7 @@ export const adoptionProfiles: AdoptionProfile[] = [
     id: "component-library",
     label: "Component library",
     description:
-      "Fast validation plus Storybook build, interaction, accessibility, and visual hooks.",
+      "Fast PR validation plus post-merge/on-demand Storybook, interaction, accessibility, and visual hooks.",
     options: {
       ...baseOptions,
       profileId: "component-library",
@@ -47,7 +49,8 @@ export const adoptionProfiles: AdoptionProfile[] = [
   {
     id: "package",
     label: "Package",
-    description: "Package validation with a gated publish workflow starter.",
+    description:
+      "Fast PR validation with post-merge package checks and a gated publish workflow starter.",
     options: {
       ...baseOptions,
       profileId: "package",
@@ -60,7 +63,7 @@ export const adoptionProfiles: AdoptionProfile[] = [
     id: "pages-site",
     label: "Pages site",
     description:
-      "Static site validation with link checks and a separate Pages deployment workflow.",
+      "Fast PR validation with post-merge link checks and a separate Pages deployment workflow.",
     options: {
       ...baseOptions,
       profileId: "pages-site",
