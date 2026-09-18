@@ -24,13 +24,18 @@ describe("coding-tooling score history workflow", () => {
     expect(source).not.toMatch(/score[_ -]?threshold/i);
     expect(source).not.toMatch(/minimum[_ -]?score/i);
   });
+
   test("reuses exact hosted verification and falls back only when evidence reuse fails", () => {
     expect(source).toContain("validation_report_artifact_name");
     expect(source).toContain("validation_receipt_artifact_name");
     expect(source).toContain("validation_source_sha");
     expect(source).toContain("Reuse exact repository verification");
-    expect(source).toContain('receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}');
-    expect(source).toContain('receipt["source"]["sha"] == os.environ["EXPECTED_SOURCE_SHA"].lower()');
+    expect(source).toContain(
+      'receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}',
+    );
+    expect(source).toContain(
+      'receipt["source"]["sha"] == os.environ["EXPECTED_SOURCE_SHA"].lower()',
+    );
     expect(source).toContain('receipt["result"]["outcome"] in {"success", "failure"}');
     expect(source).toMatch(
       /Capture repository verification[\s\S]*steps\.existing-verification\.outcome != 'success'/,
