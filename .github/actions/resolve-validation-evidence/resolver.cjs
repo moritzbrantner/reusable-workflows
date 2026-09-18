@@ -190,10 +190,18 @@ function buildFingerprint({
   ]);
   const tracked = listTrackedFiles();
   const matched = tracked.filter((entry) => matchesAny(entry.path, patterns));
-  const inputFiles = matched.map((entry) => ({
-    path: entry.path,
-    digest: hashGitBlob(entry.objectId),
-  }));
+  const inputFiles = matched.map((entry) => {
+    if (!["100644", "100755"].includes(entry.mode)) {
+      throw new Error(
+        `tracked validation input '${entry.path}' has unsupported Git mode ${entry.mode}; reuse requires regular files.`,
+      );
+    }
+    return {
+      path: entry.path,
+      mode: entry.mode,
+      digest: hashGitBlob(entry.objectId),
+    };
+  });
   const identity = buildIdentity({
     unitName,
     manifest,
