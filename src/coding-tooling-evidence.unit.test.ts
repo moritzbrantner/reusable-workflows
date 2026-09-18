@@ -32,18 +32,22 @@ describe("coding-tooling repository evidence preservation", () => {
     expect(source).toContain("evidence_path directory must not contain symlinks");
   });
 
-  test("validates the pull request head instead of GitHub's synthetic merge revision", () => {
+  test("pushes one caller-established source revision through checkout and tooling", () => {
     const source = readFileSync(workflowPath, "utf8");
+    const sourceExpression =
+      "${{ inputs.source_sha != '' && inputs.source_sha || github.event.pull_request.head.sha || github.sha }}";
 
     expect(source).toContain("Check out exact consumer revision");
-    expect(source).toContain("ref: ${{ github.event.pull_request.head.sha || github.sha }}");
+    expect(source).toContain(`ref: ${sourceExpression}`);
+    expect(source).toContain(`source-sha: ${sourceExpression}`);
+    expect(source).not.toContain('source_sha="$(git rev-parse HEAD)"');
   });
 
   test("pins the environment-v1-aware coding-tooling action", () => {
     const source = readFileSync(workflowPath, "utf8");
 
     expect(source).toContain(
-      "uses: moritzbrantner/coding-tooling@a630598d369ac94d0f549dce5c859b9dd28b250c",
+      "uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858",
     );
   });
 });
