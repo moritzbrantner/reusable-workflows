@@ -81,6 +81,57 @@ jobs:
           assert re.fullmatch(r"sha256:[0-9a-f]{64}", os.environ["PLAN_DIGEST"])
           PY
 
+  validation-evidence:
+    needs: fast-validation
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/validation-evidence.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      unit_name: contracts
+      manifest_path: examples/validation-impact.json
+      command: "echo smoke validation evidence"
+      environment_identity: smoke-validation-evidence-v1
+      artifact_retention_days: 1
+
+  validation-evidence-reuse:
+    needs: validation-evidence
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/validation-evidence.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      unit_name: contracts
+      manifest_path: examples/validation-impact.json
+      command: "echo smoke validation evidence"
+      environment_identity: smoke-validation-evidence-v1
+      artifact_retention_days: 1
+
+  validation-evidence-result:
+    needs: validation-evidence-reuse
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verify validation evidence reuse
+        env:
+          REUSED: ${{ needs.validation-evidence-reuse.outputs.reused }}
+          REUSE_REASON: ${{ needs.validation-evidence-reuse.outputs.reuse_reason }}
+          FINGERPRINT_DIGEST: ${{ needs.validation-evidence-reuse.outputs.fingerprint_digest }}
+          PRODUCER_RUN_ID: ${{ needs.validation-evidence-reuse.outputs.producer_run_id }}
+          PRODUCER_SOURCE_SHA: ${{ needs.validation-evidence-reuse.outputs.producer_source_sha }}
+          OUTCOME: ${{ needs.validation-evidence-reuse.outputs.outcome }}
+        run: |
+          set -euo pipefail
+          test "$REUSED" = "true"
+          test "$REUSE_REASON" = "verified-receipt"
+          test "$OUTCOME" = "success"
+          test -n "$PRODUCER_RUN_ID"
+          [[ "$PRODUCER_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$FINGERPRINT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+
   build-artifact:
     needs: fast-validation
     uses: ./.github/workflows/build-artifact.yml
