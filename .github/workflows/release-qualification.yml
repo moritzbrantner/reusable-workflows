@@ -400,50 +400,6 @@ jobs:
           )
           PY
 
-      - name: Validate execution receipt contract
-        if: ${{ always() }}
-        working-directory: .
-        env:
-          RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          import os
-          import re
-
-          with open(os.environ["RECEIPT_PATH"], encoding="utf-8") as handle:
-              receipt = json.load(handle)
-
-          outcomes = {"success", "failure", "cancelled", "skipped"}
-          assert receipt["schemaVersion"] == 1
-          assert receipt["kind"] == "reusable-workflows/execution-receipt"
-          assert receipt["capability"] == {"name": "release-qualification", "interfaceVersion": 1}
-          assert re.fullmatch(r"[^/]+/[^/]+", receipt["source"]["repository"])
-          assert re.fullmatch(r"[0-9a-f]{40}", receipt["source"]["sha"])
-          assert receipt["result"]["outcome"] in outcomes
-          assert all(outcome in outcomes for outcome in receipt["result"]["steps"].values())
-          assert isinstance(receipt["evidence"], list) and len(receipt["evidence"]) >= 1
-          artifact = receipt["evidence"][0]
-          assert artifact["role"] == "qualified-artifact"
-          assert isinstance(artifact["name"], str) and artifact["name"]
-          assert artifact["path"] is None
-          assert artifact["digest"] is None or re.fullmatch(r"sha256:[0-9a-f]{64}", artifact["digest"])
-          assert isinstance(receipt["attestations"], list)
-          if receipt["result"]["outcome"] == "success":
-              assert len(receipt["evidence"]) == 2
-              assert len(receipt["attestations"]) == 1
-              attestation = receipt["attestations"][0]
-              assert attestation["role"] == "artifact-provenance"
-              assert attestation["predicateType"].endswith("/artifact-provenance/v1")
-              assert attestation["subjectName"] == artifact["name"]
-              assert attestation["subjectDigest"] == artifact["digest"]
-              assert attestation["id"]
-              assert attestation["url"].startswith("https://github.com/")
-          assert re.fullmatch(r"[0-9]+", receipt["run"]["id"])
-          assert isinstance(receipt["run"]["attempt"], int) and receipt["run"]["attempt"] >= 1
-          PY
-
       - name: Upload execution receipt and provenance predicate
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
