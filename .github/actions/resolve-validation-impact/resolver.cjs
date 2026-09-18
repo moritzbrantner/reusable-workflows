@@ -497,9 +497,9 @@ function main() {
         parsedManifest = undefined;
       } else {
         plan = fallbackPlan({
-        baseSha,
-        headSha,
-        manifestPath,
+          baseSha,
+          headSha,
+          manifestPath,
           reason: `invalid-manifest: ${error instanceof Error ? error.message : String(error)}`,
         });
       }
