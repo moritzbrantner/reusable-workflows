@@ -56,6 +56,16 @@ on:
         required: false
         type: string
         default: "**/package-lock.json"
+      cache_cargo:
+        description: Cache Cargo registry, git sources, and target output on build misses.
+        required: false
+        type: boolean
+        default: false
+      cargo_cache_dependency_path:
+        description: Cargo lockfile glob used to key the Cargo cache.
+        required: false
+        type: string
+        default: "**/Cargo.lock"
       use_environment_v1:
         description: Run the repository's environment-v1 setup on build misses when it is declared.
         required: false
@@ -443,6 +453,19 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-npm-
 
+      - name: Cache Cargo
+        id: cargo-cache
+        if: ${{ steps.reuse.outputs.hit != 'true' && inputs.cache_cargo }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles(inputs.cargo_cache_dependency_path) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
       - name: Detect environment-v1 declaration
         id: environment
         working-directory: .
@@ -527,6 +550,7 @@ jobs:
           RUST_SETUP_OUTCOME: ${{ steps.rust-setup.outcome }}
           BUN_CACHE_OUTCOME: ${{ steps.bun-cache.outcome }}
           NPM_CACHE_OUTCOME: ${{ steps.npm-cache.outcome }}
+          CARGO_CACHE_OUTCOME: ${{ steps.cargo-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
           ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
@@ -546,6 +570,7 @@ jobs:
             && [[ "$RUST_SETUP_OUTCOME" == "success" || "$RUST_SETUP_OUTCOME" == "skipped" ]] \
             && [[ "$BUN_CACHE_OUTCOME" == "success" || "$BUN_CACHE_OUTCOME" == "skipped" ]] \
             && [[ "$NPM_CACHE_OUTCOME" == "success" || "$NPM_CACHE_OUTCOME" == "skipped" ]] \
+            && [[ "$CARGO_CACHE_OUTCOME" == "success" || "$CARGO_CACHE_OUTCOME" == "skipped" ]] \
             && [[ "$BOOTSTRAP_OUTCOME" == "success" || "$BOOTSTRAP_OUTCOME" == "skipped" ]] \
             && [[ "$ENVIRONMENT_SETUP_OUTCOME" == "success" || "$ENVIRONMENT_SETUP_OUTCOME" == "skipped" ]] \
             && [[ "$ENVIRONMENT_STATE_OUTCOME" == "success" || "$ENVIRONMENT_STATE_OUTCOME" == "skipped" ]] \
@@ -572,6 +597,7 @@ jobs:
           RUST_SETUP_OUTCOME: ${{ steps.rust-setup.outcome }}
           BUN_CACHE_OUTCOME: ${{ steps.bun-cache.outcome }}
           NPM_CACHE_OUTCOME: ${{ steps.npm-cache.outcome }}
+          CARGO_CACHE_OUTCOME: ${{ steps.cargo-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
           ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
@@ -603,6 +629,7 @@ jobs:
                       "rustSetup": os.environ["RUST_SETUP_OUTCOME"],
                       "bunCache": os.environ["BUN_CACHE_OUTCOME"],
                       "npmCache": os.environ["NPM_CACHE_OUTCOME"],
+                      "cargoCache": os.environ["CARGO_CACHE_OUTCOME"],
                       "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
                       "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
                       "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
