@@ -88,6 +88,25 @@ describe("repository validation impact scheduling", () => {
     expect(result.reasons).toEqual(["impact-manifest-changed"]);
   });
 
+  test("keeps ordinary validation lanes from repeating already-owned work", () => {
+    const validate = readFileSync(
+      new URL("../.github/workflows/validate.yml", import.meta.url),
+      "utf8",
+    );
+    const deployDocsPages = readFileSync(
+      new URL("../.github/workflows/deploy-docs-pages.yml", import.meta.url),
+      "utf8",
+    );
+
+    expect(validate).not.toContain('setup_command: "bun install --frozen-lockfile"');
+    expect(validate).not.toContain('api_report_command: "bun run api:check"');
+    expect(deployDocsPages).toContain('qualification_command: "bun run validate:semantic"');
+    expect(deployDocsPages).toContain(
+      'build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"',
+    );
+    expect(deployDocsPages).not.toContain('qualification_command: "bun run validate:fast"');
+  });
+
   test("wires PR impact outputs into expensive validation lanes", () => {
     const validate = readFileSync(
       new URL("../.github/workflows/validate.yml", import.meta.url),
