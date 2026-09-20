@@ -436,6 +436,16 @@ jobs:
           git diff --exit-code
           git diff --cached --exit-code
 
+      - name: Diagnose exact environment after validation failure
+        id: environment-diagnostic
+        if: ${{ steps.reuse.outputs.hit != 'true' && steps.environment.outputs.detected == 'true' && (steps.environment-setup.outcome == 'failure' || steps.command.outcome == 'failure') }}
+        continue-on-error: true
+        uses: moritzbrantner/coding-tooling@81da4fbbdbe75a8937716cbab0b9a47c447269e8
+        with:
+          operation: environment-verify
+          report-path: .artifacts/reusable-workflows/environment-diagnostic.json
+          install-mode: none
+
       - name: Determine validation outcome
         id: status
         if: ${{ always() }}
@@ -466,6 +476,7 @@ jobs:
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
           ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
+          ENVIRONMENT_DIAGNOSTIC_OUTCOME: ${{ steps.environment-diagnostic.outcome }}
           COMMAND_OUTCOME: ${{ steps.command.outcome }}
           OUTCOME: ${{ steps.status.outputs.outcome }}
           RECEIPT_PATH: ${{ steps.metadata.outputs.receipt_path }}
@@ -505,6 +516,7 @@ jobs:
                       "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
                       "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
                       "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
+                      "environmentDiagnostic": os.environ["ENVIRONMENT_DIAGNOSTIC_OUTCOME"],
                       "command": os.environ["COMMAND_OUTCOME"],
                   },
               },
@@ -572,7 +584,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
-          path: ${{ steps.metadata.outputs.receipt_path }}
+          path: |
+            ${{ steps.metadata.outputs.receipt_path }}
+            .artifacts/reusable-workflows/environment-diagnostic.json
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
 
