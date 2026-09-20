@@ -40,6 +40,7 @@ const deliverQualifiedExpoStoresWorkflowPath =
 const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const validationEvidenceWorkflowPath = ".github/workflows/validation-evidence.yml";
+const environmentCanaryWorkflowPath = ".github/workflows/environment-v1-canary.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
 const immutableDownloadArtifactUse = /uses:\s*actions\/download-artifact@[0-9a-f]{40}(?:\s|$)/m;
@@ -212,9 +213,32 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
         `${path.basename(workflowPath)} must keep environment tracked-state inspection on the failure-diagnostic path`,
       );
     }
+    if (
+      !source.includes("Diagnose exact environment after") ||
+      !source.includes("operation: environment-verify") ||
+      !source.includes("id: environment-diagnostic")
+    ) {
+      errors.push(
+        `${path.basename(workflowPath)} must run exact environment verification only as failure-diagnostic evidence`,
+      );
+    }
     if (source.includes("steps.environment-state.outcome == 'success'")) {
       errors.push(
         `${path.basename(workflowPath)} must not gate successful execution on environment diagnostics`,
+      );
+    }
+  }
+
+  const environmentCanarySource = state.workflowSources[environmentCanaryWorkflowPath];
+  if (environmentCanarySource) {
+    if (
+      !environmentCanarySource.includes("Diagnose exact environment after canary failure") ||
+      !environmentCanarySource.includes("steps.environment-setup.outcome == 'failure' || steps.environment-state.outcome == 'failure'") ||
+      !environmentCanarySource.includes("operation: environment-verify") ||
+      !environmentCanarySource.includes("continue-on-error: true")
+    ) {
+      errors.push(
+        "environment-v1-canary.yml must reserve exact environment verification for failure diagnostics",
       );
     }
   }
