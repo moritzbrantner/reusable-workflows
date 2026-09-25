@@ -86,35 +86,14 @@ jobs:
       strict: true
 ```
 
-The adapter checks out the consumer, invokes an exact-pinned `coding-tooling` Action, writes a job summary, and propagates the tooling result. Failed runs preserve the report and execution receipt automatically. Successful runs stay artifact-free by default; set `preserve_success_evidence: true` only when a downstream consumer such as score history needs durable success evidence. Tier contents remain in `coding-tooling` defaults or the consumer's `.coding-tooling.json`.
+The adapter checks out the consumer, invokes an exact-pinned `coding-tooling` Action, writes a job summary, and propagates the tooling result. Failed runs may preserve diagnostic files, but ordinary validation does not emit or reuse a trust receipt.
 
 The `coding-tooling` Action is private. Public consumers should use `fast-validation.yml` or other public command-driven capabilities instead.
 
-### Optional: impact-aware execution routing
+### Validation reuse
 
-Prefer the simple lifecycle first. Add impact routing only after repeated measurements show that the fast gate itself is a material bottleneck.
+Do not skip ordinary validation because another commit or workflow produced a matching validation artifact. Run the repository-owned command again for the revision being checked. The older impact/evidence adapters are compatibility-only and should not be adopted by new consumers.
 
-When a repository already owns a `.github/validation-impact.json`, the coding-tooling adapter can use the same plan before spending the validation tier:
-
-```yaml
-with:
-  tier: fast
-  impact_base_sha: ${{ github.event.pull_request.base.sha }}
-  impact_head_sha: ${{ github.event.pull_request.head.sha }}
-  impact_unit: semantic
-```
-
-A successful impact plan that proves the selected unit reusable skips the coding-tooling execution inside the same hosted job. Missing, invalid, or uncertain impact evidence fails open to executing validation rather than silently skipping it. This avoids adding a second prerequisite runner to the fast path.
-
-### Optional: impact-aware evidence reuse
-
-When a repository has an explicit `.github/validation-impact.json`, `validation-evidence.yml` can execute one declared validation unit against an exact source SHA and, when the caller explicitly opts in with `reuse_across_runs: true`, reuse a retained successful receipt only when its full evidence fingerprint matches, including the exact adapter revision and runner image identity.
-
-Use this for iterative PR checks where unrelated commits should not force recomputation. Keep the unit's real toolchain/config files in its declared inputs or `globalInputs`, and use `environment_identity` only for additional caller-owned identity that is not represented by tracked files.
-
-Fingerprint or lookup uncertainty always runs the validation command. Do not use receipt reuse as a substitute for caller-owned broad integration, nightly, or release qualification boundaries.
-
-Caller-owned concurrency is intentional. Reusable capabilities should not invent a repository-wide concurrency policy.
 
 ## 3. Choose lifecycle timing in the caller
 

@@ -168,8 +168,6 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
   for (const workflowPath of [
     artifactPromotionWorkflowPath,
-    codingToolingWorkflowPath,
-    commandValidationWorkflowPath,
     deliverQualifiedExpoStoresWorkflowPath,
     releaseQualificationWorkflowPath,
   ]) {
@@ -192,7 +190,6 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
   for (const workflowPath of [
     buildArtifactWorkflowPath,
-    commandValidationWorkflowPath,
     releaseQualificationWorkflowPath,
     validationEvidenceWorkflowPath,
   ]) {
@@ -446,7 +443,6 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   ).sort();
   if (state.workflowSources[commandValidationWorkflowPath]) {
     const expectedCommandInputs = [
-      "artifact_retention_days",
       "command",
       "setup_command",
       "timeout_minutes",
@@ -454,7 +450,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     ];
     if (JSON.stringify(commandInputs) !== JSON.stringify(expectedCommandInputs)) {
       errors.push(
-        "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, retention, and working directory only",
+        "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, and working directory only",
       );
     }
   }
