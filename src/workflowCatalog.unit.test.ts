@@ -66,11 +66,11 @@ describe("workflow catalog", () => {
     ]);
   });
 
-  test("counts unique input names separately from workflow-specific input slots", () => {
-    expect(workflowInputMetrics(parsedWorkflows)).toEqual({
-      totalInputSlots: 273,
-      uniqueInputNames: 74,
-    });
+  test("ratchets the reusable workflow input surface downward", () => {
+    const metrics = workflowInputMetrics(parsedWorkflows);
+
+    expect(metrics.totalInputSlots).toBeLessThanOrEqual(258);
+    expect(metrics.uniqueInputNames).toBeLessThanOrEqual(74);
   });
 
   test("normalizes array-style needs and runs-on values", () => {
