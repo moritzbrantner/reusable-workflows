@@ -129,7 +129,6 @@ jobs:
     with:
       setup_command: "npm install --global bun@1.4.0 && echo smoke generic bootstrap"
       command: "echo smoke generic validation"
-      artifact_retention_days: 1
 
   command-validation-second:
     needs: fast-validation
@@ -137,7 +136,6 @@ jobs:
     with:
       setup_command: "npm install --global bun@1.4.0"
       command: "echo smoke second generic validation"
-      artifact_retention_days: 1
 
   public-contract-validation:
     needs: fast-validation
