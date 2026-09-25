@@ -195,16 +195,23 @@ jobs:
       - name: Write validation summary
         if: ${{ always() }}
         shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          TIER: ${{ inputs.tier }}
+          EFFECTIVE_OUTCOME: ${{ steps.result.outputs.outcome }}
+          SOURCE_SHA: ${{ steps.metadata.outputs.source_sha }}
+          REPORT_PATH: ${{ inputs.report_path }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
         run: |
           {
             echo "## coding-tooling validation"
             echo
-            echo "- Operation: `${{ inputs.operation }}`"
-            echo "- Tier: `${{ inputs.tier }}`"
-            echo "- Outcome: `${{ steps.result.outputs.outcome }}`"
-            echo "- Source: `${{ steps.metadata.outputs.source_sha }}`"
-            echo "- Report: `${{ inputs.report_path }}`"
-            if [[ "${{ steps.tooling.outcome }}" != "success" ]]; then
+            printf '%s\n' "- Operation: $OPERATION"
+            printf '%s\n' "- Tier: $TIER"
+            printf '%s\n' "- Outcome: $EFFECTIVE_OUTCOME"
+            printf '%s\n' "- Source: $SOURCE_SHA"
+            printf '%s\n' "- Report: $REPORT_PATH"
+            if [[ "$TOOLING_OUTCOME" != "success" ]]; then
               echo "- Failure artifacts: diagnostic only; they are not reusable validation proof."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
