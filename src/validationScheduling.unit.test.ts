@@ -1,131 +1,58 @@
-import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-type ImpactManifest = {
-  schemaVersion: 1;
-  globalInputs: string[];
-  ignoredInputs: string[];
-  units: Record<string, { inputs: string[]; dependsOn: string[] }>;
-};
-
-type ImpactPlan = {
-  invalidatedUnits: string[];
-  reusableUnits: string[];
-  fullValidation: boolean;
-  reasons: string[];
-};
-
-type Resolver = {
-  parseManifest: (value: unknown) => ImpactManifest;
-  resolveImpactPlan: (input: {
-    baseSha: string;
-    headSha: string;
-    manifestPath: string;
-    changedFiles: string[];
-    manifest: ImpactManifest;
-  }) => ImpactPlan;
-};
-
-const require = createRequire(import.meta.url);
-const resolver = require("../.github/actions/resolve-validation-impact/resolver.cjs") as Resolver;
-const manifestPath = ".github/validation-impact.json";
-const manifest = resolver.parseManifest(
-  JSON.parse(readFileSync(new URL("../.github/validation-impact.json", import.meta.url), "utf8")),
+const validatePath = new URL("../.github/workflows/validate.yml", import.meta.url);
+const commandPath = new URL("../.github/workflows/command-validation.yml", import.meta.url);
+const codingToolingPath = new URL(
+  "../.github/workflows/coding-tooling-validation.yml",
+  import.meta.url,
 );
-const baseSha = "a".repeat(40);
-const headSha = "b".repeat(40);
+const smokePath = new URL("../.github/workflows/smoke-reusable-workflows.yml", import.meta.url);
 
-function plan(changedFiles: string[]) {
-  return resolver.resolveImpactPlan({
-    baseSha,
-    headSha,
-    manifestPath,
-    changedFiles,
-    manifest,
-  });
-}
-
-describe("repository validation impact scheduling", () => {
-  test("keeps documentation changes off validation lanes", () => {
-    const result = plan(["docs/validation-evidence.md"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual([]);
-    expect(result.reusableUnits).toEqual(["actionlint", "semantic", "web-build"]);
+describe("simple validation scheduling", () => {
+  test("keeps the ordinary pull-request path small and explicit", () => {
+    const source = readFileSync(validatePath, "utf8");
+    expect(source).toContain("coding-tooling-fast:");
+    expect(source).toContain("actionlint:");
+    expect(source).not.toContain("preserve_success_evidence");
+    expect(source).not.toContain("impact_unit:");
+    expect(source).not.toContain("validation-impact.yml");
+    expect(source).not.toContain("validation-evidence.yml");
+    expect(source).toContain("contains(github.event.pull_request.labels.*.name, 'ci:e2e')");
+    expect(source).toContain("contains(github.event.pull_request.labels.*.name, 'ci:perf')");
   });
 
-  test("invalidates the web build for application source changes", () => {
-    const result = plan(["src/pages/HomePage.tsx"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual(["semantic", "web-build"]);
-    expect(result.reusableUnits).toEqual(["actionlint"]);
+  test("keeps generic command validation as checkout, optional setup, and the real command", () => {
+    const source = readFileSync(commandPath, "utf8");
+    expect(source).toContain("Check out consumer repository");
+    expect(source).toContain("if: ${{ inputs.setup_command != '' }}");
+    expect(source).toContain("run: ${{ inputs.setup_command }}");
+    expect(source).toContain("run: ${{ inputs.command }}");
+    expect(source).not.toContain("continue-on-error");
+    expect(source).not.toContain("execution-receipt");
+    expect(source).not.toContain(".repository-environment.toml");
+    expect(source).not.toContain("upload-artifact");
   });
 
-  test("invalidates actionlint and the web build for workflow changes", () => {
-    const result = plan([".github/workflows/validate.yml"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual(["actionlint", "semantic", "web-build"]);
-    expect(result.reusableUnits).toEqual([]);
-  });
-
-  test("keeps package changes out of actionlint while rebuilding", () => {
-    const result = plan(["package.json"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual(["semantic", "web-build"]);
-    expect(result.reusableUnits).toEqual(["actionlint"]);
-  });
-
-  test("fails closed when the live impact policy changes", () => {
-    const result = plan([manifestPath]);
-
-    expect(result.fullValidation).toBe(true);
-    expect(result.invalidatedUnits).toEqual(["actionlint", "semantic", "web-build"]);
-    expect(result.reasons).toEqual(["impact-manifest-changed"]);
-  });
-
-  test("keeps ordinary validation lanes from repeating already-owned work", () => {
-    const validate = readFileSync(
-      new URL("../.github/workflows/validate.yml", import.meta.url),
-      "utf8",
+  test("never skips coding-tooling based on derived validation evidence", () => {
+    const source = readFileSync(codingToolingPath, "utf8");
+    expect(source).toContain("Run coding-tooling");
+    expect(source).toContain(
+      "uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858",
     );
-    const deployDocsPages = readFileSync(
-      new URL("../.github/workflows/deploy-docs-pages.yml", import.meta.url),
-      "utf8",
-    );
-
-    expect(validate).not.toContain('setup_command: "bun install --frozen-lockfile"');
-    expect(validate).not.toContain('api_report_command: "bun run api:check"');
-    expect(deployDocsPages).toContain('qualification_command: "bun run validate:semantic"');
-    expect(deployDocsPages).toContain(
-      'build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"',
-    );
-    expect(deployDocsPages).not.toContain('qualification_command: "bun run validate:fast"');
+    expect(source).not.toContain("impact_base_sha");
+    expect(source).not.toContain("impact_head_sha");
+    expect(source).not.toContain("impact_unit");
+    expect(source).not.toContain("preserve_success_evidence");
+    expect(source).not.toContain("execution-receipt");
+    expect(source).toContain("Upload failure diagnostics");
   });
 
-  test("keeps impact reuse off the default validation lifecycle", () => {
-    const validate = readFileSync(
-      new URL("../.github/workflows/validate.yml", import.meta.url),
-      "utf8",
-    );
-    const smoke = readFileSync(
-      new URL("../.github/workflows/smoke-reusable-workflows.yml", import.meta.url),
-      "utf8",
-    );
-
-    expect(validate).not.toContain("uses: ./.github/workflows/validation-impact.yml");
-    expect(validate).not.toContain("impact_unit:");
-    expect(validate).not.toContain("reuse_across_runs: true");
-    expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
-    expect(validate).toContain(
-      "preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
-    );
-    expect(validate).toContain("(github.event_name == 'push' && github.ref == 'refs/heads/main')");
-    expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:e2e')");
-    expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);
+  test("does not smoke-test retired validation reuse capabilities", () => {
+    const source = readFileSync(smokePath, "utf8");
+    expect(source).not.toContain("validation-impact.yml");
+    expect(source).not.toContain("validation-evidence.yml");
+    expect(source).not.toContain("examples/validation-impact.json");
   });
 });
