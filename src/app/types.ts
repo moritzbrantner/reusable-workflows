@@ -39,6 +39,7 @@ export type ParsedJob = {
 export type ParsedWorkflow = WorkflowMetadata & {
   slug: string;
   yamlName: string;
+  inputNames: string[];
   triggers: string[];
   jobs: ParsedJob[];
   dependencies: string[];

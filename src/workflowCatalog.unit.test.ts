@@ -66,11 +66,39 @@ describe("workflow catalog", () => {
     ]);
   });
 
-  test("counts unique input names separately from workflow-specific input slots", () => {
-    expect(workflowInputMetrics(parsedWorkflows)).toEqual({
-      totalInputSlots: 279,
-      uniqueInputNames: 79,
-    });
+  test("ratchets the ordinary validation input surface downward", () => {
+    const ordinaryValidation = parsedWorkflows.filter((workflow) =>
+      [
+        ".github/workflows/command-validation.yml",
+        ".github/workflows/coding-tooling-validation.yml",
+      ].includes(workflow.file),
+    );
+    const metrics = workflowInputMetrics(ordinaryValidation);
+
+    expect(metrics.totalInputSlots).toBeLessThanOrEqual(16);
+    expect(metrics.uniqueInputNames).toBeLessThanOrEqual(15);
+  });
+
+  test("reads the current workflow-call input surface instead of the frozen compatibility snapshot", () => {
+    const parsed = parseWorkflowForCatalog(`
+name: Callable
+on:
+  workflow_call:
+    inputs:
+      command:
+        required: true
+        type: string
+      timeout_minutes:
+        required: false
+        type: number
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`);
+
+    expect(parsed.inputNames).toEqual(["command", "timeout_minutes"]);
   });
 
   test("normalizes array-style needs and runs-on values", () => {
@@ -93,6 +121,7 @@ jobs:
 `);
 
     expect(parsed.yamlName).toBe("Matrix Workflow");
+    expect(parsed.inputNames).toEqual([]);
     expect(parsed.triggers).toEqual(["push", "workflow_dispatch"]);
     expect(parsed.jobs).toContainEqual(
       expect.objectContaining({

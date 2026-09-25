@@ -1,113 +1,9 @@
-import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 
 import { describe, expect, test } from "vitest";
 
-type ImpactManifest = {
-  schemaVersion: 1;
-  globalInputs: string[];
-  ignoredInputs: string[];
-  units: Record<string, { inputs: string[]; dependsOn: string[] }>;
-};
-
-type ImpactPlan = {
-  invalidatedUnits: string[];
-  reusableUnits: string[];
-  fullValidation: boolean;
-  reasons: string[];
-};
-
-type Resolver = {
-  parseManifest: (value: unknown) => ImpactManifest;
-  resolveImpactPlan: (input: {
-    baseSha: string;
-    headSha: string;
-    manifestPath: string;
-    changedFiles: string[];
-    manifest: ImpactManifest;
-  }) => ImpactPlan;
-};
-
-const require = createRequire(import.meta.url);
-const resolver = require("../.github/actions/resolve-validation-impact/resolver.cjs") as Resolver;
-const manifestPath = ".github/validation-impact.json";
-const manifest = resolver.parseManifest(
-  JSON.parse(readFileSync(new URL("../.github/validation-impact.json", import.meta.url), "utf8")),
-);
-const baseSha = "a".repeat(40);
-const headSha = "b".repeat(40);
-
-function plan(changedFiles: string[]) {
-  return resolver.resolveImpactPlan({
-    baseSha,
-    headSha,
-    manifestPath,
-    changedFiles,
-    manifest,
-  });
-}
-
-describe("repository validation impact scheduling", () => {
-  test("keeps documentation changes off validation lanes", () => {
-    const result = plan(["docs/validation-evidence.md"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual([]);
-    expect(result.reusableUnits).toEqual(["actionlint", "semantic", "web-build"]);
-  });
-
-  test("invalidates the web build for application source changes", () => {
-    const result = plan(["src/pages/HomePage.tsx"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual(["semantic", "web-build"]);
-    expect(result.reusableUnits).toEqual(["actionlint"]);
-  });
-
-  test("invalidates actionlint and the web build for workflow changes", () => {
-    const result = plan([".github/workflows/validate.yml"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual(["actionlint", "semantic", "web-build"]);
-    expect(result.reusableUnits).toEqual([]);
-  });
-
-  test("keeps package changes out of actionlint while rebuilding", () => {
-    const result = plan(["package.json"]);
-
-    expect(result.fullValidation).toBe(false);
-    expect(result.invalidatedUnits).toEqual(["semantic", "web-build"]);
-    expect(result.reusableUnits).toEqual(["actionlint"]);
-  });
-
-  test("fails closed when the live impact policy changes", () => {
-    const result = plan([manifestPath]);
-
-    expect(result.fullValidation).toBe(true);
-    expect(result.invalidatedUnits).toEqual(["actionlint", "semantic", "web-build"]);
-    expect(result.reasons).toEqual(["impact-manifest-changed"]);
-  });
-
-  test("keeps ordinary validation lanes from repeating already-owned work", () => {
-    const validate = readFileSync(
-      new URL("../.github/workflows/validate.yml", import.meta.url),
-      "utf8",
-    );
-    const deployDocsPages = readFileSync(
-      new URL("../.github/workflows/deploy-docs-pages.yml", import.meta.url),
-      "utf8",
-    );
-
-    expect(validate).not.toContain('setup_command: "bun install --frozen-lockfile"');
-    expect(validate).not.toContain('api_report_command: "bun run api:check"');
-    expect(deployDocsPages).toContain('qualification_command: "bun run validate:semantic"');
-    expect(deployDocsPages).toContain(
-      'build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"',
-    );
-    expect(deployDocsPages).not.toContain('qualification_command: "bun run validate:fast"');
-  });
-
-  test("keeps impact reuse off the default validation lifecycle", () => {
+describe("repository validation scheduling", () => {
+  test("keeps ordinary validation direct and free of reusable validation evidence", () => {
     const validate = readFileSync(
       new URL("../.github/workflows/validate.yml", import.meta.url),
       "utf8",
@@ -117,15 +13,38 @@ describe("repository validation impact scheduling", () => {
       "utf8",
     );
 
-    expect(validate).not.toContain("uses: ./.github/workflows/validation-impact.yml");
+    expect(validate).not.toContain("validation-impact.yml");
+    expect(validate).not.toContain("validation-evidence.yml");
     expect(validate).not.toContain("impact_unit:");
-    expect(validate).not.toContain("reuse_across_runs: true");
-    expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
-    expect(validate).toContain(
-      "preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+    expect(validate).not.toContain("preserve_success_evidence");
+    expect(smoke).not.toContain("validation-impact.yml");
+    expect(smoke).not.toContain("validation-evidence.yml");
+    expect(smoke).not.toContain("reuse_reason");
+    expect(smoke).not.toContain("fingerprint_digest");
+  });
+
+  test("keeps expensive validation explicit rather than hidden behind inference", () => {
+    const validate = readFileSync(
+      new URL("../.github/workflows/validate.yml", import.meta.url),
+      "utf8",
     );
+
+    expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
     expect(validate).toContain("(github.event_name == 'push' && github.ref == 'refs/heads/main')");
     expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:e2e')");
-    expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);
+    expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:perf')");
+  });
+
+  test("keeps deployment qualification separate from ordinary validation", () => {
+    const deployDocsPages = readFileSync(
+      new URL("../.github/workflows/deploy-docs-pages.yml", import.meta.url),
+      "utf8",
+    );
+
+    expect(deployDocsPages).toContain('qualification_command: "bun run validate:semantic"');
+    expect(deployDocsPages).toContain(
+      'build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"',
+    );
+    expect(deployDocsPages).not.toContain('qualification_command: "bun run validate:fast"');
   });
 });

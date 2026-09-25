@@ -58,7 +58,6 @@ jobs:
       component: "."
       report_path: .artifacts/coding-tooling/fast.json
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-      preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
   actionlint:
     runs-on: ubuntu-latest

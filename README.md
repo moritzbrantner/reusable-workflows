@@ -53,20 +53,17 @@ source development -> local validation -> done
 
 ### Default validation
 
-- `command-validation.yml` — runtime-neutral adapter around one optional repository-owned setup command and one validation command. Emits Execution Receipt v1.
-- `coding-tooling-validation.yml` — invokes `coding-tooling` for a declared operation/tier. Failed runs preserve the report plus Execution Receipt v1 automatically; successful runs preserve them only when the caller requests durable evidence. Callers may also provide exact base/head coordinates plus a validation-impact unit so a proven reusable unit skips the tooling run.
+- `command-validation.yml` — runtime-neutral adapter that checks out the repository, optionally runs one repository-owned setup command, then runs one repository-owned validation command. It emits no reusable validation receipt.
+- `coding-tooling-validation.yml` — invokes `coding-tooling` directly for a declared operation/tier. Failed runs may upload reports or repository evidence for diagnosis, but those artifacts are never used to skip or validate a later run.
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
 - `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
 - `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA and returns one source-bound artifact plus Execution Receipt v1. By default it builds and uploads normally; opt-in `reuse_across_runs` first resolves a still-retained artifact with the same exact build identity and returns its original `producer_run_id` without rerunning setup or the build. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
 
-### Optional validation optimization
+### Validation reuse
 
-These capabilities are available when validation cost is demonstrably high enough to justify extra routing state. They are not part of the default PR path.
-
-- `validation-impact.yml` — compares exact base/head revisions against a consumer-owned impact manifest, emits invalidated/reusable validation units, and fails closed to full validation when impact cannot be proven.
-- `validation-evidence.yml` — runs one exact-source repository-owned validation unit and can reuse a retained successful receipt only when the unit's declared input/dependency fingerprint plus command and environment identity match exactly. Fingerprint/lookup uncertainty executes validation instead of skipping it.
+Ordinary validation results are not reused across revisions. The former validation-impact and validation-evidence workflows were removed because they added routing and trust state without external consumers. Run the repository-owned validation command for the revision being checked.
 
 ### Specialized / transitional validation
 
@@ -125,7 +122,7 @@ jobs:
 
 For repositories using `coding-tooling`, prefer `coding-tooling-validation.yml` so hosted execution delegates to the same semantic interface used locally.
 
-For iterative validation where the consumer has an explicit `.github/validation-impact.json`, `validation-evidence.yml` can explicitly opt in to reusing successful evidence across unrelated source changes. Its fingerprint includes the selected unit's dependency closure, declared global inputs, exact tracked input bytes, command/setup identity, exact validation-adapter revision, GitHub runner image identity, and an optional caller-owned environment identity. The source SHA is recorded in each receipt but deliberately stays outside the reusable fingerprint; otherwise unrelated commits could never reuse unchanged evidence. Cross-run reuse is disabled by default and must be explicitly enabled by the caller. Any missing/invalid fingerprint, artifact lookup error, expired receipt, digest mismatch, unsupported tracked input mode, or verification failure falls back to executing the validation command.
+Validation results are not reused across source changes. If a repository needs validation, the hosted adapter runs the repository-owned command for that revision.
 
 `build-artifact.yml` is intentionally separate from validation semantics. A caller supplies an exact source SHA, a stable artifact key, preparation if needed, the one build command, and the paths to preserve. Its deterministic identity covers those coordinates plus the runner identity. With `reuse_across_runs: true`, the workflow searches retained build receipts for that identity, verifies the full receipt/source/run/artifact coordinates, and skips setup/build/upload only on a proven hit. Lookup or verification uncertainty falls back to a normal build. Callers that enable reuse must pass the returned `producer_run_id` together with artifact name, digest, receipt name, source SHA, artifact key, and identity digest to downstream consumers rather than assuming `github.run_id`.
 
@@ -210,4 +207,4 @@ bun run validate:fast
 
 `validate.yml` keeps pull requests deliberately small: the fast semantic gate and workflow syntax are the default blockers. Build, browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. Validation-impact and cross-run evidence reuse remain opt-in capabilities rather than prerequisites for the happy path.
 
-`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/validation-impact/validation-evidence/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
+`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
