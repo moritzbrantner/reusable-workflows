@@ -40,12 +40,6 @@ Caller-owned policy for when validation, qualification, promotion, or delivery r
 **Environment Integrity Canary**  
 `environment-v1-canary.yml`, which verifies the standard environment-v1 setup is idempotent over tracked state and reconstructs the declared semantic environment.
 
-**Validation Impact Adapter**  
-`validation-impact.yml`, a fail-closed hosted adapter that compares exact revisions and resolves a consumer-owned validation-unit dependency manifest into invalidated and reusable units. It transports impact evidence; the consumer remains authoritative for validation semantics and lifecycle policy.
-
-**Validation Evidence Adapter**  
-`validation-evidence.yml`, an exact-source command-validation adapter that computes a deterministic fingerprint from the selected consumer-owned validation unit, its dependency/global inputs, tracked input bytes, command/setup identity, the exact adapter revision, runner image identity, and optional caller-owned environment identity. A verified successful retained receipt may be reused; uncertainty executes validation rather than skipping it.
-
 **Build Artifact Adapter**  
 `build-artifact.yml`, an ordinary-CI producer for one exact source SHA. It runs a caller-owned build command exactly once, preserves the artifact with its archive digest, binds caller-owned semantic identity plus runner/build context into deterministic identity evidence, and emits Execution Receipt v1. It does not qualify a release, promote, publish, or deploy.
 
@@ -77,8 +71,8 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 
 1. Workflow YAML owns the current hosted interface.
 2. Consumer repositories and `coding-tooling` own semantic validation; caller workflows own lifecycle timing.
-3. `command-validation.yml` stays runtime-neutral and must not grow framework/test-kind inputs.
-4. `coding-tooling-validation.yml` reproduces a repository-owned `coding-tooling` operation/tier on GitHub; GitHub is never a prerequisite for the local path.
+3. `command-validation.yml` stays runtime-neutral and must not grow framework/test-kind inputs, environment inference, evidence reuse, or receipt semantics.
+4. `coding-tooling-validation.yml` reproduces one repository-owned `coding-tooling` operation/tier on GitHub and always executes that selected operation; GitHub is never a prerequisite for the local path.
 5. `coding-tooling-score-history.yml` may persist descriptive score evidence but must not add score thresholds or release policy.
 6. `public-contract-validation.yml` standardizes transport/location, not evidence meaning.
 7. `environment-v1-canary.yml` owns only the hosted pre/setup/post sequence and must use the standard environment-v1 setup seam.
@@ -93,8 +87,6 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 16. Store identity, App Store Connect/Play Console metadata, EAS build/submit profiles, TestFlight groups, Play tracks/rollouts, and final public exposure remain caller/application policy.
 17. Concurrency policy belongs in caller workflows unless an API/persistent writer requires capability-local serialization.
 18. `toolchain-refresh.yml` owns only hosted freshness orchestration; toolchain semantics and acceptance stay with platform-upgrader/environment-v1/the consumer.
-19. `validation-impact.yml` may resolve only consumer-declared file inputs and validation-unit dependencies. Unclassified, malformed, unavailable, or changed impact configuration must fail closed to full validation; the adapter must not infer framework-specific validation semantics.
-20. `validation-evidence.yml` may reuse only a successful retained receipt whose full validation fingerprint matches. The exact source SHA is receipt provenance, not part of the reusable fingerprint. Missing/invalid fingerprint state, lookup errors, expired evidence, or verification failures must run validation rather than silently reuse evidence.
 
 ## Capability classes
 
@@ -105,8 +97,6 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 - `coding-tooling-score-history.yml`
 - `public-contract-validation.yml`
 - `environment-v1-canary.yml`
-- `validation-impact.yml`
-- `validation-evidence.yml`
 - `build-artifact.yml`
 - `fast-validation.yml`
 

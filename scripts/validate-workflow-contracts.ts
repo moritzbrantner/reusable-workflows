@@ -39,7 +39,6 @@ const deliverQualifiedExpoStoresWorkflowPath =
   ".github/workflows/deliver-qualified-expo-stores.yml";
 const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
-const validationEvidenceWorkflowPath = ".github/workflows/validation-evidence.yml";
 const environmentCanaryWorkflowPath = ".github/workflows/environment-v1-canary.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
@@ -166,10 +165,31 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     errors.push("coding-tooling-validation.yml must expose caller-pushed source_sha context");
   }
 
+  if (codingToolingSource) {
+    for (const retiredInput of [
+      "impact_base_sha",
+      "impact_head_sha",
+      "impact_manifest_path",
+      "impact_unit",
+      "preserve_success_evidence",
+    ]) {
+      if (retiredInput in codingToolingInputs) {
+        errors.push(
+          `coding-tooling-validation.yml must not reintroduce derived validation routing input ${retiredInput}`,
+        );
+      }
+    }
+    for (const retiredTransport of ["execution-receipt", "receipt_artifact_name", "receipt_path"]) {
+      if (codingToolingSource.includes(retiredTransport)) {
+        errors.push(
+          `coding-tooling-validation.yml must keep ordinary validation free of ${retiredTransport}`,
+        );
+      }
+    }
+  }
+
   for (const workflowPath of [
     artifactPromotionWorkflowPath,
-    codingToolingWorkflowPath,
-    commandValidationWorkflowPath,
     deliverQualifiedExpoStoresWorkflowPath,
     releaseQualificationWorkflowPath,
   ]) {
@@ -192,9 +212,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
   for (const workflowPath of [
     buildArtifactWorkflowPath,
-    commandValidationWorkflowPath,
     releaseQualificationWorkflowPath,
-    validationEvidenceWorkflowPath,
   ]) {
     const source = state.workflowSources[workflowPath];
     if (!source) {
@@ -446,7 +464,6 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   ).sort();
   if (state.workflowSources[commandValidationWorkflowPath]) {
     const expectedCommandInputs = [
-      "artifact_retention_days",
       "command",
       "setup_command",
       "timeout_minutes",
@@ -454,8 +471,16 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     ];
     if (JSON.stringify(commandInputs) !== JSON.stringify(expectedCommandInputs)) {
       errors.push(
-        "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, retention, and working directory only",
+        "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, and working directory only",
       );
+    }
+    const commandSource = state.workflowSources[commandValidationWorkflowPath];
+    for (const forbidden of ["execution-receipt", ".repository-environment.toml", "upload-artifact"]) {
+      if (commandSource.includes(forbidden)) {
+        errors.push(
+          `command-validation.yml must not add ordinary-validation transport or inference: ${forbidden}`,
+        );
+      }
     }
   }
 
