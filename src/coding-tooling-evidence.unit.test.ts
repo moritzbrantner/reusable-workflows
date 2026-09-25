@@ -16,7 +16,9 @@ describe("coding-tooling validation boundary", () => {
 
   test("pins coding-tooling and treats artifacts as failure diagnostics only", () => {
     const source = readFileSync(workflowPath, "utf8");
-    expect(source).toContain("uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858");
+    expect(source).toContain(
+      "uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858",
+    );
     expect(source).toContain("evidence_path:");
     expect(source).toContain("Upload failure diagnostics");
     expect(source).toContain("steps.tooling.outcome != 'success'");

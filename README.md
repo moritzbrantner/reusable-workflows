@@ -118,7 +118,6 @@ jobs:
 
 For repositories using `coding-tooling`, prefer `coding-tooling-validation.yml` so hosted execution delegates to the same semantic interface used locally.
 
-
 `build-artifact.yml` is intentionally separate from validation semantics. A caller supplies an exact source SHA, a stable artifact key, preparation if needed, the one build command, and the paths to preserve. Its deterministic identity covers those coordinates plus the runner identity. With `reuse_across_runs: true`, the workflow searches retained build receipts for that identity, verifies the full receipt/source/run/artifact coordinates, and skips setup/build/upload only on a proven hit. Lookup or verification uncertainty falls back to a normal build. Callers that enable reuse must pass the returned `producer_run_id` together with artifact name, digest, receipt name, source SHA, artifact key, and identity digest to downstream consumers rather than assuming `github.run_id`.
 
 ## Immutable release usage

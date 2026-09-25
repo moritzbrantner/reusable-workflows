@@ -179,7 +179,11 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
         );
       }
     }
-    for (const retiredTransport of ["execution-receipt", "receipt_artifact_name", "receipt_path"]) {
+    for (const retiredTransport of [
+      "execution-receipt",
+      "receipt_artifact_name",
+      "receipt_path",
+    ]) {
       if (codingToolingSource.includes(retiredTransport)) {
         errors.push(
           `coding-tooling-validation.yml must keep ordinary validation free of ${retiredTransport}`,
@@ -475,7 +479,11 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
       );
     }
     const commandSource = state.workflowSources[commandValidationWorkflowPath];
-    for (const forbidden of ["execution-receipt", ".repository-environment.toml", "upload-artifact"]) {
+    for (const forbidden of [
+      "execution-receipt",
+      ".repository-environment.toml",
+      "upload-artifact",
+    ]) {
       if (commandSource.includes(forbidden)) {
         errors.push(
           `command-validation.yml must not add ordinary-validation transport or inference: ${forbidden}`,

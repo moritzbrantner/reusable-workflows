@@ -4,7 +4,10 @@ import { describe, expect, test } from "vitest";
 
 const validatePath = new URL("../.github/workflows/validate.yml", import.meta.url);
 const commandPath = new URL("../.github/workflows/command-validation.yml", import.meta.url);
-const codingToolingPath = new URL("../.github/workflows/coding-tooling-validation.yml", import.meta.url);
+const codingToolingPath = new URL(
+  "../.github/workflows/coding-tooling-validation.yml",
+  import.meta.url,
+);
 const smokePath = new URL("../.github/workflows/smoke-reusable-workflows.yml", import.meta.url);
 
 describe("simple validation scheduling", () => {
@@ -35,7 +38,9 @@ describe("simple validation scheduling", () => {
   test("never skips coding-tooling based on derived validation evidence", () => {
     const source = readFileSync(codingToolingPath, "utf8");
     expect(source).toContain("Run coding-tooling");
-    expect(source).toContain("uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858");
+    expect(source).toContain(
+      "uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858",
+    );
     expect(source).not.toContain("impact_base_sha");
     expect(source).not.toContain("impact_head_sha");
     expect(source).not.toContain("impact_unit");
