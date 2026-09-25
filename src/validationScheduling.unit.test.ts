@@ -121,9 +121,7 @@ describe("repository validation impact scheduling", () => {
     expect(validate).not.toContain("impact_unit:");
     expect(validate).not.toContain("reuse_across_runs: true");
     expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
-    expect(validate).toContain(
-      "preserve_success_evidence: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
-    );
+    expect(validate).not.toContain("preserve_success_evidence");
     expect(validate).toContain("(github.event_name == 'push' && github.ref == 'refs/heads/main')");
     expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:e2e')");
     expect(smoke).toMatch(/push:\n\s+branches:\n\s+- main\n\s+paths:/);

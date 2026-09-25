@@ -286,22 +286,14 @@ on:
         type: string
       timeout_minutes:
         type: number
-      artifact_retention_days:
-        type: number
       node_version:
         type: string
-    outputs:
-      receipt_artifact_name:
-        value: receipt
-      receipt_path:
-        value: receipt.json
 jobs:
   command-validation:
     permissions:
       contents: read
     steps:
-      - name: Shared receipt kind
-        run: echo reusable-workflows/execution-receipt
+      - run: echo validate
 `;
     const errors = validateWorkflowContractsState({
       docs: {
@@ -316,7 +308,7 @@ jobs:
     });
 
     expect(errors).toContain(
-      "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, retention, and working directory only",
+      "command-validation.yml must stay runtime-neutral: setup command, validation command, timeout, and working directory only",
     );
   });
 
