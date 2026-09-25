@@ -61,9 +61,10 @@ source development -> local validation -> done
 - `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA and returns one source-bound artifact plus Execution Receipt v1. By default it builds and uploads normally; opt-in `reuse_across_runs` first resolves a still-retained artifact with the same exact build identity and returns its original `producer_run_id` without rerunning setup or the build. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
 
-### Legacy validation optimization
+### Validation reuse
 
-`validation-impact.yml` and `validation-evidence.yml` are retained temporarily for compatibility and repository-internal experiments only. They are not recommended for new consumers and are not part of the supported default validation architecture. Ordinary validation executes the repository command again instead of trusting reusable validation evidence.
+Ordinary validation results are not reused across revisions. The former validation-impact and validation-evidence workflows were removed because they added routing and trust state without external consumers. Run the repository-owned validation command for the revision being checked.
+
 
 ### Specialized / transitional validation
 

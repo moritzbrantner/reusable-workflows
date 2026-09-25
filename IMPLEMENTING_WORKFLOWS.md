@@ -92,7 +92,7 @@ The `coding-tooling` Action is private. Public consumers should use `fast-valida
 
 ### Validation reuse
 
-Do not skip ordinary validation because another commit or workflow produced a matching validation artifact. Run the repository-owned command again for the revision being checked. The older impact/evidence adapters are compatibility-only and should not be adopted by new consumers.
+Do not skip ordinary validation because another commit or workflow produced a matching validation artifact. Run the repository-owned command again for the revision being checked. The former impact/evidence adapters have been removed from the supported workflow surface.
 
 
 ## 3. Choose lifecycle timing in the caller

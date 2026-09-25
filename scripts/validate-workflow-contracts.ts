@@ -39,7 +39,6 @@ const deliverQualifiedExpoStoresWorkflowPath =
   ".github/workflows/deliver-qualified-expo-stores.yml";
 const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
-const validationEvidenceWorkflowPath = ".github/workflows/validation-evidence.yml";
 const environmentCanaryWorkflowPath = ".github/workflows/environment-v1-canary.yml";
 const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
 const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
@@ -191,7 +190,6 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   for (const workflowPath of [
     buildArtifactWorkflowPath,
     releaseQualificationWorkflowPath,
-    validationEvidenceWorkflowPath,
   ]) {
     const source = state.workflowSources[workflowPath];
     if (!source) {
