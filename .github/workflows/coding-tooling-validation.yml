@@ -146,7 +146,7 @@ jobs:
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}
           path: ${{ inputs.report_path }}
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Upload failure evidence
@@ -158,7 +158,7 @@ jobs:
           name: ${{ steps.metadata.outputs.evidence_artifact_name }}
           path: ${{ inputs.evidence_path }}
           include-hidden-files: true
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Determine validation outcome
