@@ -46,7 +46,6 @@ describe("coding-tooling validation adapter", () => {
     expect(source).not.toContain("invalidated_units_json");
   });
 
-
   test("renders summary values through environment variables rather than shell interpolation", () => {
     const source = readFileSync(workflowPath, "utf8");
 

@@ -40,7 +40,6 @@ Caller-owned policy for when validation, qualification, promotion, or delivery r
 **Environment Integrity Canary**  
 `environment-v1-canary.yml`, which verifies the standard environment-v1 setup is idempotent over tracked state and reconstructs the declared semantic environment.
 
-
 **Build Artifact Adapter**  
 `build-artifact.yml`, an ordinary-CI producer for one exact source SHA. It runs a caller-owned build command exactly once, preserves the artifact with its archive digest, binds caller-owned semantic identity plus runner/build context into deterministic identity evidence, and emits Execution Receipt v1. It does not qualify a release, promote, publish, or deploy.
 

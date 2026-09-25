@@ -65,7 +65,6 @@ source development -> local validation -> done
 
 Ordinary validation results are not reused across revisions. The former validation-impact and validation-evidence workflows were removed because they added routing and trust state without external consumers. Run the repository-owned validation command for the revision being checked.
 
-
 ### Specialized / transitional validation
 
 - `integration-validation.yml`

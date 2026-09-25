@@ -187,10 +187,7 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
     }
   }
 
-  for (const workflowPath of [
-    buildArtifactWorkflowPath,
-    releaseQualificationWorkflowPath,
-  ]) {
+  for (const workflowPath of [buildArtifactWorkflowPath, releaseQualificationWorkflowPath]) {
     const source = state.workflowSources[workflowPath];
     if (!source) {
       continue;
