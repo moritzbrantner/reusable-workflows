@@ -36,6 +36,14 @@ describe("coding-tooling validation adapter", () => {
     expect(source).not.toContain("preserve_success_evidence");
   });
 
+  test("does not advertise missing diagnostic evidence as an artifact", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("if-no-files-found: error");
+    expect(source).toContain(
+      "evidence_artifact_name: ${{ steps.evidence-upload.outcome == 'success' && steps.metadata.outputs.evidence_artifact_name || '' }}",
+    );
+  });
   test("always executes coding-tooling instead of impact-routing or evidence reuse", () => {
     const source = readFileSync(workflowPath, "utf8");
 
