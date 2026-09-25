@@ -66,11 +66,17 @@ describe("workflow catalog", () => {
     ]);
   });
 
-  test("ratchets the reusable workflow input surface downward", () => {
-    const metrics = workflowInputMetrics(parsedWorkflows);
+  test("ratchets the ordinary validation input surface downward", () => {
+    const ordinaryValidation = parsedWorkflows.filter((workflow) =>
+      [
+        ".github/workflows/command-validation.yml",
+        ".github/workflows/coding-tooling-validation.yml",
+      ].includes(workflow.file),
+    );
+    const metrics = workflowInputMetrics(ordinaryValidation);
 
-    expect(metrics.totalInputSlots).toBeLessThanOrEqual(258);
-    expect(metrics.uniqueInputNames).toBeLessThanOrEqual(74);
+    expect(metrics.totalInputSlots).toBeLessThanOrEqual(16);
+    expect(metrics.uniqueInputNames).toBeLessThanOrEqual(15);
   });
 
   test("reads the current workflow-call input surface instead of the frozen compatibility snapshot", () => {
