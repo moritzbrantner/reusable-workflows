@@ -73,6 +73,28 @@ describe("workflow catalog", () => {
     expect(metrics.uniqueInputNames).toBeLessThanOrEqual(74);
   });
 
+  test("reads the current workflow-call input surface instead of the frozen compatibility snapshot", () => {
+    const parsed = parseWorkflowForCatalog(`
+name: Callable
+on:
+  workflow_call:
+    inputs:
+      command:
+        required: true
+        type: string
+      timeout_minutes:
+        required: false
+        type: number
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`);
+
+    expect(parsed.inputNames).toEqual(["command", "timeout_minutes"]);
+  });
+
   test("normalizes array-style needs and runs-on values", () => {
     const parsed = parseWorkflowForCatalog(`
 name: Matrix Workflow
@@ -93,6 +115,7 @@ jobs:
 `);
 
     expect(parsed.yamlName).toBe("Matrix Workflow");
+    expect(parsed.inputNames).toEqual([]);
     expect(parsed.triggers).toEqual(["push", "workflow_dispatch"]);
     expect(parsed.jobs).toContainEqual(
       expect.objectContaining({
