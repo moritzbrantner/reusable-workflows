@@ -169,6 +169,7 @@ jobs:
             ${{ inputs.report_path }}
             ${{ inputs.evidence_path }}
           if-no-files-found: warn
+          include-hidden-files: true
           retention-days: ${{ inputs.artifact_retention_days }}
 
       - name: Propagate coding-tooling failure

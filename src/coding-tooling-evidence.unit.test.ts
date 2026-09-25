@@ -22,6 +22,7 @@ describe("coding-tooling validation boundary", () => {
     expect(source).toContain("evidence_path:");
     expect(source).toContain("Upload failure diagnostics");
     expect(source).toContain("steps.tooling.outcome != 'success'");
+    expect(source).toContain("include-hidden-files: true");
     expect(source).not.toContain("preserve_success_evidence");
     expect(source).not.toContain("receipt_artifact_name");
   });
