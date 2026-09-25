@@ -46,6 +46,16 @@ describe("coding-tooling validation adapter", () => {
     expect(source).not.toContain("invalidated_units_json");
   });
 
+
+  test("renders summary values through environment variables rather than shell interpolation", () => {
+    const source = readFileSync(workflowPath, "utf8");
+
+    expect(source).toContain("OPERATION: ${{ inputs.operation }}");
+    expect(source).toContain("EFFECTIVE_OUTCOME: ${{ steps.result.outputs.outcome }}");
+    expect(source).toContain(`printf '%s\\n' "- Operation: $OPERATION"`);
+    expect(source).not.toContain('echo "- Operation: \`${{');
+  });
+
   test("keeps missing-foundation rollout compatibility without hiding invalid state", () => {
     const source = readFileSync(workflowPath, "utf8");
 
