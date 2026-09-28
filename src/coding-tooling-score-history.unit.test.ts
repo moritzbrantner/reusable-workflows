@@ -11,8 +11,9 @@ const source = readFileSync(workflowPath, "utf8");
 const codingToolingRevision = "main";
 
 describe("coding-tooling score history workflow", () => {
-  test("delegates score and attribution semantics to the current coding-tooling branch", () => {
-    expect(source).toContain(`uses: moritzbrantner/coding-tooling@${codingToolingRevision}`);
+  test("uses one current coding-tooling checkout for validation, scoring, and attribution", () => {
+    expect(source).toContain("name: Check out current coding-tooling");
+    expect(source.match(/uses: \.\/\.coding-tooling-source/g)).toHaveLength(2);
     expect(source).toContain("repository: moritzbrantner/coding-tooling");
     expect(source).toContain(`ref: ${codingToolingRevision}`);
     expect(source).toContain("scripts/append-score-history.mjs");
