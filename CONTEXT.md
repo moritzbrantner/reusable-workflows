@@ -150,4 +150,4 @@ Repository-local `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-wo
 
 ## Compatibility policy
 
-`workflow-standard-v1.3` is frozen. Do not move the tag, publish `workflow-standard-v1.4`, or create a monolithic `workflow-standard-v2` merely to evolve current capabilities. New consumers of the capability line should pin exact commit SHAs until a deliberate capability-specific release exists.
+`workflow-standard-v1.3` is frozen for compatibility. New consumers of the capability line may follow `main`; update callers when an upstream interface change requires it.

@@ -114,7 +114,7 @@ jobs:
   fast:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/command-validation.yml@<immutable-sha>
+    uses: moritzbrantner/reusable-workflows/.github/workflows/command-validation.yml@main
     with:
       setup_command: bun install --frozen-lockfile
       command: bun run validate:fast

@@ -67,7 +67,7 @@ export function AdoptionPage() {
               This tool preserves the historical <code>workflow-standard-v1.3</code> adoption path
               for existing consumers. New repositories should prefer a repository-owned validation
               command or <code>coding-tooling-validation.yml</code> and pin the current capability
-              line by immutable commit SHA.
+              line through the current main branch.
             </p>
             <div className="workflow-hero__meta" aria-label="Adoption metadata">
               <Badge>{options.workflowRef}</Badge>
