@@ -8,11 +8,12 @@ const workflowPath = path.resolve(
   ".github/workflows/coding-tooling-score-history.yml",
 );
 const source = readFileSync(workflowPath, "utf8");
-const codingToolingRevision = "45edf80384e5ea98ca8784f81f0210f3bf744858";
+const codingToolingRevision = "main";
 
 describe("coding-tooling score history workflow", () => {
-  test("delegates score and attribution semantics to one immutable coding-tooling revision", () => {
-    expect(source).toContain(`uses: moritzbrantner/coding-tooling@${codingToolingRevision}`);
+  test("uses one current coding-tooling checkout for validation, scoring, and attribution", () => {
+    expect(source).toContain("name: Check out current coding-tooling");
+    expect(source.match(/uses: \.\/\.coding-tooling-source/g)).toHaveLength(2);
     expect(source).toContain("repository: moritzbrantner/coding-tooling");
     expect(source).toContain(`ref: ${codingToolingRevision}`);
     expect(source).toContain("scripts/append-score-history.mjs");

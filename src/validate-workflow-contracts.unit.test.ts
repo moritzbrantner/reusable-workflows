@@ -116,7 +116,7 @@ jobs:
     );
   });
 
-  test("requires an immutable coding-tooling Action pin", () => {
+  test("requires the current coding-tooling Action branch", () => {
     const codingToolingWorkflow = `
 on:
   workflow_call:
@@ -134,7 +134,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: moritzbrantner/coding-tooling@main
+      - uses: moritzbrantner/coding-tooling@old-release
 `;
     const errors = validateWorkflowContractsState({
       docs: {
@@ -149,7 +149,7 @@ jobs:
     });
 
     expect(errors).toContain(
-      "coding-tooling-validation.yml must pin moritzbrantner/coding-tooling to an exact commit SHA",
+      "coding-tooling-validation.yml must use the current coding-tooling branch",
     );
   });
 
@@ -363,7 +363,7 @@ jobs:
     });
 
     expect(errors).toContain(
-      "artifact-promotion.yml must pin actions/download-artifact to an exact commit SHA",
+      "artifact-promotion.yml must use an actions/download-artifact release tag",
     );
     expect(errors).toContain(
       "artifact-promotion.yml must verify the exact qualified archive and its release-qualification signer before promotion",

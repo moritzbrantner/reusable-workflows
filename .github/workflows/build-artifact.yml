@@ -207,7 +207,7 @@ jobs:
           echo "source_sha=${SOURCE_SHA,,}" >> "$GITHUB_OUTPUT"
 
       - name: Check out exact consumer commit
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
 
@@ -326,7 +326,7 @@ jobs:
         id: reuse-receipt-download
         if: ${{ steps.reuse-candidate.outcome == 'success' && steps.reuse-candidate.outputs.candidate_found == 'true' }}
         continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@v8
         with:
           artifact-ids: ${{ steps.reuse-candidate.outputs.locator_artifact_id }}
           path: ${{ runner.temp }}/build-artifact-reuse-receipt
@@ -457,21 +457,21 @@ jobs:
       - name: Set up Bun
         id: bun-setup
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.bun_version != '' }}
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ inputs.bun_version }}
 
       - name: Set up Node.js
         id: node-setup
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.node_version != '' }}
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ inputs.node_version }}
 
       - name: Set up Rust
         id: rust-setup
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.rust_toolchain != '' }}
-        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ inputs.rust_toolchain }}
           targets: ${{ inputs.rust_targets }}
@@ -479,7 +479,7 @@ jobs:
       - name: Cache Bun
         id: bun-cache
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.cache_bun }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
@@ -489,7 +489,7 @@ jobs:
       - name: Cache npm
         id: npm-cache
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.cache_node }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
@@ -499,7 +499,7 @@ jobs:
       - name: Cache Cargo
         id: cargo-cache
         if: ${{ steps.reuse.outputs.hit != 'true' && inputs.cache_cargo }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -520,7 +520,7 @@ jobs:
 
       - name: Cache cargo-installed tools
         if: ${{ inputs.cargo_tool_cache_key != '' }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/reusable-workflows-cargo-tools
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-${{ inputs.cargo_tool_cache_key }}
@@ -577,26 +577,6 @@ jobs:
         run: |
           now_ms="$(date +%s%3N)"
           echo "build_ms=$((now_ms - BUILD_STARTED_MS))" >> "$GITHUB_OUTPUT"
-
-      - name: Diagnose environment-v1 tracked state after build failure
-        id: environment-state
-        if: ${{ steps.reuse.outputs.hit != 'true' && steps.environment.outputs.detected == 'true' && (steps.environment-setup.outcome == 'failure' || steps.build.outcome == 'failure') }}
-        continue-on-error: true
-        working-directory: .
-        run: |
-          set -euo pipefail
-          git diff --exit-code
-          git diff --cached --exit-code
-
-      - name: Diagnose exact environment after build failure
-        id: environment-diagnostic
-        if: ${{ steps.reuse.outputs.hit != 'true' && steps.environment.outputs.detected == 'true' && (steps.environment-setup.outcome == 'failure' || steps.build.outcome == 'failure') }}
-        continue-on-error: true
-        uses: moritzbrantner/coding-tooling@81da4fbbdbe75a8937716cbab0b9a47c447269e8
-        with:
-          operation: environment-verify
-          report-path: .artifacts/reusable-workflows/environment-diagnostic.json
-          install-mode: none
 
       - name: Define immutable artifact metadata
         id: metadata
@@ -657,7 +637,7 @@ jobs:
         id: artifact
         if: ${{ steps.build.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}
           path: ${{ inputs.artifact_paths }}
@@ -757,8 +737,6 @@ jobs:
           CARGO_CACHE_OUTCOME: ${{ steps.cargo-cache.outcome }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
-          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
-          ENVIRONMENT_DIAGNOSTIC_OUTCOME: ${{ steps.environment-diagnostic.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
         run: |
@@ -790,8 +768,6 @@ jobs:
                       "cargoCache": os.environ["CARGO_CACHE_OUTCOME"],
                       "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
                       "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
-                      "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
-                      "environmentDiagnostic": os.environ["ENVIRONMENT_DIAGNOSTIC_OUTCOME"],
                       "build": os.environ["BUILD_OUTCOME"],
                       "artifactUpload": os.environ["ARTIFACT_OUTCOME"],
                   },
@@ -825,12 +801,11 @@ jobs:
       - name: Upload execution receipt
         id: receipt-upload
         if: ${{ always() && steps.reuse.outputs.hit != 'true' && steps.metadata.outcome == 'success' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
           path: |
             ${{ steps.metadata.outputs.receipt_path }}
-            .artifacts/reusable-workflows/environment-diagnostic.json
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
 
@@ -838,7 +813,7 @@ jobs:
         id: reuse-locator-upload
         if: ${{ inputs.reuse_across_runs && steps.status.outputs.outcome == 'success' && steps.receipt-upload.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.identity.outputs.reuse_locator_name }}
           path: ${{ steps.metadata.outputs.receipt_path }}

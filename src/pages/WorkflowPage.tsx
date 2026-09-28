@@ -266,8 +266,8 @@ export function WorkflowPage({ workflow }: { workflow: ParsedWorkflow }) {
             <h2 id="usage-title">Current-line reference snippet</h2>
             {isReusableWorkflow ? (
               <p>
-                Pin an immutable commit SHA. Check the current YAML for capability-specific inputs;
-                do not infer the current interface from the frozen v1.3 snapshot.
+                Follow the current main branch. Check the current YAML for capability-specific
+                inputs; do not infer the current interface from the frozen v1.3 snapshot.
               </p>
             ) : null}
           </div>
@@ -298,7 +298,7 @@ function buildCurrentUsageSnippet(
     }`;
   }
 
-  return `jobs:\n  ${workflow.slug}:\n    permissions:\n      contents: read\n    uses: moritzbrantner/reusable-workflows/${workflow.file}@<immutable-sha>\n    with:\n      # pass inputs from the current workflow YAML`;
+  return `jobs:\n  ${workflow.slug}:\n    permissions:\n      contents: read\n    uses: moritzbrantner/reusable-workflows/${workflow.file}@main\n    with:\n      # pass inputs from the current workflow YAML`;
 }
 
 function RelationshipCard({

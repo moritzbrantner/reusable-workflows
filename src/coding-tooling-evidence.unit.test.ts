@@ -15,12 +15,10 @@ describe("coding-tooling validation adapter", () => {
     expect(source).toContain("source-sha: ${{ steps.metadata.outputs.source_sha }}");
   });
 
-  test("pins the coding-tooling action", () => {
+  test("uses the current coding-tooling action", () => {
     const source = readFileSync(workflowPath, "utf8");
 
-    expect(source).toContain(
-      "uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858",
-    );
+    expect(source).toContain("uses: moritzbrantner/coding-tooling@main");
   });
 
   test("keeps failure artifacts diagnostic rather than reusable proof", () => {

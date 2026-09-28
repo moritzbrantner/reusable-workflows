@@ -40,9 +40,9 @@ const deliverQualifiedExpoStoresWorkflowPath =
 const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pages.yml";
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const environmentCanaryWorkflowPath = ".github/workflows/environment-v1-canary.yml";
-const immutableCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@[0-9a-f]{40}(?:\s|$)/m;
-const immutableAttestUse = /uses:\s*actions\/attest@[0-9a-f]{40}(?:\s|$)/m;
-const immutableDownloadArtifactUse = /uses:\s*actions\/download-artifact@[0-9a-f]{40}(?:\s|$)/m;
+const currentCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@main(?:\s|$)/m;
+const maintainedAttestUse = /uses:\s*actions\/attest@v\d+(?:\s|$)/m;
+const maintainedDownloadArtifactUse = /uses:\s*actions\/download-artifact@v\d+(?:\s|$)/m;
 const executionReceiptKind = "reusable-workflows/execution-receipt";
 const executionReceiptOutputs = ["receipt_artifact_name", "receipt_path"];
 
@@ -152,10 +152,8 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
   }
 
   const codingToolingSource = state.workflowSources[codingToolingWorkflowPath];
-  if (codingToolingSource && !immutableCodingToolingUse.test(codingToolingSource)) {
-    errors.push(
-      "coding-tooling-validation.yml must pin moritzbrantner/coding-tooling to an exact commit SHA",
-    );
+  if (codingToolingSource && !currentCodingToolingUse.test(codingToolingSource)) {
+    errors.push("coding-tooling-validation.yml must use the current coding-tooling branch");
   }
   const codingToolingInputs = manifest.workflows[codingToolingWorkflowPath]?.inputs ?? {};
   if (codingToolingSource && !("operation" in codingToolingInputs)) {
@@ -200,47 +198,27 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
         `${path.basename(workflowPath)} must use the standard environment-v1 setup seam when the repository declares environment-v1`,
       );
     }
-    if (!source.includes("Diagnose environment-v1 tracked state after")) {
-      errors.push(
-        `${path.basename(workflowPath)} must keep environment tracked-state inspection on the failure-diagnostic path`,
-      );
-    }
-    if (
-      !source.includes("Diagnose exact environment after") ||
-      !source.includes("operation: environment-verify") ||
-      !source.includes("id: environment-diagnostic")
-    ) {
-      errors.push(
-        `${path.basename(workflowPath)} must run exact environment verification only as failure-diagnostic evidence`,
-      );
-    }
-    if (source.includes("steps.environment-state.outcome == 'success'")) {
-      errors.push(
-        `${path.basename(workflowPath)} must not gate successful execution on environment diagnostics`,
-      );
+    if (source.includes("operation: environment-verify")) {
+      errors.push(`${path.basename(workflowPath)} must not run automatic environment verification`);
     }
   }
 
   const environmentCanarySource = state.workflowSources[environmentCanaryWorkflowPath];
   if (environmentCanarySource) {
     if (
-      !environmentCanarySource.includes("Diagnose exact environment after canary failure") ||
-      !environmentCanarySource.includes(
-        "steps.environment-setup.outcome == 'failure' || steps.environment-state.outcome == 'failure'",
-      ) ||
-      !environmentCanarySource.includes("operation: environment-verify") ||
-      !environmentCanarySource.includes("continue-on-error: true")
+      environmentCanarySource.includes("operation: environment-verify") ||
+      environmentCanarySource.includes("operation: environment-fingerprint")
     ) {
       errors.push(
-        "environment-v1-canary.yml must reserve exact environment verification for failure diagnostics",
+        "environment-v1-canary.yml must remain a setup check without environment identity verification",
       );
     }
   }
 
   const releaseSource = state.workflowSources[releaseQualificationWorkflowPath];
   if (releaseSource) {
-    if (!immutableAttestUse.test(releaseSource)) {
-      errors.push("release-qualification.yml must pin actions/attest to an exact commit SHA");
+    if (!maintainedAttestUse.test(releaseSource)) {
+      errors.push("release-qualification.yml must use an actions/attest release tag");
     }
     const releaseOutputs = manifest.workflows[releaseQualificationWorkflowPath]?.outputs ?? {};
     for (const output of ["attestation_id", "attestation_url", "provenance_predicate_path"]) {
@@ -269,10 +247,8 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
   const promotionSource = state.workflowSources[artifactPromotionWorkflowPath];
   if (promotionSource) {
-    if (!immutableDownloadArtifactUse.test(promotionSource)) {
-      errors.push(
-        "artifact-promotion.yml must pin actions/download-artifact to an exact commit SHA",
-      );
+    if (!maintainedDownloadArtifactUse.test(promotionSource)) {
+      errors.push("artifact-promotion.yml must use an actions/download-artifact release tag");
     }
     if (
       !promotionSource.includes("skip-decompress: true") ||
@@ -315,10 +291,8 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
   const deployQualifiedPagesSource = state.workflowSources[deployQualifiedPagesWorkflowPath];
   if (deployQualifiedPagesSource) {
-    if (!immutableDownloadArtifactUse.test(deployQualifiedPagesSource)) {
-      errors.push(
-        "deploy-qualified-pages.yml must pin actions/download-artifact to an exact commit SHA",
-      );
+    if (!maintainedDownloadArtifactUse.test(deployQualifiedPagesSource)) {
+      errors.push("deploy-qualified-pages.yml must use an actions/download-artifact release tag");
     }
     if (
       deployQualifiedPagesSource.includes("actions/checkout@") ||
@@ -369,9 +343,9 @@ export function validateWorkflowContractsState(state: ValidationState): string[]
 
   const expoDeliverySource = state.workflowSources[deliverQualifiedExpoStoresWorkflowPath];
   if (expoDeliverySource) {
-    if (!immutableDownloadArtifactUse.test(expoDeliverySource)) {
+    if (!maintainedDownloadArtifactUse.test(expoDeliverySource)) {
       errors.push(
-        "deliver-qualified-expo-stores.yml must pin actions/download-artifact to an exact commit SHA",
+        "deliver-qualified-expo-stores.yml must use an actions/download-artifact release tag",
       );
     }
     if (
