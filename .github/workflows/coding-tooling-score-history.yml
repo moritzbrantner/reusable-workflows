@@ -57,10 +57,18 @@ jobs:
         with:
           bun-version: 1.4.0
 
+      - name: Check out current coding-tooling
+        uses: actions/checkout@v6
+        with:
+          repository: moritzbrantner/coding-tooling
+          ref: main
+          path: .coding-tooling-source
+          persist-credentials: false
+
       - name: Capture repository verification
         id: verification
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@main
+        uses: ./.coding-tooling-source
         with:
           tier: ${{ inputs.tier }}
           config: ${{ inputs.config }}
@@ -72,21 +80,12 @@ jobs:
         id: score
         if: ${{ always() }}
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@main
+        uses: ./.coding-tooling-source
         with:
           operation: score
           validation-report: .artifacts/coding-tooling/history-run.json
           report-path: .artifacts/coding-tooling/history-score.json
           install-mode: none
-
-      - name: Check out score-history writer
-        if: ${{ always() }}
-        uses: actions/checkout@v6
-        with:
-          repository: moritzbrantner/coding-tooling
-          ref: main
-          path: .coding-tooling-source
-          persist-credentials: false
 
       - name: Ensure history branch exists
         if: ${{ always() }}
