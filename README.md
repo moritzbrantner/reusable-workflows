@@ -57,7 +57,7 @@ source development -> local validation -> done
 - `coding-tooling-validation.yml` — invokes `coding-tooling` directly for a declared operation/tier. Failed runs may upload reports or repository evidence for diagnosis, but those artifacts are never used to skip or validate a later run.
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
-- `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
+- `environment-v1-canary.yml` — optionally checks whether the repository's environment-v1 setup command succeeds. It does not verify runner or environment identity.
 - `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA and returns one source-bound artifact plus Execution Receipt v1. By default it builds and uploads normally; opt-in `reuse_across_runs` first resolves a still-retained artifact with the same exact build identity and returns its original `producer_run_id` without rerunning setup or the build. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
 
@@ -154,7 +154,7 @@ Do not use this capability to make a hidden production decision. A generated app
 
 ## Environment-v1 canary
 
-`environment-v1-canary.yml` uses the repository-standard `bash scripts/codex-environment.sh setup` entrypoint. Setup is treated as an idempotent reconstruction operation: tracked state must remain unchanged and the prepared machine must verify against the semantic identity captured before setup.
+`environment-v1-canary.yml` runs the repository-standard `bash scripts/codex-environment.sh setup` entrypoint as an optional smoke test. Its former evidence outputs are empty for compatibility; success means only that setup returned successfully.
 
 ## Contracts and generated metadata
 
