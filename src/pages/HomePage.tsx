@@ -248,7 +248,7 @@ export function HomePage() {
         <section className="section section--split" aria-labelledby="adoption-title">
           <div>
             <p className="eyebrow">New Adoption</p>
-            <h2 id="adoption-title">Pin an immutable SHA and delegate validation semantics.</h2>
+            <h2 id="adoption-title">Use current workflows and delegate validation semantics.</h2>
             <div className="copy">
               <p>
                 Private consumers that can access <code>coding-tooling</code> should prefer the
@@ -272,7 +272,7 @@ export function HomePage() {
   validate:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@<immutable-sha>
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@main
     with:
       tier: fast
       strict: true`}</CodeBlockCode>
@@ -296,8 +296,8 @@ export function HomePage() {
             </li>
             <li>Confirm affected consumer evidence before broad rollout.</li>
             <li>
-              Consumers pin an immutable commit SHA until an intentional capability-specific release
-              tag exists.
+              Consumers follow the current main branch until an intentional capability-specific
+              release tag exists.
             </li>
           </ol>
         </section>

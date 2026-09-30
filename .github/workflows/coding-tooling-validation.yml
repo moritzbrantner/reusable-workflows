@@ -24,7 +24,7 @@ on:
         type: string
         default: .coding-tooling.json
       source_sha:
-        description: Caller-established source revision. Defaults to the triggering PR head or workflow SHA.
+        description: Caller-established source revision. Defaults to the triggering pull-request head or workflow SHA.
         required: false
         type: string
         default: ""
@@ -34,7 +34,7 @@ on:
         type: boolean
         default: true
       allow_missing_foundation:
-        description: For foundation audits only, allow missing rollout pieces while still rejecting invalid or unsupported foundation state.
+        description: For foundation audits only, allow missing pieces while still failing invalid or unsupported state.
         required: false
         type: boolean
         default: false
@@ -49,7 +49,7 @@ on:
         type: string
         default: .artifacts/coding-tooling/report.json
       evidence_path:
-        description: Optional repository-relative diagnostic path to upload when coding-tooling fails.
+        description: Optional repository-relative diagnostic evidence produced by the repository.
         required: false
         type: string
         default: ""
@@ -59,22 +59,34 @@ on:
         type: number
         default: 30
       artifact_retention_days:
-        description: Retention period for failure diagnostics.
+        description: Retention period for failure-diagnostic artifacts.
         required: false
         type: number
         default: 7
     outputs:
       artifact_name:
-        description: Failure-diagnostic artifact name, empty when no diagnostic artifact was uploaded.
+        description: Failure-diagnostic report artifact name, or empty on success.
         value: ${{ jobs.coding-tooling.outputs.artifact_name }}
+      artifact_digest:
+        description: SHA-256 digest of the failure-diagnostic report artifact.
+        value: ${{ jobs.coding-tooling.outputs.artifact_digest }}
       report_path:
-        description: Repository-relative path used for the coding-tooling JSON report.
+        description: Repository-relative coding-tooling report path.
         value: ${{ jobs.coding-tooling.outputs.report_path }}
+      evidence_artifact_name:
+        description: Failure-diagnostic repository evidence artifact name, or empty when absent.
+        value: ${{ jobs.coding-tooling.outputs.evidence_artifact_name }}
+      evidence_artifact_digest:
+        description: SHA-256 digest of the failure-diagnostic repository evidence artifact.
+        value: ${{ jobs.coding-tooling.outputs.evidence_artifact_digest }}
+      evidence_path:
+        description: Repository-relative diagnostic evidence path.
+        value: ${{ jobs.coding-tooling.outputs.evidence_path }}
       outcome:
-        description: Final validation outcome after the narrow foundation-rollout compatibility rule.
+        description: Effective validation outcome.
         value: ${{ jobs.coding-tooling.outputs.outcome }}
       source_sha:
-        description: Exact checked-out source revision.
+        description: Exact source revision checked out and validated.
         value: ${{ jobs.coding-tooling.outputs.source_sha }}
 
 jobs:
@@ -85,33 +97,37 @@ jobs:
     permissions:
       contents: read
     outputs:
-      artifact_name: ${{ steps.diagnostics.outcome == 'success' && steps.metadata.outputs.artifact_name || '' }}
-      report_path: ${{ steps.metadata.outputs.report_path }}
+      artifact_name: ${{ steps.report-upload.outcome == 'success' && steps.metadata.outputs.artifact_name || '' }}
+      artifact_digest: ${{ steps.report-upload.outputs.artifact-digest }}
+      report_path: ${{ inputs.report_path }}
+      evidence_artifact_name: ${{ steps.evidence-upload.outcome == 'success' && steps.metadata.outputs.evidence_artifact_name || '' }}
+      evidence_artifact_digest: ${{ steps.evidence-upload.outputs.artifact-digest }}
+      evidence_path: ${{ inputs.evidence_path }}
       outcome: ${{ steps.result.outputs.outcome }}
       source_sha: ${{ steps.metadata.outputs.source_sha }}
     steps:
       - name: Check out exact consumer revision
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha != '' && inputs.source_sha || github.event.pull_request.head.sha || github.sha }}
 
-      - name: Record checked-out source
+      - name: Record exact source revision
         id: metadata
         shell: bash
-        env:
-          REPORT_PATH: ${{ inputs.report_path }}
         run: |
           set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          short_sha="${source_sha:0:12}"
           {
-            echo "source_sha=$(git rev-parse HEAD)"
-            echo "report_path=$REPORT_PATH"
-            echo "artifact_name=coding-tooling-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "source_sha=$source_sha"
+            echo "artifact_name=coding-tooling-${{ inputs.operation }}-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}"
+            echo "evidence_artifact_name=repository-evidence-${{ inputs.operation }}-${{ inputs.tier }}-$short_sha-${{ github.run_id }}-${{ github.run_attempt }}"
           } >> "$GITHUB_OUTPUT"
 
       - name: Run coding-tooling
         id: tooling
         continue-on-error: true
-        uses: moritzbrantner/coding-tooling@45edf80384e5ea98ca8784f81f0210f3bf744858
+        uses: moritzbrantner/coding-tooling@main
         with:
           operation: ${{ inputs.operation }}
           tier: ${{ inputs.tier }}
@@ -122,7 +138,30 @@ jobs:
           install-mode: ${{ inputs.install_mode }}
           source-sha: ${{ steps.metadata.outputs.source_sha }}
 
-      - name: Resolve validation outcome
+      - name: Upload failure report
+        id: report-upload
+        if: ${{ steps.tooling.outcome != 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.metadata.outputs.artifact_name }}
+          path: ${{ inputs.report_path }}
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Upload failure evidence
+        id: evidence-upload
+        if: ${{ steps.tooling.outcome != 'success' && inputs.evidence_path != '' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.metadata.outputs.evidence_artifact_name }}
+          path: ${{ inputs.evidence_path }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Determine validation outcome
         id: result
         if: ${{ always() }}
         shell: bash
@@ -134,22 +173,17 @@ jobs:
         run: |
           set -euo pipefail
           outcome="$TOOLING_OUTCOME"
-          if [[ "$outcome" != "success" && "$OPERATION" == "foundation" && "$ALLOW_MISSING_FOUNDATION" == "true" ]]; then
+          if [[ "$outcome" != "success" && "$OPERATION" == "foundation" && "$ALLOW_MISSING_FOUNDATION" == "true" && -f "$REPORT_PATH" ]]; then
             if python3 - "$REPORT_PATH" <<'PY'
           import json
           import sys
-
           with open(sys.argv[1], encoding="utf-8") as handle:
               report = json.load(handle)
           components = report.get("data", {}).get("components")
           if not isinstance(components, dict) or not components:
               raise SystemExit(1)
           statuses = [value.get("status") for value in components.values() if isinstance(value, dict)]
-          if not statuses or any(status in {"invalid", "unsupported"} for status in statuses):
-              raise SystemExit(1)
-          if any(status not in {"adopted", "missing"} for status in statuses):
-              raise SystemExit(1)
-          if "missing" not in statuses:
+          if not statuses or any(status not in {"adopted", "missing"} for status in statuses) or "missing" not in statuses:
               raise SystemExit(1)
           PY
             then
@@ -158,21 +192,31 @@ jobs:
           fi
           echo "outcome=$outcome" >> "$GITHUB_OUTPUT"
 
-      - name: Upload failure diagnostics
-        id: diagnostics
-        if: ${{ always() && steps.tooling.outcome != 'success' }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: ${{ steps.metadata.outputs.artifact_name }}
-          path: |
-            ${{ inputs.report_path }}
-            ${{ inputs.evidence_path }}
-          if-no-files-found: warn
-          include-hidden-files: true
-          retention-days: ${{ inputs.artifact_retention_days }}
+      - name: Write validation summary
+        if: ${{ always() }}
+        shell: bash
+        env:
+          OPERATION: ${{ inputs.operation }}
+          TIER: ${{ inputs.tier }}
+          EFFECTIVE_OUTCOME: ${{ steps.result.outputs.outcome }}
+          SOURCE_SHA: ${{ steps.metadata.outputs.source_sha }}
+          REPORT_PATH: ${{ inputs.report_path }}
+          TOOLING_OUTCOME: ${{ steps.tooling.outcome }}
+        run: |
+          {
+            echo "## coding-tooling validation"
+            echo
+            printf '%s\n' "- Operation: $OPERATION"
+            printf '%s\n' "- Tier: $TIER"
+            printf '%s\n' "- Outcome: $EFFECTIVE_OUTCOME"
+            printf '%s\n' "- Source: $SOURCE_SHA"
+            printf '%s\n' "- Report: $REPORT_PATH"
+            if [[ "$TOOLING_OUTCOME" != "success" ]]; then
+              echo "- Failure artifacts: diagnostic only; they are not reusable validation proof."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Propagate coding-tooling failure
-        if: ${{ always() && steps.result.outputs.outcome != 'success' }}
+      - name: Propagate validation failure
+        if: ${{ steps.result.outputs.outcome != 'success' }}
         shell: bash
         run: exit 1

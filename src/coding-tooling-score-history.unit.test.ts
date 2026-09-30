@@ -8,11 +8,12 @@ const workflowPath = path.resolve(
   ".github/workflows/coding-tooling-score-history.yml",
 );
 const source = readFileSync(workflowPath, "utf8");
-const codingToolingRevision = "45edf80384e5ea98ca8784f81f0210f3bf744858";
+const codingToolingRevision = "main";
 
 describe("coding-tooling score history workflow", () => {
-  test("delegates score and attribution semantics to one immutable coding-tooling revision", () => {
-    expect(source).toContain(`uses: moritzbrantner/coding-tooling@${codingToolingRevision}`);
+  test("uses one current coding-tooling checkout for validation, scoring, and attribution", () => {
+    expect(source).toContain("name: Check out current coding-tooling");
+    expect(source.match(/uses: \.\/\.coding-tooling-source/g)).toHaveLength(2);
     expect(source).toContain("repository: moritzbrantner/coding-tooling");
     expect(source).toContain(`ref: ${codingToolingRevision}`);
     expect(source).toContain("scripts/append-score-history.mjs");
@@ -25,25 +26,12 @@ describe("coding-tooling score history workflow", () => {
     expect(source).not.toMatch(/minimum[_ -]?score/i);
   });
 
-  test("reuses exact current-run verification and falls back only when evidence reuse fails", () => {
-    expect(source).toContain("Resolve current-run verification candidate");
-    expect(source).toContain(
-      "coding-tooling-run-${{ inputs.tier }}-${{ github.run_id }}-${{ github.run_attempt }}",
-    );
-    expect(source).toContain(
-      "execution-receipt-coding-tooling-run-${{ inputs.tier }}-${short_sha}-${{ github.run_id }}-${{ github.run_attempt }}",
-    );
-    expect(source).toContain("Reuse exact current-run repository verification");
-    expect(source).toContain(
-      'receipt["capability"] == {"name": "coding-tooling-validation", "interfaceVersion": 1}',
-    );
-    expect(source).toContain(
-      'receipt["source"]["sha"] == os.environ["EXPECTED_SOURCE_SHA"].lower()',
-    );
-    expect(source).toContain('receipt["result"]["outcome"] in {"success", "failure"}');
-    expect(source).toMatch(
-      /Capture repository verification[\s\S]*steps\.existing-verification\.outcome != 'success'/,
-    );
+  test("captures repository verification directly instead of trusting another job's receipt", () => {
+    expect(source).toContain("Capture repository verification");
+    expect(source).not.toContain("Resolve current-run verification candidate");
+    expect(source).not.toContain("Reuse exact current-run repository verification");
+    expect(source).not.toContain("execution-receipt-coding-tooling");
+    expect(source).not.toContain("Download current-run verification receipt");
   });
 
   test("reserves a serialized data-only persistence branch", () => {

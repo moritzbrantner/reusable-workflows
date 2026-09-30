@@ -193,7 +193,7 @@ jobs:
       NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.prebuilt_source_sha != '' && inputs.prebuilt_source_sha || github.sha }}
 
@@ -234,19 +234,19 @@ jobs:
 
       - name: Set up Bun
         if: ${{ inputs.bun_version != '' }}
-        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: ${{ inputs.bun_version }}
 
       - name: Set up Node.js
         if: ${{ inputs.node_version != '' }}
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ inputs.node_version }}
 
       - name: Cache Bun
         if: ${{ inputs.cache_bun }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ hashFiles(inputs.bun_cache_dependency_path) }}
@@ -255,7 +255,7 @@ jobs:
 
       - name: Cache npm
         if: ${{ inputs.cache_node }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: ~/.npm
           key: ${{ runner.os }}-npm-${{ hashFiles(inputs.npm_cache_dependency_path) }}
@@ -264,7 +264,7 @@ jobs:
 
       - name: Cache Cargo
         if: ${{ inputs.cache_cargo }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/registry
@@ -285,7 +285,7 @@ jobs:
 
       - name: Cache cargo-installed tools
         if: ${{ inputs.cargo_tool_cache_key != '' }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/reusable-workflows-cargo-tools
           key: ${{ runner.os }}-${{ runner.arch }}-cargo-tools-${{ inputs.cargo_tool_cache_key }}
@@ -301,7 +301,7 @@ jobs:
 
       - name: Cache Playwright browser payloads
         if: ${{ inputs.install_playwright && inputs.cache_playwright_browsers }}
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/reusable-workflows-playwright
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles(inputs.playwright_cache_dependency_path) }}-${{ inputs.install_playwright_browsers }}
@@ -312,7 +312,7 @@ jobs:
 
       - name: Consume verified prebuilt artifact
         if: ${{ inputs.prebuilt_artifact_run_id != '' }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@14d111fe589f21fe7254354713320ab0a832a101
+        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@main
         with:
           producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
           receipt_artifact_name: ${{ inputs.prebuilt_artifact_receipt_name }}
@@ -346,7 +346,7 @@ jobs:
 
       - name: Upload artifacts
         if: ${{ inputs.artifact_paths != '' && (inputs.upload_artifacts_on == 'always' || (failure() && inputs.upload_artifacts_on == 'failure')) }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.artifact-name.outputs.name }}
           path: ${{ inputs.artifact_paths }}

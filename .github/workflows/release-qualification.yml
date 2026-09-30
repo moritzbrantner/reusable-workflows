@@ -107,7 +107,7 @@ jobs:
           }
 
       - name: Check out exact consumer commit
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_sha }}
 
@@ -154,26 +154,6 @@ jobs:
           RELEASE_BUILD_TOKEN: ${{ secrets.build_token }}
         run: ${{ inputs.build_command }}
 
-      - name: Diagnose environment-v1 tracked state after qualification failure
-        id: environment-state
-        if: ${{ steps.environment.outputs.detected == 'true' && (steps.environment-setup.outcome == 'failure' || steps.qualification.outcome == 'failure' || steps.build.outcome == 'failure') }}
-        continue-on-error: true
-        working-directory: .
-        run: |
-          set -euo pipefail
-          git diff --exit-code
-          git diff --cached --exit-code
-
-      - name: Diagnose exact environment after qualification failure
-        id: environment-diagnostic
-        if: ${{ steps.environment.outputs.detected == 'true' && (steps.environment-setup.outcome == 'failure' || steps.qualification.outcome == 'failure' || steps.build.outcome == 'failure') }}
-        continue-on-error: true
-        uses: moritzbrantner/coding-tooling@81da4fbbdbe75a8937716cbab0b9a47c447269e8
-        with:
-          operation: environment-verify
-          report-path: .artifacts/reusable-workflows/environment-diagnostic.json
-          install-mode: none
-
       - name: Define qualification metadata
         id: metadata
         if: ${{ always() }}
@@ -194,7 +174,7 @@ jobs:
         id: artifact
         if: ${{ steps.qualification.outcome == 'success' && steps.build.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}
           path: ${{ inputs.artifact_paths }}
@@ -277,7 +257,7 @@ jobs:
         id: provenance
         if: ${{ steps.predicate-validation.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        uses: actions/attest@v4
         with:
           subject-name: ${{ steps.metadata.outputs.artifact_name }}
           subject-digest: sha256:${{ steps.artifact.outputs.artifact-digest }}
@@ -321,8 +301,6 @@ jobs:
           SOURCE_SHA: ${{ inputs.source_sha }}
           BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
           ENVIRONMENT_SETUP_OUTCOME: ${{ steps.environment-setup.outcome }}
-          ENVIRONMENT_STATE_OUTCOME: ${{ steps.environment-state.outcome }}
-          ENVIRONMENT_DIAGNOSTIC_OUTCOME: ${{ steps.environment-diagnostic.outcome }}
           QUALIFICATION_OUTCOME: ${{ steps.qualification.outcome }}
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           ARTIFACT_OUTCOME: ${{ steps.artifact.outcome }}
@@ -388,8 +366,6 @@ jobs:
                   "steps": {
                       "bootstrap": os.environ["BOOTSTRAP_OUTCOME"],
                       "environmentSetup": os.environ["ENVIRONMENT_SETUP_OUTCOME"],
-                      "environmentState": os.environ["ENVIRONMENT_STATE_OUTCOME"],
-                      "environmentDiagnostic": os.environ["ENVIRONMENT_DIAGNOSTIC_OUTCOME"],
                       "qualification": os.environ["QUALIFICATION_OUTCOME"],
                       "build": os.environ["BUILD_OUTCOME"],
                       "artifactUpload": os.environ["ARTIFACT_OUTCOME"],
@@ -414,13 +390,12 @@ jobs:
 
       - name: Upload execution receipt and provenance predicate
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
           path: |
             ${{ steps.metadata.outputs.receipt_path }}
             ${{ steps.metadata.outputs.provenance_predicate_path }}
-            .artifacts/reusable-workflows/environment-diagnostic.json
           if-no-files-found: error
           retention-days: ${{ inputs.artifact_retention_days }}
 

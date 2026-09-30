@@ -22,6 +22,7 @@ import workflowCatalogData from "virtual:workflow-catalog-data";
 type WorkflowCatalogData = Record<
   string,
   {
+    inputNames: string[];
     jobs: ParsedJob[];
     triggers: string[];
     yamlName: string;
@@ -601,12 +602,15 @@ function parseWorkflow(
   file: string,
   workflow: WorkflowCatalogData[string],
 ): Omit<ParsedWorkflow, "callers"> {
-  const metadata = workflowMetadataByFile.get(file) ?? fallbackWorkflowMetadata(file);
+  const metadata =
+    workflowMetadataByFile.get(file) ??
+    fallbackWorkflowMetadata(file, workflow.triggers.includes("workflow_call"));
 
   return {
     ...metadata,
     slug: slugFromFile(file),
     yamlName: workflow.yamlName || metadata.title,
+    inputNames: workflow.inputNames,
     triggers: workflow.triggers,
     jobs: workflow.jobs,
     dependencies: Array.from(new Set(workflow.jobs.flatMap((job) => job.usesWorkflow ?? []))),
@@ -619,7 +623,7 @@ export function workflowInputMetrics(workflows: ParsedWorkflow[]) {
   const inputNames = new Set<string>();
 
   const totalInputSlots = reusableWorkflows.reduce((count, workflow) => {
-    const names = Object.keys(workflow.contract?.inputs ?? {});
+    const names = workflow.inputNames;
 
     for (const name of names) {
       inputNames.add(name);
@@ -634,14 +638,14 @@ export function workflowInputMetrics(workflows: ParsedWorkflow[]) {
   };
 }
 
-function fallbackWorkflowMetadata(file: string): WorkflowMetadata {
+function fallbackWorkflowMetadata(file: string, callable: boolean): WorkflowMetadata {
   const title = titleFromSlug(slugFromFile(file));
 
   return {
     file,
     title,
     summary: `Workflow documentation for ${file}.`,
-    role: contracts[file] ? "Reusable Workflow" : "Caller Workflow",
+    role: callable ? "Reusable Workflow" : "Caller Workflow",
     useWhen: `Use this workflow when ${title.toLowerCase()} is the appropriate repository automation entrypoint.`,
     responsibilities: ["Review the workflow source for repository-specific responsibilities."],
     icon: Workflow,

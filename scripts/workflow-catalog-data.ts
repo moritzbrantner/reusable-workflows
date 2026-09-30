@@ -19,6 +19,7 @@ type WorkflowJobYaml = {
 };
 
 export type ParsedWorkflowCatalogData = {
+  inputNames: string[];
   jobs: ParsedJob[];
   triggers: string[];
   yamlName: string;
@@ -28,6 +29,7 @@ export function parseWorkflowForCatalog(source: string): ParsedWorkflowCatalogDa
   const workflowYaml = parseWorkflowSource(source);
 
   return {
+    inputNames: parseWorkflowInputNames(workflowYaml),
     jobs: parseWorkflowJobs(workflowYaml),
     triggers: parseWorkflowTriggers(workflowYaml),
     yamlName: readYamlString(workflowYaml.name) ?? "",
@@ -62,6 +64,16 @@ function parseWorkflowTriggers(workflowYaml: WorkflowYaml) {
   }
 
   return ["workflow_call"];
+}
+
+function parseWorkflowInputNames(workflowYaml: WorkflowYaml): string[] {
+  const triggersValue = workflowYaml.on ?? workflowYaml.true;
+  if (!isYamlRecord(triggersValue)) return [];
+
+  const workflowCall = triggersValue.workflow_call;
+  if (!isYamlRecord(workflowCall) || !isYamlRecord(workflowCall.inputs)) return [];
+
+  return Object.keys(workflowCall.inputs).sort();
 }
 
 function parseWorkflowJobs(workflowYaml: WorkflowYaml): ParsedJob[] {

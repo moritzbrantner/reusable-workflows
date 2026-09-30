@@ -55,7 +55,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@<immutable-sha>
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@main
     with:
       command: bun run validate:fast
 ```
@@ -80,17 +80,19 @@ jobs:
   fast:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@<immutable-sha>
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@main
     with:
       tier: fast
       strict: true
 ```
 
-The adapter checks out the consumer, invokes an exact-pinned `coding-tooling` Action, and propagates the tooling result. Failed runs may preserve the report and an explicitly requested evidence path as diagnostics. Successful runs do not create reusable validation evidence or execution receipts. Tier contents remain in `coding-tooling` defaults or the consumer's `.coding-tooling.json`.
+The adapter checks out the consumer, invokes the current `coding-tooling` Action, writes a job summary, and propagates the tooling result. Failed runs may preserve diagnostic files.
 
 The `coding-tooling` Action is private. Public consumers should use `fast-validation.yml` or other public command-driven capabilities instead.
 
-Caller-owned concurrency is intentional. Reusable capabilities should not invent a repository-wide concurrency policy.
+### Validation reuse
+
+Do not skip ordinary validation because another commit or workflow produced a matching validation artifact. Run the repository-owned command again for the revision being checked. The former impact/evidence adapters have been removed from the supported workflow surface.
 
 ## 3. Choose lifecycle timing in the caller
 
@@ -149,7 +151,7 @@ local/source development
 
 Existing repositories pinned to `workflow-standard-v1.3` keep the released v1.3 interfaces, including the older multi-input `fast-validation.yml` and `validate-repo.yml` compatibility surface.
 
-Do not migrate those callers just to keep up with `main`. Migrate when the thinner capability model provides a concrete benefit, and pin the selected `main` revision to an immutable SHA.
+Existing callers may move to `main` when they adopt the thinner capability interface. Keep any intentional compatibility pins until the caller is updated.
 
 ## Advanced capabilities
 

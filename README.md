@@ -53,13 +53,17 @@ source development -> local validation -> done
 
 ### Default validation
 
-- `command-validation.yml` — runtime-neutral adapter that checks out the consumer, runs one optional repository-owned setup command, then runs the repository-owned validation command directly.
-- `coding-tooling-validation.yml` — invokes one exact-pinned `coding-tooling` operation/tier for the checked-out source revision. A failed run may upload its report and an explicitly named evidence path as diagnostics; successful validation does not produce reusable evidence or execution receipts.
+- `command-validation.yml` — runtime-neutral adapter that checks out the repository, optionally runs one repository-owned setup command, then runs one repository-owned validation command. It emits no reusable validation receipt.
+- `coding-tooling-validation.yml` — invokes `coding-tooling` directly for a declared operation/tier. Failed runs may upload reports or repository evidence for diagnosis, but those artifacts are never used to skip or validate a later run.
 - `coding-tooling-score-history.yml` — persists descriptive score evidence while keeping score semantics in `coding-tooling`.
 - `public-contract-validation.yml` — thin wrapper for canonical public-contract evidence transport.
-- `environment-v1-canary.yml` — verifies environment-v1 setup preserves tracked repository state and reconstructs the declared semantic environment.
+- `environment-v1-canary.yml` — optionally checks whether the repository's environment-v1 setup command succeeds. It does not verify runner or environment identity.
 - `build-artifact.yml` — ordinary-CI producer that checks out one exact source SHA and returns one source-bound artifact plus Execution Receipt v1. By default it builds and uploads normally; opt-in `reuse_across_runs` first resolves a still-retained artifact with the same exact build identity and returns its original `producer_run_id` without rerunning setup or the build. It has no release, promotion, or deployment authority.
 - `fast-validation.yml` — existing Node/Bun convenience adapter retained with a stable interface.
+
+### Validation reuse
+
+Ordinary validation results are not reused across revisions. The former validation-impact and validation-evidence workflows were removed because they added routing and trust state without external consumers. Run the repository-owned validation command for the revision being checked.
 
 ### Specialized / transitional validation
 
@@ -110,13 +114,15 @@ jobs:
   fast:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/command-validation.yml@<immutable-sha>
+    uses: moritzbrantner/reusable-workflows/.github/workflows/command-validation.yml@main
     with:
       setup_command: bun install --frozen-lockfile
       command: bun run validate:fast
 ```
 
 For repositories using `coding-tooling`, prefer `coding-tooling-validation.yml` so hosted execution delegates to the same semantic interface used locally.
+
+Validation results are not reused across source changes. If a repository needs validation, the hosted adapter runs the repository-owned command for that revision.
 
 `build-artifact.yml` is intentionally separate from validation semantics. A caller supplies an exact source SHA, a stable artifact key, preparation if needed, the one build command, and the paths to preserve. Its deterministic identity covers those coordinates plus the runner identity. With `reuse_across_runs: true`, the workflow searches retained build receipts for that identity, verifies the full receipt/source/run/artifact coordinates, and skips setup/build/upload only on a proven hit. Lookup or verification uncertainty falls back to a normal build. Callers that enable reuse must pass the returned `producer_run_id` together with artifact name, digest, receipt name, source SHA, artifact key, and identity digest to downstream consumers rather than assuming `github.run_id`.
 
@@ -148,7 +154,7 @@ Do not use this capability to make a hidden production decision. A generated app
 
 ## Environment-v1 canary
 
-`environment-v1-canary.yml` uses the repository-standard `bash scripts/codex-environment.sh setup` entrypoint. Setup is treated as an idempotent reconstruction operation: tracked state must remain unchanged and the prepared machine must verify against the semantic identity captured before setup.
+`environment-v1-canary.yml` runs the repository-standard `bash scripts/codex-environment.sh setup` entrypoint as an optional smoke test. Its former evidence outputs are empty for compatibility; success means only that setup returned successfully.
 
 ## Contracts and generated metadata
 
@@ -199,6 +205,6 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`validate.yml` keeps pull requests deliberately small: the fast semantic gate and workflow syntax are the default blockers. Build, browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. Ordinary validation always executes the selected repository-owned command or coding-tooling operation; it does not reuse a previous validation result or infer that the check can be skipped.
+`validate.yml` keeps pull requests deliberately small: the fast semantic gate and workflow syntax are the default blockers. Build, browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. Validation-impact and cross-run evidence reuse remain opt-in capabilities rather than prerequisites for the happy path.
 
 `smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.

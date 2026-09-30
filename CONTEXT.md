@@ -26,19 +26,19 @@ A consumer-owned composition of deterministic validation capabilities, such as `
 Caller-owned policy for when validation, qualification, promotion, or delivery runs.
 
 **Command Validation Adapter**  
-`command-validation.yml`, the runtime-neutral hosted adapter around one optional repository-owned setup command and one repository-owned validation command.
+`command-validation.yml`, the runtime-neutral hosted adapter around one optional repository-owned setup command and one repository-owned validation command. It deliberately does not create reusable validation evidence.
 
 **Coding Tooling Adapter**  
-`coding-tooling-validation.yml`, the hosted adapter that delegates operation/tier/report semantics to `coding-tooling`.
+`coding-tooling-validation.yml`, the hosted adapter that delegates operation/tier/report semantics to `coding-tooling`. Failure artifacts are diagnostic only and cannot make a later revision green.
 
 **Coding Tooling Score History Adapter**  
-`coding-tooling-score-history.yml`, a persistent-evidence adapter that delegates scoring semantics and attribution to an immutable `coding-tooling` revision.
+`coding-tooling-score-history.yml`, a persistent-evidence adapter that checks out the current `coding-tooling` branch once and runs validation, scoring, and attribution from that checkout.
 
 **Public Contract Adapter**  
 `public-contract-validation.yml`, a thin transport wrapper around canonical public-contract evidence.
 
-**Environment Integrity Canary**  
-`environment-v1-canary.yml`, which verifies the standard environment-v1 setup is idempotent over tracked state and reconstructs the declared semantic environment.
+**Environment Setup Smoke**
+`environment-v1-canary.yml`, which optionally runs the standard environment-v1 setup command without verifying the runner or environment identity.
 
 **Build Artifact Adapter**  
 `build-artifact.yml`, an ordinary-CI producer for one exact source SHA. It runs a caller-owned build command exactly once, preserves the artifact with its archive digest, binds caller-owned semantic identity plus runner/build context into deterministic identity evidence, and emits Execution Receipt v1. It does not qualify a release, promote, publish, or deploy.
@@ -71,11 +71,11 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 
 1. Workflow YAML owns the current hosted interface.
 2. Consumer repositories and `coding-tooling` own semantic validation; caller workflows own lifecycle timing.
-3. `command-validation.yml` stays runtime-neutral and must not grow framework/test-kind inputs, environment inference, evidence reuse, or receipt semantics.
-4. `coding-tooling-validation.yml` reproduces one repository-owned `coding-tooling` operation/tier on GitHub and always executes that selected operation; GitHub is never a prerequisite for the local path.
+3. `command-validation.yml` stays runtime-neutral and must not grow framework/test-kind inputs.
+4. `coding-tooling-validation.yml` reproduces a repository-owned `coding-tooling` operation/tier on GitHub; GitHub is never a prerequisite for the local path.
 5. `coding-tooling-score-history.yml` may persist descriptive score evidence but must not add score thresholds or release policy.
 6. `public-contract-validation.yml` standardizes transport/location, not evidence meaning.
-7. `environment-v1-canary.yml` owns only the hosted pre/setup/post sequence and must use the standard environment-v1 setup seam.
+7. `environment-v1-canary.yml` owns only the hosted setup smoke and must use the standard environment-v1 setup seam.
 8. `fast-validation.yml` remains a stable Node/Bun convenience adapter, not the generic abstraction.
 9. `build-artifact.yml` may build and preserve one exact-source ordinary-CI artifact, but it must not acquire validation semantics, release qualification, promotion, publication, or deployment policy. Reuse consumers must verify the preserved identity instead of silently rebuilding.
 10. `runtime-profiler` or repository tooling owns performance meaning; GitHub workflows transport evidence.
@@ -150,4 +150,4 @@ Repository-local `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-wo
 
 ## Compatibility policy
 
-`workflow-standard-v1.3` is frozen. Do not move the tag, publish `workflow-standard-v1.4`, or create a monolithic `workflow-standard-v2` merely to evolve current capabilities. New consumers of the capability line should pin exact commit SHAs until a deliberate capability-specific release exists.
+`workflow-standard-v1.3` is frozen for compatibility. New consumers of the capability line may follow `main`; update callers when an upstream interface change requires it.

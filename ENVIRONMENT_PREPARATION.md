@@ -20,6 +20,5 @@ environment declarations.
 
 Artifact-building and release capabilities retain their existing environment-v1 preparation where
 that behavior is part of their established artifact contract. `environment-v1-canary.yml` remains
-the targeted environment setup canary. Those specialized capabilities may inspect environment state
-for failure diagnostics, but ordinary command validation has no hidden environment preparation or
-verification step.
+an optional setup smoke test. Normal validation, builds, and release qualification trust setup and
+report the actual command outcome without adding an automatic environment diagnosis.
