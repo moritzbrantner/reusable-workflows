@@ -25,16 +25,9 @@ Private repositories that use `coding-tooling` may express this evidence as a `d
 
 ## Renovate defaults
 
-A future shared Renovate preset should be conservative:
+Fleet-wide Renovate policy is owned by `coding-agent-conventions/default.json`. Consumer repositories should inherit that shared preset rather than duplicating automerge, cadence, or approval policy here.
 
-- do not automerge by default;
-- group low-risk development dependency updates where useful;
-- keep major updates explicitly reviewable;
-- require normal repository checks;
-- allow an opt-in aged patch-automerge policy only after the relevant checks are stable;
-- keep runtime and security-sensitive updates reviewable unless a repository chooses a narrower policy.
-
-The private `coding-tooling` Action is an optional qualification mechanism, not a prerequisite for dependency automation. Local/source validation, the updater, and hosted qualification remain separable layers.
+Repository-owned checks remain the qualification gate. The private `coding-tooling` Action is an optional qualification mechanism, not a prerequisite for dependency automation. Local/source validation, the updater, and hosted qualification remain separable layers.
 
 ## Benchmark evidence
 
