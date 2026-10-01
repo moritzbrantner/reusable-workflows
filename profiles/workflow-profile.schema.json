@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://moritzbrantner.github.io/reusable-workflows/workflow-profile.schema.json",
+  "title": "Repository workflow profile declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "catalog", "catalogDigest", "profile", "enabledRoles", "workflows"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "catalog": { "const": "workflow-profiles-v1" },
+    "catalogDigest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "profile": { "type": "string", "minLength": 1 },
+    "enabledRoles": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "workflows": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^\\.github/workflows/[^/]+\\.ya?ml$"
+      }
+    },
+    "exceptions": {
+      "type": "array",
+      "default": [],
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "reason"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^\\.github/workflows/[^/]+\\.ya?ml$"
+          },
+          "reason": { "type": "string", "minLength": 8 }
+        }
+      }
+    }
+  }
+}
