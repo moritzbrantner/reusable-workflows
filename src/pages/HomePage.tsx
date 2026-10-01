@@ -250,7 +250,9 @@ export function HomePage() {
         <section className="section section--split" aria-labelledby="adoption-title">
           <div>
             <p className="eyebrow">New Adoption</p>
-            <h2 id="adoption-title">Select a profile, then delegate validation semantics.</h2>
+            <h2 id="adoption-title">
+              Select a profile, then delegate validation semantics.
+            </h2>
             <div className="copy">
               <p>
                 Private consumers that can access <code>coding-tooling</code> should prefer the
