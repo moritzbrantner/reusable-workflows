@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "id": "workflow-profiles-v1",
+  "description": "Canonical GitHub workflow topology for maintained repositories.",
+  "profiles": {
+    "application": {
+      "description": "Deployable application or game.",
+      "maxEnabledRoles": 3,
+      "roles": {
+        "validate": {
+          "path": ".github/workflows/validate.yml",
+          "required": true
+        },
+        "pages": {
+          "path": ".github/workflows/pages.yml",
+          "required": false
+        },
+        "release": {
+          "path": ".github/workflows/release.yml",
+          "required": false
+        }
+      }
+    },
+    "library": {
+      "description": "Reusable package or library.",
+      "maxEnabledRoles": 3,
+      "roles": {
+        "validate": {
+          "path": ".github/workflows/validate.yml",
+          "required": true
+        },
+        "pages": {
+          "path": ".github/workflows/pages.yml",
+          "required": false
+        },
+        "publish": {
+          "path": ".github/workflows/publish.yml",
+          "required": false
+        }
+      }
+    },
+    "engine-lab": {
+      "description": "Engine, benchmark lab, renderer, simulation, or other evidence-heavy foundation.",
+      "maxEnabledRoles": 4,
+      "roles": {
+        "validate": {
+          "path": ".github/workflows/validate.yml",
+          "required": true
+        },
+        "pages": {
+          "path": ".github/workflows/pages.yml",
+          "required": false
+        },
+        "evidence": {
+          "path": ".github/workflows/evidence.yml",
+          "required": false
+        },
+        "publish": {
+          "path": ".github/workflows/publish.yml",
+          "required": false
+        }
+      }
+    },
+    "service": {
+      "description": "Hosted backend, API, worker, or other deployable service.",
+      "maxEnabledRoles": 3,
+      "roles": {
+        "validate": {
+          "path": ".github/workflows/validate.yml",
+          "required": true
+        },
+        "deploy": {
+          "path": ".github/workflows/deploy.yml",
+          "required": false
+        },
+        "release": {
+          "path": ".github/workflows/release.yml",
+          "required": false
+        }
+      }
+    },
+    "template": {
+      "description": "Repository or application template whose workflow shape is part of its product contract.",
+      "maxEnabledRoles": 4,
+      "roles": {
+        "validate": {
+          "path": ".github/workflows/validate.yml",
+          "required": true
+        },
+        "pages": {
+          "path": ".github/workflows/pages.yml",
+          "required": false
+        },
+        "release": {
+          "path": ".github/workflows/release.yml",
+          "required": false
+        },
+        "evidence": {
+          "path": ".github/workflows/evidence.yml",
+          "required": false
+        }
+      }
+    }
+  },
+  "legacyWorkflowPaths": [
+    ".github/workflows/beta-tier.yml",
+    ".github/workflows/main-tier.yml",
+    ".github/workflows/nightly-tier.yml",
+    ".github/workflows/snapshot-stage.yml",
+    ".github/workflows/notify-monorepo-subtree-sync.yml",
+    ".github/workflows/update-monorepo.yml"
+  ]
+}
