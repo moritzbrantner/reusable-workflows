@@ -1,33 +1,36 @@
 # Execution Receipt v1
 
-Reusable workflows may produce semantic reports with different schemas, but orchestration and dashboards still need a small common transport envelope.
+Execution receipts are reserved for capabilities that deliberately persist, move, qualify, promote, or deliver an artifact or other durable cross-workflow reference. They are not part of ordinary command or coding-tooling validation.
 
-`contracts/execution-receipt-v1.schema.json` defines that envelope. It records only execution identity and evidence transport metadata:
+`contracts/execution-receipt-v1.schema.json` defines the shared transport envelope. It records execution identity, exact source coordinates, outcomes, evidence references, optional attestations, and optional upstream references without copying domain-specific report contents.
 
-- the capability name and interface version;
-- the exact consumer repository and commit SHA that ran;
-- the overall execution outcome and named step outcomes;
-- evidence roles, artifact names, repository-relative paths where applicable, and normalized `sha256:<digest>` identities;
-- optional signed-attestation metadata: predicate type, attestation ID/URL, subject name, and subject digest;
-- optional upstream execution references: role, repository, run ID, artifact name, and digest;
-- the GitHub run ID, run attempt, and caller workflow ref.
+## Ordinary validation boundary
 
-The receipt deliberately does **not** copy semantic report contents. When `coding-tooling-validation.yml` preserves evidence, the coding-tooling JSON report remains authoritative for findings, tiers, and public-contract evidence while the receipt points to that report artifact. Failed coding-tooling runs preserve this evidence automatically; successful runs do so only when the caller explicitly requests durable success evidence. `command-validation.yml` has no semantic report by default, so its receipt records execution identity and outcomes with an empty evidence list.
+`command-validation.yml` and `coding-tooling-validation.yml` do not emit execution receipts. Their job is deliberately smaller:
 
-`release-qualification.yml` additionally emits an exact-source provenance predicate described by `contracts/artifact-provenance-v1.schema.json`. The predicate binds the exact checked-out source SHA to the uploaded qualified-artifact digest and the qualification run. It is signed with GitHub artifact attestations through an exact `actions/attest` pin. This intentionally uses a custom in-toto predicate rather than GitHub's automatic SLSA provenance mode: automatic provenance resolves the OIDC workflow SHA, which may be a synthetic pull-request merge SHA instead of the exact commit qualified by this capability.
+```text
+checkout
+  -> optional repository setup
+  -> repository command / coding-tooling operation
+  -> real exit outcome
+```
 
-`artifact-promotion.yml` consumes that qualification receipt by exact run and artifact name, validates the GitHub artifact metadata, downloads the original archive without decompression, checks the raw archive digest, and verifies the signed qualification provenance against the `release-qualification.yml` signer. Its Execution Receipt v1 uses `upstream` to retain the qualification run and receipt-artifact identity while its evidence and attestation entries retain the immutable candidate identity. Promotion is therefore a new reference to the same candidate, not a rebuilt or repacked candidate.
+A failed coding-tooling run may upload its report and an explicitly requested evidence path for diagnosis. Those files are diagnostic output, not a reusable proof that can cause a later validation run to be skipped.
 
-## Current emitters
+## Current durable-reference emitters
 
-- `artifact-promotion.yml`
-- `command-validation.yml`
-- `coding-tooling-validation.yml`
+Execution Receipt v1 remains available where a durable cross-workflow identity is part of the capability itself, including:
+
+- `build-artifact.yml`
+- `coding-tooling-score-history.yml`
 - `release-qualification.yml`
+- `artifact-promotion.yml`
+- `deploy-qualified-pages.yml`
+- `deliver-qualified-expo-stores.yml`
 
-Emitters write the receipt from source and execution context that the workflow already owns, then upload it without reparsing their own output. The receipt schema and emitter contracts are tested in this repository; persisted or cross-workflow receipts are verified by the consumer when they cross a trust boundary. Release qualification still validates its provenance predicate before attesting the artifact, and artifact promotion still verifies that signed predicate and raw artifact archive before emitting a promotion receipt. The repository contract validator locks the shared receipt identity, optional upstream-reference shape, provenance schema, immutable attestation/download Action pins, receipt outputs, and provenance/promotion outputs so these transport seams cannot silently disappear.
+`release-qualification.yml` additionally emits the exact-source provenance predicate described by `contracts/artifact-provenance-v1.schema.json`. Promotion and terminal delivery verify the qualified artifact and its provenance rather than rebuilding it.
 
-Revision provenance follows the same push-first rule: a caller-established source SHA is propagated through checkout, validation, and receipt metadata. Workflows may derive a Git revision only as a compatibility fallback when the caller did not supply one; they should not repeatedly rediscover HEAD inside an already-established execution context.
+The receipt schema and release/artifact transport contracts remain tested because those workflows cross a real persistence or delivery boundary. Receipt semantics should not spread back into the ordinary validation path.
 
 ## Compatibility
 

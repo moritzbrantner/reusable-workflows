@@ -58,7 +58,7 @@ describe("coding-tooling validation adapter", () => {
     expect(source).toContain("OPERATION: ${{ inputs.operation }}");
     expect(source).toContain("EFFECTIVE_OUTCOME: ${{ steps.result.outputs.outcome }}");
     expect(source).toContain(`printf '%s\\n' "- Operation: $OPERATION"`);
-    expect(source).not.toContain('echo "- Operation: \`${{');
+    expect(source).not.toContain('echo "- Operation: `${{');
   });
 
   test("keeps missing-foundation rollout compatibility without hiding invalid state", () => {

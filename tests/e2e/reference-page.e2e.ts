@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 
 const workflowSlugs = [
   "artifact-promotion",
+  "branch-format-diagnostic",
   "build-artifact",
   "coding-tooling-score-history",
   "coding-tooling-validation",
@@ -31,8 +32,6 @@ const workflowSlugs = [
   "toolchain-refresh",
   "validate",
   "validate-repo",
-  "validation-evidence",
-  "validation-impact",
 ];
 
 test("renders the reusable workflow reference page", async ({ page }) => {
