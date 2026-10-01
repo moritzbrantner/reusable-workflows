@@ -65,6 +65,10 @@ jobs:
           path: .coding-tooling-source
           persist-credentials: false
 
+      - name: Install coding-tooling dependencies
+        working-directory: .coding-tooling-source
+        run: bun install --frozen-lockfile
+
       - name: Capture repository verification
         id: verification
         continue-on-error: true
