@@ -1,6 +1,6 @@
 # Adopting Workflow Capabilities
 
-Adopt only the GitHub-hosted capabilities a repository currently needs. Local development and repository-owned validation come first.
+Maintained repositories first select a canonical workflow profile from `profiles/workflow-profiles.json`, then enable only the GitHub-hosted roles they currently need. Local development and repository-owned validation still come first.
 
 ## Start by separating validation from lifecycle
 
@@ -32,7 +32,13 @@ coding-tooling run --tier fast --strict --report .artifacts/coding-tooling/repor
 
 The hosted workflow should never become the only place where validation semantics exist.
 
-## 2. Choose the smallest hosted adapter
+## 2. Select the canonical workflow profile
+
+Use `application`, `library`, `engine-lab`, `service`, or `template`. The profile bounds top-level workflow files and canonical names; it does not move semantic validation into YAML.
+
+`platform-upgrader workflow-profile-v1` resolves the selected profile into `.github/workflow-profile.json`. `coding-tooling workflow-profile audit` reports missing canonical callers and undeclared extras.
+
+## 3. Choose the smallest hosted adapter
 
 ### Generic or public repository
 
@@ -94,7 +100,7 @@ The `coding-tooling` Action is private. Public consumers should use `fast-valida
 
 Do not skip ordinary validation because another commit or workflow produced a matching validation artifact. Run the repository-owned command again for the revision being checked. The former impact/evidence adapters have been removed from the supported workflow surface.
 
-## 3. Choose lifecycle timing in the caller
+## 4. Choose lifecycle timing in the caller
 
 Lifecycle guidance is progressive rather than prescriptive:
 
@@ -109,7 +115,7 @@ stable release      -> publish or promote that qualified immutable candidate
 
 The names above are not required tier names or a branching strategy. Prefer exact commit/artifact qualification and promotion over a required long-lived branch chain. Put triggers, schedules, concurrency, path filters, and required-check policy in the caller workflow.
 
-## 4. Add capabilities only when evidence requires them
+## 5. Add capabilities only when evidence requires them
 
 Possible additions are independent:
 
@@ -121,9 +127,9 @@ Possible additions are independent:
 - `deploy-pages.yml` for GitHub Pages;
 - `package-publish.yml` for explicit package publication.
 
-The semantic workflows above remain usable, especially for existing consumers. For new architecture, prefer exposing repository or `coding-tooling` semantics through the preferred core adapters instead of widening their YAML interfaces. There is no required adoption profile and no requirement to assemble these into a single standard pipeline.
+The semantic workflows above remain usable, especially for existing consumers. For new architecture, prefer exposing repository or `coding-tooling` semantics through the preferred core adapters instead of widening their YAML interfaces. New top-level workflow files should fit the selected canonical profile or be recorded as explicit exceptions.
 
-## 5. Keep source-first work local when appropriate
+## 6. Keep source-first work local when appropriate
 
 Hosted CI does not need to reconstruct every sibling-source workspace.
 
@@ -131,7 +137,7 @@ If a repository uses exact sibling sources during development, validate those re
 
 CI can still run a tier that is valid for its isolated checkout. Release qualification may separately verify published dependency paths when publication becomes relevant.
 
-## 6. Publication is opt-in
+## 7. Publication is opt-in
 
 `package-publish.yml` and `release-template.yml` are terminal capabilities. A repository must be able to continue normal source development when publication is unavailable.
 
