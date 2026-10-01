@@ -8,13 +8,13 @@ The machine-readable source is [`profiles/workflow-profiles.json`](profiles/work
 
 ## Profiles
 
-| Profile        | Canonical roles                                                            |
-| -------------- | -------------------------------------------------------------------------- |
-| `application`  | `validate`, optional `pages`, optional `release`                         |
-| `library`      | `validate`, optional `pages`, optional `publish`                         |
-| `engine-lab`   | `validate`, optional `pages`, optional `evidence`, optional `publish`    |
-| `service`      | `validate`, optional `deploy`, optional `release`                        |
-| `template`     | `validate`, optional `pages`, optional `release`, optional `evidence`   |
+| Profile       | Canonical roles                                                       |
+| ------------- | --------------------------------------------------------------------- |
+| `application` | `validate`, optional `pages`, optional `release`                      |
+| `library`     | `validate`, optional `pages`, optional `publish`                      |
+| `engine-lab`  | `validate`, optional `pages`, optional `evidence`, optional `publish` |
+| `service`     | `validate`, optional `deploy`, optional `release`                     |
+| `template`    | `validate`, optional `pages`, optional `release`, optional `evidence` |
 
 A repository enables only the roles it actually needs. The profile bounds the allowed topology; it does not require optional roles.
 

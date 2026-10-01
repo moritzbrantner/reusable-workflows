@@ -43,10 +43,10 @@ export function HomePage() {
               Thin GitHub adapters for repository-owned validation and delivery.
             </h1>
             <p className="hero__lede">
-              Repository commands and coding-tooling own deterministic semantics. Canonical
-              workflow profiles define the small set of caller files maintained repositories
-              expose, while reusable workflows centralize GitHub execution, evidence transport,
-              deployment, publication, and maintenance mechanics.
+              Repository commands and coding-tooling own deterministic semantics. Canonical workflow
+              profiles define the small set of caller files maintained repositories expose, while
+              reusable workflows centralize GitHub execution, evidence transport, deployment,
+              publication, and maintenance mechanics.
             </p>
             <div className="hero__actions" aria-label="Repository resources">
               <a
@@ -181,11 +181,11 @@ export function HomePage() {
               <h2 id="workflows-title">Current YAML is the capability source of truth.</h2>
             </div>
             <p>
-              Reusable capabilities are detected from <code>workflow_call</code>. Canonical
-              profiles bound caller filenames and composition; repository callers still own
-              lifecycle triggers and repository-specific commands. Specialized and compatibility
-              workflows remain available, but new architecture should prefer the canonical profile
-              roles over additional top-level workflow files.
+              Reusable capabilities are detected from <code>workflow_call</code>. Canonical profiles
+              bound caller filenames and composition; repository callers still own lifecycle
+              triggers and repository-specific commands. Specialized and compatibility workflows
+              remain available, but new architecture should prefer the canonical profile roles over
+              additional top-level workflow files.
             </p>
           </div>
 
@@ -250,9 +250,7 @@ export function HomePage() {
         <section className="section section--split" aria-labelledby="adoption-title">
           <div>
             <p className="eyebrow">New Adoption</p>
-            <h2 id="adoption-title">
-              Select a profile, then delegate validation semantics.
-            </h2>
+            <h2 id="adoption-title">Select a profile, then delegate validation semantics.</h2>
             <div className="copy">
               <p>
                 Private consumers that can access <code>coding-tooling</code> should prefer the
