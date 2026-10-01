@@ -1,18 +1,19 @@
 # Reusable GitHub Workflow Capabilities
 
-This repository provides small, optional GitHub Actions adapters for repositories that want hosted validation, deployment, publication, or release automation.
+This repository provides small GitHub Actions adapters plus the canonical workflow profiles used to normalize maintained repositories across the fleet.
 
-It is **not** the source of truth for how a repository develops, validates, or orchestrates work.
+It is the source of truth for GitHub workflow topology and reusable GitHub mechanics. It is **not** the source of truth for repository-owned validation semantics, product behavior, or local development commands.
 
 The ownership boundary is:
 
 1. `coding-agent-conventions` describes preferred repository behavior.
 2. Repository-owned commands and `coding-tooling` implement deterministic checks locally.
 3. Source workspaces may compose sibling repositories directly and remain usable without GitHub.
-4. This repository optionally reproduces selected checks or release operations on GitHub-hosted runners.
-5. Agent contracts, profilers, and orchestrators may consume results, but are not prerequisites for these workflows.
+4. This repository defines the canonical workflow profile and reproduces selected checks or release operations on GitHub-hosted runners.
+5. `platform-upgrader` reconciles maintained repositories to those profiles and `coding-tooling` reports profile drift.
+6. Agent contracts, profilers, and orchestrators may consume results, but are not prerequisites for these workflows.
 
-A repository can use one workflow, several workflows, or none. Adoption is progressive rather than profile-driven.
+Maintained repositories select one canonical profile from `profiles/workflow-profiles.json` and enable only the roles they need. Extra workflow files require an explicit repository-local exception. See [WORKFLOW_PROFILES.md](WORKFLOW_PROFILES.md).
 
 ## Validation architecture
 
@@ -64,6 +65,10 @@ source development -> local validation -> done
 ### Validation reuse
 
 Ordinary validation results are not reused across revisions. The former validation-impact and validation-evidence workflows were removed because they added routing and trust state without external consumers. Run the repository-owned validation command for the revision being checked.
+
+### Canonical profile composition
+
+Reusable capabilities remain independently callable, but maintained fleet repositories should normally expose only the canonical caller files selected by their workflow profile: `validate.yml`, plus the profile's explicitly enabled `pages.yml`, `evidence.yml`, `publish.yml`, `deploy.yml`, or `release.yml` roles. Prefer adding jobs or matrices inside those callers over creating another top-level workflow file.
 
 ### Specialized / transitional validation
 
@@ -176,7 +181,7 @@ bun run validate:contracts
 
 ## Caller-owned concerns
 
-Keep these in the caller or consumer repository rather than growing reusable workflow inputs:
+Keep these in the caller or consumer repository rather than growing reusable workflow inputs. The workflow profile still bounds which top-level caller files exist:
 
 - concurrency policy;
 - semantic validation tiers and commands;
