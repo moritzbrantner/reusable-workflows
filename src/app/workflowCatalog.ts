@@ -52,13 +52,14 @@ const workflowDetails = [
     file: ".github/workflows/deploy-docs-pages.yml",
     title: "Deploy Docs Pages",
     summary:
-      "Default-branch and manual Caller Workflow that builds the reference app and publishes it through the reusable Pages workflow.",
+      "Default-branch and manual Caller Workflow that reuses the validated reference artifact and publishes it through the reusable Pages workflow.",
     role: "Caller Workflow",
     useWhen:
-      "Use this Caller Workflow to publish the generated documentation site from `dist/` to GitHub Pages.",
+      "Use this Caller Workflow to publish the already validated documentation site from `dist/` to GitHub Pages.",
     responsibilities: [
-      "Runs on `main` pushes and manual dispatches.",
-      "Delegates build, artifact upload, and Pages deployment to `deploy-pages.yml`.",
+      "Runs after successful `main` validation or by manual dispatch.",
+      "Resolves the exact source-bound artifact produced by ordinary validation without rebuilding on a verified reuse hit.",
+      "Delegates Pages upload and deployment to `deploy-pages.yml` with prebuilt artifact coordinates.",
       "Grants Pages and OIDC permissions only for the deployment path.",
     ],
     icon: Globe2,
