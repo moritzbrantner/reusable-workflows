@@ -94,7 +94,7 @@ async function fetchCurrentBuild(): Promise<BuildMetricsEntry | null> {
     return null;
   }
 
-  const token = process.env.GITHUB_TOKEN ?? process.env.GH_PACKAGES_TOKEN;
+  const token = process.env.GITHUB_TOKEN;
   const repository = process.env.GITHUB_REPOSITORY;
 
   if (!token || !repository) {
