@@ -1,38 +1,11 @@
+import { readdirSync } from "node:fs";
+
 import { expect, test } from "@playwright/test";
 
-const workflowSlugs = [
-  "artifact-promotion",
-  "branch-format-diagnostic",
-  "build-artifact",
-  "coding-tooling-score-history",
-  "coding-tooling-validation",
-  "command-validation",
-  "deliver-qualified-expo-stores",
-  "deploy-docs-pages",
-  "deploy-pages",
-  "deploy-qualified-pages",
-  "e2e-validation",
-  "environment-v1-canary",
-  "external-pull",
-  "fast-validation",
-  "format-repository-pages",
-  "integration-validation",
-  "link-validation",
-  "package-publish",
-  "performance-validation",
-  "promote-branches",
-  "public-contract-validation",
-  "release-qualification",
-  "release-template",
-  "repository-diagnostics",
-  "smoke-integration-prebuilt",
-  "smoke-reusable-workflows",
-  "stage-validation",
-  "storybook-validation",
-  "toolchain-refresh",
-  "validate",
-  "validate-repo",
-];
+const workflowSlugs = readdirSync(new URL("../../.github/workflows/", import.meta.url))
+  .filter((file) => file.endsWith(".yml"))
+  .map((file) => file.replace(/\.yml$/, ""))
+  .sort();
 
 test("renders the reusable workflow reference page", async ({ page }) => {
   await page.goto("/");
@@ -74,6 +47,16 @@ test("keeps dogfood navigation usable", async ({ page }) => {
 });
 
 test("keeps metrics navigation usable with the empty fallback history", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.buildMetricsHistoryFixture = {
+      schemaVersion: 1,
+      generatedAt: "2026-06-07T12:30:00.000Z",
+      source: "github-actions",
+      limit: 5,
+      builds: [],
+    };
+  });
+
   await page.goto("/");
   await page.getByRole("link", { name: "Metrics" }).click();
 
@@ -226,11 +209,11 @@ test("renders latest build metrics and the last-5 table from a fixture history",
 });
 
 test("renders workflow detail pages with dependencies and contract data", async ({ page }) => {
-  await page.goto("/deploy-qualified-pages");
+  await page.goto("/build-artifact");
 
-  await expect(page.getByRole("heading", { name: "Deploy Qualified Pages" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Build Artifact" })).toBeVisible();
   await expect(
-    page.locator(".workflow-hero__meta").getByText(".github/workflows/deploy-qualified-pages.yml"),
+    page.locator(".workflow-hero__meta").getByText(".github/workflows/build-artifact.yml"),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "What it uses and who uses it" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Deploy Docs Pages/ })).toBeVisible();
@@ -259,10 +242,11 @@ test("links every workflow to a clean path route", async ({ page }) => {
 test("only shows the uses relationship card when a workflow calls other workflows", async ({
   page,
 }) => {
-  await page.goto("/deploy-qualified-pages");
+  await page.goto("/deploy-pages");
 
   await expect(page.getByText("Uses these workflows", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Used by these workflows", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Deploy Docs Pages/ })).toBeVisible();
 
   await page.goto("/validate");
 

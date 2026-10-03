@@ -235,9 +235,10 @@ export function HomePage() {
                   <Globe2 aria-hidden="true" />
                   <h3>Pages deploy</h3>
                   <p>
-                    Default-branch pushes build the React reference app and publish{" "}
-                    <code>dist/</code>
-                    through the <code>deploy-pages.yml</code> Reusable Workflow.
+                    Pull requests and default-branch validation build the React reference app once.
+                    Successful <code>main</code> validation then reuses that exact{" "}
+                    <code>dist/</code> artifact through the <code>deploy-pages.yml</code> Reusable
+                    Workflow.
                   </p>
                 </CardContent>
               </Card>
