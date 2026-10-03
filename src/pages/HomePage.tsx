@@ -236,8 +236,9 @@ export function HomePage() {
                   <h3>Pages deploy</h3>
                   <p>
                     Pull requests and default-branch validation build the React reference app once.
-                    Successful <code>main</code> validation then reuses that exact <code>dist/</code>{" "}
-                    artifact through the <code>deploy-pages.yml</code> Reusable Workflow.
+                    Successful <code>main</code> validation then reuses that exact{" "}
+                    <code>dist/</code> artifact through the <code>deploy-pages.yml</code> Reusable
+                    Workflow.
                   </p>
                 </CardContent>
               </Card>
