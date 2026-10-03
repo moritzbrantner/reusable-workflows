@@ -99,7 +99,7 @@ async function fetchCurrentBuild(): Promise<BuildMetricsEntry | null> {
 
   if (!token || !repository) {
     throw new Error(
-      "GITHUB_TOKEN and GITHUB_REPOSITORY are required to download metrics artifacts.",
+      "A GitHub Actions token and GITHUB_REPOSITORY are required to download metrics artifacts.",
     );
   }
 
