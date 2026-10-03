@@ -86,7 +86,9 @@ async function fetchPreviousHistory(generatedAt: string) {
 
 async function fetchCurrentBuild(): Promise<BuildMetricsEntry | null> {
   const event = readWorkflowEvent();
-  const runId = event.workflow_run?.id;
+  const workflowRunId = event.workflow_run?.id;
+  const currentRunId = Number.parseInt(process.env.GITHUB_RUN_ID ?? "", 10);
+  const runId = workflowRunId ?? (Number.isSafeInteger(currentRunId) ? currentRunId : undefined);
 
   if (!runId) {
     return null;
@@ -97,11 +99,19 @@ async function fetchCurrentBuild(): Promise<BuildMetricsEntry | null> {
 
   if (!token || !repository) {
     throw new Error(
-      "GITHUB_TOKEN and GITHUB_REPOSITORY are required to download metrics artifacts.",
+      "A GitHub Actions token and GITHUB_REPOSITORY are required to download metrics artifacts.",
     );
   }
 
   const artifact = await findArtifact(repository, token, runId);
+
+  if (!artifact) {
+    if (workflowRunId) {
+      throw new Error(`Could not find ${artifactName} for workflow run ${runId}.`);
+    }
+
+    return null;
+  }
 
   if (!artifact.archive_download_url) {
     throw new Error(`Artifact ${artifactName} did not include a download URL.`);
@@ -129,13 +139,7 @@ async function findArtifact(repository: string, token: string, runId: number) {
   }
 
   const payload = (await response.json()) as ArtifactList;
-  const artifact = payload.artifacts?.find((candidate) => candidate.name === artifactName);
-
-  if (!artifact) {
-    throw new Error(`Could not find ${artifactName} for workflow run ${runId}.`);
-  }
-
-  return artifact;
+  return payload.artifacts?.find((candidate) => candidate.name === artifactName) ?? null;
 }
 
 async function downloadCurrentBuild(

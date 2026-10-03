@@ -82,20 +82,17 @@ jobs:
       tier: fast
 
   artifact-build:
-    needs: [coding-tooling-fast, actionlint]
+    needs: [coding-tooling-fast, actionlint, performance-validation]
     if: >-
       ${{
+        always() &&
         !cancelled() &&
         needs.coding-tooling-fast.result == 'success' &&
-        needs.actionlint.result == 'success' && (
+        needs.actionlint.result == 'success' &&
+        (needs.performance-validation.result == 'success' || needs.performance-validation.result == 'skipped') && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-          (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_storybook || inputs.run_link_validation)) ||
-          (github.event_name == 'pull_request' && (
-            contains(github.event.pull_request.labels.*.name, 'ci:full') ||
-            contains(github.event.pull_request.labels.*.name, 'ci:e2e') ||
-            contains(github.event.pull_request.labels.*.name, 'ci:storybook') ||
-            contains(github.event.pull_request.labels.*.name, 'ci:links')
-          ))
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_storybook || inputs.run_link_validation))
         )
       }}
     uses: ./.github/workflows/build-artifact.yml
@@ -108,8 +105,9 @@ jobs:
       artifact_key: reusable-workflows-web-dist-v1
       bun_version: "1.4.0"
       cache_bun: true
-      build_command: "bun run build && bun run size:check:dist"
+      build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"
       artifact_paths: dist
+      reuse_across_runs: true
       artifact_retention_days: 1
 
   e2e-validation:

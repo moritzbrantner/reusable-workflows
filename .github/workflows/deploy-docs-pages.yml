@@ -12,57 +12,54 @@ on:
 
 permissions:
   actions: read
-  attestations: write
   contents: read
-  id-token: write
-  pages: write
 
 concurrency:
   group: docs-pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  qualify-pages:
+  build-pages:
     if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     permissions:
       actions: read
-      attestations: write
       contents: read
-      id-token: write
-    uses: ./.github/workflows/release-qualification.yml
+      packages: read
+    uses: ./.github/workflows/build-artifact.yml
     with:
       source_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
-      setup_command: "npm install --global bun@1.4.0"
-      qualification_command: "bun run validate:semantic"
+      artifact_key: reusable-workflows-web-dist-v1
+      bun_version: "1.4.0"
+      cache_bun: true
       build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"
       artifact_paths: dist
-      artifact_retention_days: 7
-      timeout_minutes: 30
-
-  promote-pages:
-    needs: qualify-pages
-    permissions:
-      actions: read
-      attestations: read
-      contents: read
-    uses: ./.github/workflows/artifact-promotion.yml
-    with:
-      qualification_run_id: ${{ github.run_id }}
-      qualification_receipt_artifact_name: ${{ needs.qualify-pages.outputs.receipt_artifact_name }}
-      artifact_retention_days: 7
+      reuse_across_runs: true
+      artifact_retention_days: 1
 
   deploy-pages:
-    needs: promote-pages
+    needs: build-pages
     permissions:
       actions: read
-      attestations: read
       contents: read
       id-token: write
+      packages: read
       pages: write
-    uses: ./.github/workflows/deploy-qualified-pages.yml
+    uses: ./.github/workflows/deploy-pages.yml
     with:
-      promotion_run_id: ${{ github.run_id }}
-      promotion_receipt_artifact_name: ${{ needs.promote-pages.outputs.receipt_artifact_name }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      build_command: ""
+      artifact_path: dist
+      prebuilt_artifact_run_id: ${{ needs.build-pages.outputs.producer_run_id }}
+      prebuilt_artifact_receipt_name: ${{ needs.build-pages.outputs.receipt_artifact_name }}
+      prebuilt_artifact_name: ${{ needs.build-pages.outputs.artifact_name }}
+      prebuilt_artifact_digest: ${{ needs.build-pages.outputs.artifact_digest }}
+      prebuilt_source_sha: ${{ needs.build-pages.outputs.source_sha }}
+      prebuilt_artifact_key: ${{ needs.build-pages.outputs.artifact_key }}
+      prebuilt_identity_digest: ${{ needs.build-pages.outputs.identity_digest }}
+      cache_bun: false
+      cache_node: false
       concurrency_group: docs-pages
       cancel_in_progress: false
       timeout_minutes: 15

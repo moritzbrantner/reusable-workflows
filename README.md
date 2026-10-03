@@ -70,6 +70,8 @@ Ordinary validation results are not reused across revisions. The former validati
 
 Reusable capabilities remain independently callable, but maintained fleet repositories should normally expose only the canonical caller files selected by their workflow profile: `validate.yml`, plus the profile's explicitly enabled `pages.yml`, `evidence.yml`, `publish.yml`, `deploy.yml`, or `release.yml` roles. Prefer adding jobs or matrices inside those callers over creating another top-level workflow file.
 
+For repositories where Pages is an important application surface, `validate.yml` should produce the Pages artifact on pull requests and `main`. Use `build-artifact.yml` when the artifact needs to feed multiple hosted checks or a later workflow. The `pages.yml` role should normally wait for successful `main` validation, resolve/reuse that exact source-bound artifact, and pass it to `deploy-pages.yml` without reinstalling dependencies or rebuilding. This keeps Pages verification in the ordinary completion gate while making deployment a thin delivery step.
+
 ### Specialized / transitional validation
 
 - `integration-validation.yml`
@@ -210,6 +212,6 @@ bun install --frozen-lockfile
 bun run validate:fast
 ```
 
-`validate.yml` keeps pull requests deliberately small: the fast semantic gate and workflow syntax are the default blockers. Build, browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. Validation-impact and cross-run evidence reuse remain opt-in capabilities rather than prerequisites for the happy path.
+`validate.yml` keeps pull requests deliberately small: the fast semantic gate, workflow syntax, and the deployable Pages artifact are the default blockers. Browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. The Pages artifact enables exact-source deployment reuse; ordinary validation results are still not reused across revisions.
 
-`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. `deploy-docs-pages.yml` dogfoods qualification -> promotion -> qualified Pages delivery on `main`. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
+`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. The repository's ordinary `validate.yml` now produces the reference Pages artifact for every pull request and `main`; `deploy-docs-pages.yml` resolves/reuses the successful `main` artifact and deploys it without rebuilding. Release qualification/promotion remains covered by the smoke workflow for consumers that genuinely need an immutable release lifecycle. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.

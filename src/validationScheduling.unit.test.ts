@@ -35,16 +35,32 @@ describe("repository validation scheduling", () => {
     expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:perf')");
   });
 
-  test("keeps deployment qualification separate from ordinary validation", () => {
+  test("builds Pages once in validation and reuses the exact artifact for deployment", () => {
+    const validate = readFileSync(
+      new URL("../.github/workflows/validate.yml", import.meta.url),
+      "utf8",
+    );
     const deployDocsPages = readFileSync(
       new URL("../.github/workflows/deploy-docs-pages.yml", import.meta.url),
       "utf8",
     );
 
-    expect(deployDocsPages).toContain('qualification_command: "bun run validate:semantic"');
+    const buildCommand =
+      'build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"';
+
+    expect(validate).toContain("needs: [coding-tooling-fast, actionlint, performance-validation]");
+    expect(validate).toContain("github.event_name == 'pull_request'");
+    expect(validate).toContain(buildCommand);
+    expect(validate).toContain("reuse_across_runs: true");
+
+    expect(deployDocsPages).toContain("uses: ./.github/workflows/build-artifact.yml");
+    expect(deployDocsPages).toContain(buildCommand);
+    expect(deployDocsPages).toContain("reuse_across_runs: true");
+    expect(deployDocsPages).toContain("uses: ./.github/workflows/deploy-pages.yml");
     expect(deployDocsPages).toContain(
-      'build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"',
+      "prebuilt_artifact_run_id: ${{ needs.build-pages.outputs.producer_run_id }}",
     );
-    expect(deployDocsPages).not.toContain('qualification_command: "bun run validate:fast"');
+    expect(deployDocsPages).not.toContain("release-qualification.yml");
+    expect(deployDocsPages).not.toContain("artifact-promotion.yml");
   });
 });

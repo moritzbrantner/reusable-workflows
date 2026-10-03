@@ -170,6 +170,7 @@ jobs:
         shell: bash
         working-directory: ${{ inputs.working_directory }}
     env:
+      GITHUB_TOKEN: ${{ github.token }}
       NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
     outputs:

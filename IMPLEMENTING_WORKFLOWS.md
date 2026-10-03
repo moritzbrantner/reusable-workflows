@@ -129,7 +129,32 @@ Possible additions are independent:
 
 The semantic workflows above remain usable, especially for existing consumers. For new architecture, prefer exposing repository or `coding-tooling` semantics through the preferred core adapters instead of widening their YAML interfaces. New top-level workflow files should fit the selected canonical profile or be recorded as explicit exceptions.
 
-## 6. Keep source-first work local when appropriate
+## 6. Reuse important Pages builds instead of rebuilding for deployment
+
+When GitHub Pages is an important application surface, treat its build as validation evidence rather than as deployment-only work.
+
+The preferred caller topology is:
+
+```text
+pull request / main
+  -> validate.yml
+       -> repository validation
+       -> build-artifact.yml (Pages artifact)
+            -> optional browser/site checks
+
+successful main validation
+  -> pages.yml
+       -> build-artifact.yml with the same exact identity and reuse_across_runs=true
+       -> deploy-pages.yml consuming the verified prebuilt artifact
+```
+
+The second `build-artifact.yml` call is an artifact resolver on the successful path: with the same source SHA, artifact key, runtimes, setup/build commands, artifact paths, and runner identity, it verifies and returns the retained producer coordinates instead of rebuilding. If reuse cannot be proven, it falls back to a normal build.
+
+Keep the repository-specific Pages build command in the consumer. Do not add a generic Pages build language to the profile. Do not reuse a pull-request artifact for a different merge SHA merely because the source looks similar; ordinary validation remains revision-specific.
+
+For small repositories where validation and Pages really are the same build, prefer one artifact-producing build job and let downstream validation/deployment consume its output rather than running the same build command in independent jobs.
+
+## 7. Keep source-first work local when appropriate
 
 Hosted CI does not need to reconstruct every sibling-source workspace.
 
@@ -137,7 +162,7 @@ If a repository uses exact sibling sources during development, validate those re
 
 CI can still run a tier that is valid for its isolated checkout. Release qualification may separately verify published dependency paths when publication becomes relevant.
 
-## 7. Publication is opt-in
+## 8. Publication is opt-in
 
 `package-publish.yml` and `release-template.yml` are terminal capabilities. A repository must be able to continue normal source development when publication is unavailable.
 
