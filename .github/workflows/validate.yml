@@ -89,13 +89,8 @@ jobs:
         needs.coding-tooling-fast.result == 'success' &&
         needs.actionlint.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-          (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_storybook || inputs.run_link_validation)) ||
-          (github.event_name == 'pull_request' && (
-            contains(github.event.pull_request.labels.*.name, 'ci:full') ||
-            contains(github.event.pull_request.labels.*.name, 'ci:e2e') ||
-            contains(github.event.pull_request.labels.*.name, 'ci:storybook') ||
-            contains(github.event.pull_request.labels.*.name, 'ci:links')
-          ))
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_storybook || inputs.run_link_validation))
         )
       }}
     uses: ./.github/workflows/build-artifact.yml
@@ -110,6 +105,7 @@ jobs:
       cache_bun: true
       build_command: "bun run build && bun run size:check:dist"
       artifact_paths: dist
+      reuse_across_runs: true
       artifact_retention_days: 1
 
   e2e-validation:
