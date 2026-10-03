@@ -18,6 +18,14 @@ The machine-readable source is [`profiles/workflow-profiles.json`](profiles/work
 
 A repository enables only the roles it actually needs. The profile bounds the allowed topology; it does not require optional roles.
 
+For Pages-enabled repositories, the roles deliberately split verification from delivery:
+
+- `validate` should build the Pages artifact on pull requests and `main` when Pages is an important application surface;
+- downstream browser/site checks should consume that same artifact when practical;
+- `pages` should run only for delivery-worthy revisions, normally after successful `main` validation, resolve/reuse the exact validated artifact, and deploy it without rebuilding.
+
+The Pages build command remains repository-owned. The profile standardizes the handoff and top-level workflow boundary, not application-specific build semantics.
+
 ## Consumer declaration
 
 Maintained consumers record their resolved profile at `.github/workflow-profile.json`. `platform-upgrader workflow-profile-v1` owns reconciliation from this catalog. A resolved declaration records:
