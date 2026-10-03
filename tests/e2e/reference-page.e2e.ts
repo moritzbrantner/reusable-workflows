@@ -209,11 +209,11 @@ test("renders latest build metrics and the last-5 table from a fixture history",
 });
 
 test("renders workflow detail pages with dependencies and contract data", async ({ page }) => {
-  await page.goto("/deploy-pages");
+  await page.goto("/build-artifact");
 
-  await expect(page.getByRole("heading", { name: "Deploy Pages" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Build Artifact" })).toBeVisible();
   await expect(
-    page.locator(".workflow-hero__meta").getByText(".github/workflows/deploy-pages.yml"),
+    page.locator(".workflow-hero__meta").getByText(".github/workflows/build-artifact.yml"),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "What it uses and who uses it" })).toBeVisible();
   await expect(page.getByRole("link", { name: /Deploy Docs Pages/ })).toBeVisible();
