@@ -169,6 +169,7 @@ on:
       node_auth_token:
         required: false
       GH_PACKAGES_TOKEN:
+        description: Deprecated and unused. Accepted only so callers that still pass it do not fail; owner packages install without a registry token.
         required: false
 
 jobs:
@@ -190,8 +191,7 @@ jobs:
         shell: bash
         working-directory: ${{ inputs.working_directory }}
     env:
-      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || secrets.GH_PACKAGES_TOKEN || github.token }}
-      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN || secrets.node_auth_token || github.token }}
+      NODE_AUTH_TOKEN: ${{ secrets.node_auth_token || github.token }}
     steps:
       - uses: actions/checkout@v6
         with:
