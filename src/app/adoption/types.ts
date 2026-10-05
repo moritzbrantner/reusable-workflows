@@ -16,7 +16,6 @@ export type AdoptionOptions = {
   includeLinks: boolean;
   includePerformance: boolean;
   includePagesDeploy: boolean;
-  includePackagePublish: boolean;
 };
 
 type AdoptionDiagnosticLevel = "warning" | "error";

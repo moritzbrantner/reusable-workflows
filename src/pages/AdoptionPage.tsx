@@ -217,11 +217,6 @@ export function AdoptionPage() {
                     label="Pages deploy"
                     onChange={(checked) => updateOption("includePagesDeploy", checked)}
                   />
-                  <Toggle
-                    checked={options.includePackagePublish}
-                    label="Package publish"
-                    onChange={(checked) => updateOption("includePackagePublish", checked)}
-                  />
                 </div>
               </CardContent>
             </Card>

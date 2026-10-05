@@ -99,8 +99,8 @@ test("changes generated YAML for each common adoption profile", async ({ page })
   await expect(generatedYaml).toContainText("storybook-validation.yml@workflow-standard-v1.3");
 
   await page.getByText("Package", { exact: true }).click();
-  await expect(generatedYaml).toContainText(".github/workflows/publish-package.yml");
-  await expect(generatedYaml).toContainText("publish_enabled: false");
+  await expect(generatedYaml).toContainText("integration-validation.yml@workflow-standard-v1.3");
+  await expect(generatedYaml).not.toContainText("publish-package.yml");
 
   await page.getByText("Pages site", { exact: true }).click();
   await expect(generatedYaml).toContainText(".github/workflows/deploy-pages.yml");

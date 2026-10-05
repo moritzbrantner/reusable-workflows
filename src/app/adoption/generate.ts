@@ -22,13 +22,6 @@ export function generateAdoptionWorkflows(options: AdoptionOptions): GeneratedWo
     });
   }
 
-  if (options.includePackagePublish) {
-    workflows.push({
-      path: ".github/workflows/publish-package.yml",
-      content: generatePackagePublishWorkflow(options),
-    });
-  }
-
   return workflows;
 }
 
@@ -104,41 +97,6 @@ function generateDeployPagesWorkflow(options: AdoptionOptions) {
           build_command: runCommand(options.packageManager, "build"),
           artifact_path: "dist",
           ...workingDirectoryInputs(options),
-        },
-      }),
-      2,
-    ),
-    "",
-  ].join("\n");
-}
-
-function generatePackagePublishWorkflow(options: AdoptionOptions) {
-  return [
-    "name: Publish Package",
-    "",
-    "on:",
-    "  workflow_dispatch:",
-    "  release:",
-    "    types:",
-    "      - published",
-    "",
-    "jobs:",
-    ...indentBlock(
-      reusableJob("package-publish", ".github/workflows/package-publish.yml", options, {
-        permissions: permissionsFor(".github/workflows/package-publish.yml"),
-        with: {
-          package_manager: "npm",
-          publish_enabled: false,
-          dry_run: true,
-          install_command: installCommand(options.packageManager),
-          ...packageManagerSetupInputs(options.packageManager),
-          build_command: runCommand(options.packageManager, "build"),
-          validate_command: runCommand(options.packageManager, "test:unit"),
-          publish_command: publishCommand(options.packageManager),
-          ...workingDirectoryInputs(options),
-        },
-        secrets: {
-          NPM_TOKEN: "${{ secrets.NPM_TOKEN }}",
         },
       }),
       2,
@@ -398,30 +356,6 @@ function packageCheckCommand(packageManager: PackageManager) {
     case "pnpm":
       return "pnpm pack --dry-run";
   }
-}
-
-function publishCommand(packageManager: PackageManager) {
-  switch (packageManager) {
-    case "bun":
-      return "npm publish";
-    case "npm":
-      return "npm publish";
-    case "pnpm":
-      return "pnpm publish";
-  }
-}
-
-function packageManagerSetupInputs(
-  packageManager: PackageManager,
-): Record<string, boolean | string> {
-  if (packageManager === "bun") {
-    return {
-      bun_version: "1.3.14",
-      cache_bun: true,
-    };
-  }
-
-  return {};
 }
 
 function indentBlock(block: string, spaces: number) {

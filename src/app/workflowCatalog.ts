@@ -193,29 +193,14 @@ const workflowDetails = [
     icon: ServerCog,
   },
   {
-    file: ".github/workflows/package-publish.yml",
-    title: "Package Publish",
-    summary:
-      "Opinionated npm-compatible registry and Cargo package publishing with explicit publish gating.",
-    role: "Reusable Workflow",
-    useWhen:
-      "Use this workflow for standard npm or Cargo package publication from tag, release, or manual publish callers.",
-    responsibilities: [
-      "Validates the selected package manager and only publishes when `publish_enabled` is true.",
-      "Sets up npm or Cargo-specific tooling, caching, registry authentication, and default publish flags.",
-      "Keeps package publishing separate from custom app release flows handled by `release-template.yml`.",
-    ],
-    icon: PackageCheck,
-  },
-  {
     file: ".github/workflows/release-template.yml",
     title: "Release Template",
-    summary: "Validate, build, publish, and upload release artifacts with explicit secrets.",
+    summary: "Validate, build, release, and upload release artifacts without registry publishing.",
     role: "Reusable Workflow",
     useWhen:
-      "Use this workflow as a reusable release skeleton where each repository supplies its own publish command.",
+      "Use this workflow as a reusable release skeleton where each repository supplies its own release command. npm/registry publishing is retired.",
     responsibilities: [
-      "Runs validate, build, and release commands with optional package-manager authentication.",
+      "Runs validate, build, and release commands without npm registry credentials.",
       "Separates release token handling from ordinary validation secrets.",
       "Uploads release artifacts when a caller provides artifact paths.",
     ],
@@ -427,25 +412,13 @@ const workflowGraphNodes = [
   {
     id: "release-template",
     label: "Release Template",
-    description: "Validate, build, publish, and upload release artifacts.",
+    description: "Validate, build, release, and upload release artifacts.",
     group: "Reusable Workflow",
     x: 664,
     y: 688,
     width: 208,
     height: 112,
     tone: "warning",
-    status: "stable",
-  },
-  {
-    id: "package-publish",
-    label: "Package Publish",
-    description: "npm and Cargo package publication with explicit gating.",
-    group: "Reusable Workflow",
-    x: 1008,
-    y: 688,
-    width: 208,
-    height: 112,
-    tone: "success",
     status: "stable",
   },
   {
@@ -546,13 +519,6 @@ const workflowGraphEdges = [
     id: "smoke-release",
     source: "smoke",
     target: "release-template",
-    label: "smoke",
-    kind: "optional",
-  },
-  {
-    id: "smoke-package-publish",
-    source: "smoke",
-    target: "package-publish",
     label: "smoke",
     kind: "optional",
   },

@@ -94,14 +94,15 @@ Qualification does not make the release decision. Promotion records that a previ
 - `deploy-qualified-pages.yml` — consumes a successful promotion receipt, re-verifies the original qualified Pages artifact and signer provenance, then deploys it without checkout, dependency installation, or rebuilding.
 - `deliver-qualified-expo-stores.yml` — terminal Expo store delivery. It consumes a successful promotion receipt, re-verifies the original qualified archive and `release-qualification.yml` provenance, safely extracts one `mobile-release.json`, verifies the recorded `.ipa` and `.aab` SHA-256 digests, checks out the exact source only to read app-owned `eas.json`, and submits the exact binaries with `eas submit --path`. It never uses `--latest` and never rebuilds. The caller supplies the app-owned EAS Submit profile and an Expo token; TestFlight/Play tracks and final public-release policy remain outside this capability.
 - `deploy-pages.yml` — existing build-and-deploy Pages convenience workflow retained for compatibility/transitional callers.
-- `package-publish.yml` — explicit npm/Cargo publication. Publication is never a prerequisite for source development.
+
+`package-publish.yml` (npm/Cargo publication) is retired on `main`: npm publishing is paused. Owner packages are consumed as commit-pinned git dependencies (`git+https://github.com/moritzbrantner/<repo>.git#<sha>`) with a self-installing `prepare` build. Callers pinned to `workflow-standard-v1.2`/`v1.3` tags or SHAs keep resolving the old file; do not add new callers.
 
 A mobile qualified artifact for `deliver-qualified-expo-stores.yml` must contain exactly one `mobile-release.json` with `schemaVersion: 1`, the exact source SHA, build profile, exact EAS CLI version, and one iOS plus one Android entry. Each platform entry records its EAS Build ID, relative binary path, app version/build version, and SHA-256 digest. Store delivery re-hashes the binaries before submission.
 
 ### Specialized / legacy lifecycle and release support
 
 - `external-pull.yml` — notify an external deployment host.
-- `release-template.yml` — repository-specific release skeleton.
+- `release-template.yml` — repository-specific release skeleton. It no longer wires `NPM_TOKEN`/`node_auth_token` or requests `packages`/`id-token` write; do not use it for npm publishing.
 - `stage-validation.yml` — legacy support for consumers that already select commands from a stage/branch model.
 - `promote-branches.yml` — exact-tested-SHA branch promotion for consumers that genuinely need promotion branches.
 - `toolchain-refresh.yml` — scheduled environment-v1 maintenance adapter for exact toolchain-pin proposals.

@@ -124,8 +124,7 @@ Possible additions are independent:
 - `storybook-validation.yml` for component-library checks;
 - `link-validation.yml` for built-site crawling;
 - `performance-validation.yml` for remote performance execution and evidence transport;
-- `deploy-pages.yml` for GitHub Pages;
-- `package-publish.yml` for explicit package publication.
+- `deploy-pages.yml` for GitHub Pages.
 
 The semantic workflows above remain usable, especially for existing consumers. For new architecture, prefer exposing repository or `coding-tooling` semantics through the preferred core adapters instead of widening their YAML interfaces. New top-level workflow files should fit the selected canonical profile or be recorded as explicit exceptions.
 
@@ -162,9 +161,11 @@ If a repository uses exact sibling sources during development, validate those re
 
 CI can still run a tier that is valid for its isolated checkout. Release qualification may separately verify published dependency paths when publication becomes relevant.
 
-## 8. Publication is opt-in
+## 8. npm publishing is retired
 
-`package-publish.yml` and `release-template.yml` are terminal capabilities. A repository must be able to continue normal source development when publication is unavailable.
+npm/registry publishing is retired for now: `package-publish.yml` has been removed from `main`, and `release-template.yml` no longer wires npm credentials. Owner packages are consumed as commit-pinned git dependencies (`git+https://github.com/moritzbrantner/<repo>.git#<sha>`) whose `prepare` script builds the package on install. A repository must be able to continue normal source development without any publication.
+
+`release-template.yml` remains a terminal capability for repository-specific release commands that do not publish to a registry.
 
 Recommended shape:
 
@@ -175,7 +176,7 @@ local/source development
         |
         +-> optional GitHub reproduction
         |
-        `-> optional release qualification -> publication
+        `-> optional release qualification -> release
 ```
 
 ## Compatibility callers
