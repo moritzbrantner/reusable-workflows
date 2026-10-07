@@ -44,7 +44,8 @@ describe("adoption generator", () => {
     const yaml = generatedText(defaultAdoptionOptions("package"));
 
     expect(yaml).not.toContain("secrets: inherit");
-    expect(yaml).toContain("publish_enabled: false");
+    expect(yaml).not.toContain("package-publish.yml");
+    expect(yaml).not.toContain("NPM_TOKEN");
   });
 
   test("scopes monorepo working directory and cache paths", () => {

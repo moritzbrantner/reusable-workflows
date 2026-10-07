@@ -12,7 +12,6 @@ const baseOptions: AdoptionOptions = {
   includeLinks: true,
   includePerformance: false,
   includePagesDeploy: false,
-  includePackagePublish: false,
 };
 
 export const adoptionProfiles: AdoptionProfile[] = [
@@ -50,13 +49,12 @@ export const adoptionProfiles: AdoptionProfile[] = [
     id: "package",
     label: "Package",
     description:
-      "Fast PR validation with post-merge package checks and a gated publish workflow starter.",
+      "Fast PR validation with post-merge package checks. npm publishing is retired; consumers install commit-pinned git dependencies.",
     options: {
       ...baseOptions,
       profileId: "package",
       includeE2e: false,
       includeLinks: false,
-      includePackagePublish: true,
     },
   },
   {

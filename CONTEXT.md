@@ -120,7 +120,8 @@ The qualification capability builds once and binds the artifact to exact source 
 - `deploy-qualified-pages.yml`
 - `deliver-qualified-expo-stores.yml`
 - `deploy-pages.yml`
-- `package-publish.yml`
+
+`package-publish.yml` is retired on `main` (npm publishing paused); tag/SHA-pinned callers keep the released file.
 
 For Expo delivery, the qualification artifact is expected to carry a repository-produced `mobile-release.json` that binds source SHA, EAS Build IDs, binary paths, and binary SHA-256 digests. The terminal workflow re-hashes the actual `.ipa` and `.aab` before exact-path submission. This creates one inspectable chain:
 
