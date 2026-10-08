@@ -25,7 +25,7 @@ on:
         type: boolean
         default: false
       dispatch_workflows:
-        description: Space-separated workflow files to dispatch on target_branch after promotion. Pushes made with GITHUB_TOKEN do not start push-triggered workflows.
+        description: Space-separated workflow files supporting workflow_dispatch to dispatch on target_branch after promotion. Dispatch failures warn without undoing or failing a completed promotion. Pushes made with GITHUB_TOKEN do not start push-triggered workflows.
         required: false
         type: string
         default: ""
@@ -101,5 +101,7 @@ jobs:
           DISPATCH_WORKFLOWS: ${{ inputs.dispatch_workflows }}
         run: |
           for workflow in ${DISPATCH_WORKFLOWS}; do
-            gh workflow run "${workflow}" --repo "${GITHUB_REPOSITORY}" --ref "${TARGET_BRANCH}"
+            if ! gh workflow run "${workflow}" --repo "${GITHUB_REPOSITORY}" --ref "${TARGET_BRANCH}"; then
+              echo "::warning::Branch promotion completed, but workflow ${workflow} could not be dispatched. It must support workflow_dispatch; verify its configuration and dispatch it manually on ${TARGET_BRANCH}."
+            fi
           done
