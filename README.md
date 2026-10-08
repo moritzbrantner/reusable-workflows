@@ -107,6 +107,24 @@ A mobile qualified artifact for `deliver-qualified-expo-stores.yml` must contain
 - `promote-branches.yml` — exact-tested-SHA branch promotion for consumers that genuinely need promotion branches.
 - `toolchain-refresh.yml` — scheduled environment-v1 maintenance adapter for exact toolchain-pin proposals.
 
+`promote-branches.yml` uses only the built-in `GITHUB_TOKEN`. The caller job must explicitly grant `contents: write` and `actions: write`; reusable workflows cannot elevate the caller's token permissions. Branch protection must permit this promotion. Workflow files under `.github/workflows` must already match the tested commit on the target branch: the token cannot push workflow-file changes, so preflight rejects that diff before promotion. Synchronize those files through the repository's normal reviewed workflow first.
+
+```yaml
+jobs:
+  promote:
+    permissions:
+      contents: write
+      actions: write
+    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@main
+    with:
+      source_branch: staging
+      target_branch: production
+      tested_sha: ${{ github.sha }}
+      dispatch_workflows: deploy.yml
+```
+
+Pushes with this token do not start push-triggered workflows. Each optional `dispatch_workflows` entry must exist on the repository default branch and support `workflow_dispatch` on both the default and target branches, with a default for every required input; this interface supplies no input values. A failed dispatch emits a warning and continues with the remaining workflows after the promotion has completed.
+
 ### Compatibility only
 
 - `validate-repo.yml` — combined scaffold-v2 compatibility workflow. Do not adopt it in new repositories.

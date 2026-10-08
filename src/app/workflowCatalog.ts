@@ -232,6 +232,7 @@ const workflowDetails = [
       "Checks out an explicit source ref and verifies the target branch before promotion.",
       "Pushes with force-with-lease instead of blind force pushes.",
       "Allows repositories to centralize branch promotion policy while keeping the promoted SHA visible.",
+      "Pushes with the built-in GITHUB_TOKEN; caller must grant contents/actions write and workflow files must already match the target. Optional target workflows must be present on the default branch and support workflow_dispatch on both default and target branches with defaults for all required inputs. Dispatch failures warn after completed promotion, so no promotion secret is needed.",
     ],
     icon: GitPullRequestArrow,
   },
@@ -437,15 +438,30 @@ const workflowGraphNodes = [
 ] as const;
 
 const workflowGraphEdges = [
-  { id: "validate-fast", source: "validate", target: "fast-validation", label: "uses" },
-  { id: "validate-e2e", source: "validate", target: "e2e-validation", label: "uses" },
+  {
+    id: "validate-fast",
+    source: "validate",
+    target: "fast-validation",
+    label: "uses",
+  },
+  {
+    id: "validate-e2e",
+    source: "validate",
+    target: "e2e-validation",
+    label: "uses",
+  },
   {
     id: "validate-storybook",
     source: "validate",
     target: "storybook-validation",
     label: "uses",
   },
-  { id: "validate-link", source: "validate", target: "link-validation", label: "uses" },
+  {
+    id: "validate-link",
+    source: "validate",
+    target: "link-validation",
+    label: "uses",
+  },
   {
     id: "validate-performance",
     source: "validate",
@@ -561,7 +577,9 @@ function buildParsedWorkflows() {
   }
 
   return workflowsWithoutCallers.map((workflow) =>
-    Object.assign(workflow, { callers: callersByFile.get(workflow.file)?.sort() ?? [] }),
+    Object.assign(workflow, {
+      callers: callersByFile.get(workflow.file)?.sort() ?? [],
+    }),
   );
 }
 

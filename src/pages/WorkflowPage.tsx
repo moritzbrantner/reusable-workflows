@@ -298,7 +298,11 @@ function buildCurrentUsageSnippet(
     }`;
   }
 
-  return `jobs:\n  ${workflow.slug}:\n    permissions:\n      contents: read\n    uses: moritzbrantner/reusable-workflows/${workflow.file}@main\n    with:\n      # pass inputs from the current workflow YAML`;
+  const permissions =
+    workflow.file === ".github/workflows/promote-branches.yml"
+      ? "contents: write\n      actions: write"
+      : "contents: read";
+  return `jobs:\n  ${workflow.slug}:\n    permissions:\n      ${permissions}\n    uses: moritzbrantner/reusable-workflows/${workflow.file}@main\n    with:\n      # pass inputs from the current workflow YAML`;
 }
 
 function RelationshipCard({
