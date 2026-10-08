@@ -25,7 +25,7 @@ on:
         type: boolean
         default: false
       dispatch_workflows:
-        description: Space-separated workflow files supporting workflow_dispatch with no required inputs lacking defaults to dispatch on target_branch after promotion. Dispatch failures warn without undoing or failing a completed promotion. Pushes made with GITHUB_TOKEN do not start push-triggered workflows.
+        description: Space-separated workflow files present on the repository default branch and supporting workflow_dispatch on both default and target branches with no required inputs lacking defaults to dispatch on target_branch after promotion. Dispatch failures warn without undoing or failing a completed promotion. Pushes made with GITHUB_TOKEN do not start push-triggered workflows.
         required: false
         type: string
         default: ""

@@ -232,7 +232,7 @@ const workflowDetails = [
       "Checks out an explicit source ref and verifies the target branch before promotion.",
       "Pushes with force-with-lease instead of blind force pushes.",
       "Allows repositories to centralize branch promotion policy while keeping the promoted SHA visible.",
-      "Pushes with the built-in GITHUB_TOKEN; caller must grant contents/actions write and workflow files must already match the target. Optional target workflows must support workflow_dispatch with defaults for all required inputs. Dispatch failures warn after completed promotion, so no promotion secret is needed.",
+      "Pushes with the built-in GITHUB_TOKEN; caller must grant contents/actions write and workflow files must already match the target. Optional target workflows must be present on the default branch and support workflow_dispatch on both default and target branches with defaults for all required inputs. Dispatch failures warn after completed promotion, so no promotion secret is needed.",
     ],
     icon: GitPullRequestArrow,
   },

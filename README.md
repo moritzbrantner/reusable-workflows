@@ -123,7 +123,7 @@ jobs:
       dispatch_workflows: deploy.yml
 ```
 
-Pushes with this token do not start push-triggered workflows. Each optional `dispatch_workflows` entry must support `workflow_dispatch` on the target branch, with a default for every required input; this interface supplies no input values. A failed dispatch emits a warning and continues with the remaining workflows after the promotion has completed.
+Pushes with this token do not start push-triggered workflows. Each optional `dispatch_workflows` entry must exist on the repository default branch and support `workflow_dispatch` on both the default and target branches, with a default for every required input; this interface supplies no input values. A failed dispatch emits a warning and continues with the remaining workflows after the promotion has completed.
 
 ### Compatibility only
 
