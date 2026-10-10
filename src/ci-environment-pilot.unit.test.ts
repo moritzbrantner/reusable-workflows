@@ -34,14 +34,13 @@ test("four candidate jobs exercise one smoke, with a real isolated NixOS guest",
   const jobs = JSON.stringify(workflow.jobs);
   expect(jobs).toContain("smoke.mjs");
   expect(jobs).toContain("fixture.json");
-  expect(jobs).toContain("PILOT_EXPECT_OS=debian");
-  expect(jobs).toContain("PILOT_EXPECT_OS=nixos");
-  expect(jobs).toContain("PILOT_EXPECT_OS=ubuntu");
+  expect(jobs).toContain("smoke.mjs fixture.json debian 24");
+  expect(jobs).toContain("fixture.json ubuntu 24");
   expect(workflow.jobs["nixos-vm"].if).toContain("github.event_name != 'pull_request'");
   const flake = source("experiments/ci-environments/flake.nix");
   expect(flake).toContain("pkgs.testers.runNixOSTest");
   expect(flake).toContain('machine.wait_for_unit("multi-user.target")');
-  expect(flake).toContain('PILOT_EXPECT_OS=nixos');
+  expect(flake).toContain("fixture.json} nixos 24");
   expect(flake).toContain("pkgs.nodejs_24");
 });
 
