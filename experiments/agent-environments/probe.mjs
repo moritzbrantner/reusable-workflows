@@ -13,7 +13,7 @@ export function selectTests(changedFiles, dependencies) {
       return { mode: "full-required", tests: [] };
     for (const test of tests) affected.add(test);
   }
-  return { mode: "affected", tests: [...affected].sort() };
+  return { mode: "affected", tests: [...affected].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)) };
 }
 
 export function verifyFixture(path) {
