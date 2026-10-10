@@ -33,7 +33,9 @@ describe("optional agent-environment pilot", () => {
     expect(parsed.status).toBe("passed");
     expect(parsed.cases).toBe(4);
     expect(parsed.fixtureSha256).toBe(
-      createHash("sha256").update(readFileSync(resolve(directory, "fixture.json"))).digest("hex"),
+      createHash("sha256")
+        .update(readFileSync(resolve(directory, "fixture.json")))
+        .digest("hex"),
     );
   });
 });
