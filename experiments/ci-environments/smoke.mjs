@@ -32,10 +32,15 @@ assert.deepEqual(order, fixture.expectedOrder);
 const osRelease = readFileSync("/etc/os-release", "utf8");
 const osId = /^ID="?([^"\n]+)"?$/m.exec(osRelease)?.[1] ?? "unknown";
 const expectedOs = process.argv[3];
-if (expectedOs) assert.equal(osId, expectedOs, "The observed guest operating system must match the candidate");
+if (expectedOs)
+  assert.equal(osId, expectedOs, "The observed guest operating system must match the candidate");
 const expectedNodeMajor = process.argv[4];
 if (expectedNodeMajor)
-  assert.equal(Number.parseInt(process.versions.node, 10), Number.parseInt(expectedNodeMajor, 10), "Unexpected Node.js major version");
+  assert.equal(
+    Number.parseInt(process.versions.node, 10),
+    Number.parseInt(expectedNodeMajor, 10),
+    "Unexpected Node.js major version",
+  );
 
 const digest = createHash("sha256");
 for (let iteration = 0; iteration < 2048; iteration += 1)
