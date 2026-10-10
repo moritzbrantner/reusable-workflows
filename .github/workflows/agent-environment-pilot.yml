@@ -27,7 +27,9 @@ jobs:
     steps:
       - name: Start wall-clock measurement
         shell: bash
-        run: echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+        run: |
+          echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+          echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
         with:
@@ -61,7 +63,9 @@ jobs:
     steps:
       - name: Start wall-clock measurement
         shell: bash
-        run: echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+        run: |
+          echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+          echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
         with:
@@ -103,7 +107,9 @@ jobs:
     steps:
       - name: Start wall-clock measurement
         shell: bash
-        run: echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+        run: |
+          echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+          echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Preflight KVM and record genuine unavailability
         id: kvm
