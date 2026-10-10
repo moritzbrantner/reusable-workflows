@@ -45,7 +45,7 @@ export function recordResult({ candidate, sourceSha, start, ready, end, log, sta
     runId: process.env.GITHUB_RUN_ID ?? null,
     runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
     runnerLabel: "ubuntu-24.04",
-    runnerImageVersion: process.env.ImageVersion ?? null,
+    runnerImageVersion: process.env.PILOT_RUNNER_IMAGE_VERSION ?? null,
     isolation: candidate === "nixos-vm" ? "nested-qemu-guest" : candidate === "devcontainer" ? "oci-on-ubuntu-host" : "github-ubuntu-vm",
     imageDigest: image,
     cacheClass: "fresh-github-host-no-persisted-environment-cache",
