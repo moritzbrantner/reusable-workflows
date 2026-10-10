@@ -18,7 +18,10 @@ test("environment experiment cannot silently become a required or callable capab
     ".github/workflows/agent-ci-environment-pilot.yml",
     "experiments/ci-environments/**",
   ]);
-  for (const job of Object.values(workflow.jobs) as Array<{ "runs-on": string; permissions: object }>) {
+  for (const job of Object.values(workflow.jobs) as Array<{
+    "runs-on": string;
+    permissions: object;
+  }>) {
     expect(job["runs-on"]).toBe("ubuntu-24.04");
     expect(job.permissions).toEqual({ contents: "read" });
   }
@@ -48,9 +51,11 @@ test("the prebuilt container and Nixpkgs inputs are immutable", () => {
   expect(workflow.jobs.devcontainer.env.PILOT_IMAGE).toMatch(
     /^mcr\.microsoft\.com\/devcontainers\/javascript-node@sha256:[0-9a-f]{64}$/,
   );
-  expect(workflow.jobs.devcontainer.steps.some((step: { run?: string }) =>
-    step.run?.includes('docker pull "$PILOT_IMAGE"'),
-  )).toBe(true);
+  expect(
+    workflow.jobs.devcontainer.steps.some((step: { run?: string }) =>
+      step.run?.includes('docker pull "$PILOT_IMAGE"'),
+    ),
+  ).toBe(true);
   const lock = JSON.parse(source("experiments/ci-environments/flake.lock"));
   expect(lock.nodes.nixpkgs.locked.rev).toBe("4975466d324710c576dc11ad614684e6bd8cad8e");
   expect(source("experiments/ci-environments/flake.nix")).toContain(lock.nodes.nixpkgs.locked.rev);
