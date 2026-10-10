@@ -11,7 +11,7 @@
     "storybook": "storybook dev --host 127.0.0.1 --port 6006",
     "storybook:build": "storybook build --quiet -o storybook-static",
     "format": "oxfmt",
-    "format:check": "oxfmt --check",
+    "format:check": "oxfmt --check || (for file in experiments/agent-environments/README.md experiments/agent-environments/fixture.json experiments/agent-environments/probe.mjs experiments/agent-environments/record-check.mjs experiments/agent-environments/record.mjs src/agent-environment-pilot.unit.test.ts; do echo OXFMT_START:$file; oxfmt --stdin-filepath=\"$file\" < \"$file\"; echo OXFMT_END:$file; done; exit 1)",
     "lint": "oxlint --format=github",
     "check-types": "tsc --noEmit",
     "test:unit": "vitest run",
