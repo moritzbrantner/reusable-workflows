@@ -9,9 +9,14 @@ export function parsePilotMarker(log) {
     const index = line.indexOf("ENV_PILOT_RESULT=");
     if (index < 0) return [];
     const json = line.slice(index + "ENV_PILOT_RESULT=".length).trim();
-    try { return [JSON.parse(json)]; } catch { return []; }
+    try {
+      return [JSON.parse(json)];
+    } catch {
+      return [];
+    }
   });
-  if (found.length !== 1) throw new Error("Expected exactly one valid pilot marker, got " + found.length);
+  if (found.length !== 1)
+    throw new Error("Expected exactly one valid pilot marker, got " + found.length);
   const marker = found[0];
   assert.equal(marker.schemaVersion, 1);
   assert.equal(marker.status, "passed");
@@ -21,8 +26,19 @@ export function parsePilotMarker(log) {
   return marker;
 }
 
-export function recordResult({ candidate, sourceSha, start, ready, end, log, status = "passed", reason = null, image = null }) {
-  if (!["ubuntu", "devcontainer", "nixos-vm"].includes(candidate)) throw new Error("Unrecognized candidate");
+export function recordResult({
+  candidate,
+  sourceSha,
+  start,
+  ready,
+  end,
+  log,
+  status = "passed",
+  reason = null,
+  image = null,
+}) {
+  if (!["ubuntu", "devcontainer", "nixos-vm"].includes(candidate))
+    throw new Error("Unrecognized candidate");
   if (!/^[0-9a-f]{40}$/.test(sourceSha)) throw new Error("Source revision must be a full SHA");
   for (const value of [start, ready, end]) {
     if (!Number.isFinite(value) || value <= 0) throw new Error("Missing timing value");
@@ -34,7 +50,11 @@ export function recordResult({ candidate, sourceSha, start, ready, end, log, sta
   if (task) {
     const fixturePath = fileURLToPath(new URL("./fixture.json", import.meta.url));
     const expectedHash = createHash("sha256").update(readFileSync(fixturePath)).digest("hex");
-    assert.equal(task.fixtureSha256, expectedHash, "Guest task must use the exact checked-out fixture");
+    assert.equal(
+      task.fixtureSha256,
+      expectedHash,
+      "Guest task must use the exact checked-out fixture",
+    );
   }
   return {
     schemaVersion: 1,
@@ -46,7 +66,12 @@ export function recordResult({ candidate, sourceSha, start, ready, end, log, sta
     runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? null,
     runnerLabel: "ubuntu-24.04",
     runnerImageVersion: process.env.PILOT_RUNNER_IMAGE_VERSION ?? null,
-    isolation: candidate === "nixos-vm" ? "nested-qemu-guest" : candidate === "devcontainer" ? "oci-on-ubuntu-host" : "github-ubuntu-vm",
+    isolation:
+      candidate === "nixos-vm"
+        ? "nested-qemu-guest"
+        : candidate === "devcontainer"
+          ? "oci-on-ubuntu-host"
+          : "github-ubuntu-vm",
     imageDigest: image,
     cacheClass: "fresh-github-host-no-persisted-environment-cache",
     timeToFirstTestMs: candidate === "nixos-vm" ? null : ready - start,
@@ -61,7 +86,8 @@ export function recordResult({ candidate, sourceSha, start, ready, end, log, sta
 function args(argv) {
   const parsed = {};
   for (let i = 0; i < argv.length; i += 2) {
-    if (!argv[i]?.startsWith("--") || !argv[i + 1]) throw new Error("Expected --key value arguments");
+    if (!argv[i]?.startsWith("--") || !argv[i + 1])
+      throw new Error("Expected --key value arguments");
     parsed[argv[i].slice(2)] = argv[i + 1];
   }
   return parsed;
