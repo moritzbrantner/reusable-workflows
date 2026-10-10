@@ -29,6 +29,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Node 24
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
         with:
@@ -40,6 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
           printf 'candidate=ubuntu\nsource=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$ImageOS" > pilot-results/provenance.txt
           node --version
           time node experiments/ci-environments/smoke.mjs experiments/ci-environments/fixture.json ubuntu 24 2>&1 | tee pilot-results/probe.log
@@ -63,11 +66,14 @@ jobs:
       PILOT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Pull exactly the prebuilt immutable image
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
           printf 'candidate=devcontainer-image\nsource=%s\nimage=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$PILOT_IMAGE" "$ImageOS" > pilot-results/provenance.txt
           time docker pull "$PILOT_IMAGE" 2>&1 | tee pilot-results/pull.log
           docker image inspect "$PILOT_IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' | tee pilot-results/pulled-digests.txt
@@ -97,6 +103,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install Nix on Ubuntu
         uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
         with:
@@ -109,6 +117,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
           printf 'candidate=ubuntu-nix\nsource=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$ImageOS" > pilot-results/provenance.txt
           time nix --extra-experimental-features 'nix-command flakes' develop ./experiments/ci-environments --command \
             node experiments/ci-environments/smoke.mjs experiments/ci-environments/fixture.json ubuntu 24 \
@@ -133,6 +142,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install pinned Nix with KVM support
         uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
         with:
@@ -145,6 +156,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
           printf 'candidate=nixos-vm\nsource=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$ImageOS" > pilot-results/provenance.txt
           if [[ ! -r /dev/kvm ]]; then
             echo 'NixOS VM unavailable: /dev/kvm is not readable; do not treat Ubuntu + Nix as NixOS.' | tee pilot-results/probe.log
