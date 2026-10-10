@@ -4,11 +4,11 @@ Tracking: [reusable-workflows #106](https://github.com/moritzbrantner/reusable-w
 
 This is an **opt-in, manual experiment**, not a new reusable workflow API, production validation gate or recommendation to migrate consumers. GitHub Actions offers three environments on the same Ubuntu 24.04 hosted VM class:
 
-| Candidate | Real execution environment | Provisioning included |
-| --- | --- | --- |
-| **ubuntu** | Host Ubuntu 24.04 with Node 24 | Checkout, tool selection, test |
+| Candidate        | Real execution environment                             | Provisioning included                                                |
+| ---------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| **ubuntu**       | Host Ubuntu 24.04 with Node 24                         | Checkout, tool selection, test                                       |
 | **devcontainer** | Digest-pinned Microsoft Dev Container on Ubuntu/Docker | Checkout, pinned CLI installation, image pull, container start, test |
-| **nixos-vm** | Actual pinned NixOS guest under QEMU/KVM on Ubuntu | Host Nix installation, NixOS build, VM boot, test |
+| **nixos-vm**     | Actual pinned NixOS guest under QEMU/KVM on Ubuntu     | Host Nix installation, NixOS build, VM boot, test                    |
 
 **NixOS VM is not a native hosted NixOS runner.** GitHub does not provide a standard NixOS runner label. The guest uses three virtual CPUs and 4 GiB of memory within the Ubuntu host. Nested virtualization and NixOS provisioning overhead are part of the recorded cost. When KVM is unavailable, the job writes an explicit **unavailable** receipt. It never calls Ubuntu plus a Nix dev shell a NixOS result.
 
