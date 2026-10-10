@@ -1,0 +1,176 @@
+name: Agent CI Environment Pilot
+
+# Experimental, non-reusable, non-required comparison only. No consumer changes.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/agent-ci-environment-pilot.yml
+      - experiments/ci-environments/**
+  pull_request:
+    paths:
+      - .github/workflows/agent-ci-environment-pilot.yml
+      - experiments/ci-environments/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ubuntu:
+    name: Pilot / Ubuntu host
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Node 24
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+        with:
+          node-version: "24"
+      - name: Run identical source-bound smoke
+        shell: bash
+        env:
+          PILOT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
+          printf 'candidate=ubuntu\nsource=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$ImageOS" > pilot-results/provenance.txt
+          node --version
+          time node experiments/ci-environments/smoke.mjs experiments/ci-environments/fixture.json ubuntu 24 2>&1 | tee pilot-results/probe.log
+      - name: Preserve raw pilot evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ci-environment-ubuntu-${{ github.run_id }}
+          path: pilot-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  devcontainer:
+    name: Pilot / Digest-pinned Dev Container image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    env:
+      PILOT_IMAGE: mcr.microsoft.com/devcontainers/javascript-node@sha256:ef380643327dafe138722179c1ac86477a4b1f643c3a2c83d3baa1b8ea226166
+      PILOT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Pull exactly the prebuilt immutable image
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
+          printf 'candidate=devcontainer-image\nsource=%s\nimage=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$PILOT_IMAGE" "$ImageOS" > pilot-results/provenance.txt
+          time docker pull "$PILOT_IMAGE" 2>&1 | tee pilot-results/pull.log
+          docker image inspect "$PILOT_IMAGE" --format '{{range .RepoDigests}}{{println .}}{{end}}' | tee pilot-results/pulled-digests.txt
+      - name: Run the same read-only smoke inside the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          time docker run --rm --read-only --network none \
+            --user "$(id -u):$(id -g)" \
+            --volume "$GITHUB_WORKSPACE/experiments/ci-environments:/work:ro" \
+            --workdir /work \
+            "$PILOT_IMAGE" node smoke.mjs fixture.json debian 24 2>&1 | tee pilot-results/probe.log
+      - name: Preserve raw pilot evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ci-environment-devcontainer-${{ github.run_id }}
+          path: pilot-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  ubuntu-nix:
+    name: Pilot / Ubuntu with pinned Nix shell
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Nix on Ubuntu
+        uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
+        with:
+          installer-version: 2.35.2
+          enable-kvm: false
+      - name: Run the same smoke from the locked Nix shell
+        shell: bash
+        env:
+          PILOT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
+          printf 'candidate=ubuntu-nix\nsource=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$ImageOS" > pilot-results/provenance.txt
+          time nix --extra-experimental-features 'nix-command flakes' develop ./experiments/ci-environments --command \
+            node experiments/ci-environments/smoke.mjs experiments/ci-environments/fixture.json ubuntu 24 \
+            2>&1 | tee pilot-results/probe.log
+      - name: Preserve raw pilot evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ci-environment-ubuntu-nix-${{ github.run_id }}
+          path: pilot-results/
+          if-no-files-found: warn
+          retention-days: 14
+
+  nixos-vm:
+    name: Pilot / Genuine NixOS guest on Ubuntu KVM host
+    # A NixOS guest is not a GitHub-hosted NixOS runner. Keep this expensive
+    # diagnostic off PR validation until VM feasibility has been established.
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install pinned Nix with KVM support
+        uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
+        with:
+          installer-version: 2.35.2
+          enable-kvm: true
+      - name: Boot real NixOS VM and execute same smoke
+        shell: bash
+        env:
+          PILOT_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p pilot-results
+          test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"
+          printf 'candidate=nixos-vm\nsource=%s\nrunner=%s\n' "$PILOT_SOURCE_SHA" "$ImageOS" > pilot-results/provenance.txt
+          if [[ ! -r /dev/kvm ]]; then
+            echo 'NixOS VM unavailable: /dev/kvm is not readable; do not treat Ubuntu + Nix as NixOS.' | tee pilot-results/probe.log
+            exit 1
+          fi
+          time nix --extra-experimental-features 'nix-command flakes' build \
+            --print-build-logs --no-link \
+            ./experiments/ci-environments#checks.x86_64-linux.guest-smoke \
+            2>&1 | tee pilot-results/probe.log
+      - name: Preserve raw VM evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ci-environment-nixos-${{ github.run_id }}
+          path: pilot-results/
+          if-no-files-found: warn
+          retention-days: 14
