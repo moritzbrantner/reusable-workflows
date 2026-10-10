@@ -47,7 +47,7 @@ test("four candidate jobs exercise one smoke, with a real isolated NixOS guest",
 
 test("the prebuilt container and Nixpkgs inputs are immutable", () => {
   expect(workflow.jobs.devcontainer.env.PILOT_IMAGE).toMatch(
-    /^mcr\\.microsoft\\.com\\/devcontainers\\/javascript-node@sha256:[0-9a-f]{64}$/,
+    /^mcr\.microsoft\.com\/devcontainers\/javascript-node@sha256:[0-9a-f]{64}$/,
   );
   expect(workflow.jobs.devcontainer.steps.some((step: { run?: string }) =>
     step.run?.includes('docker pull "$PILOT_IMAGE"'),
