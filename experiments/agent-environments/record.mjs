@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export function parsePilotMarker(log) {
   const found = log.split(/\r?\n/).flatMap((line) => {
@@ -29,6 +31,11 @@ export function recordResult({ candidate, sourceSha, start, ready, end, log, sta
   if (!["passed", "unavailable"].includes(status)) throw new Error("Unsupported status");
   if (status === "unavailable" && !reason) throw new Error("Unavailable result needs a reason");
   const task = status === "passed" ? parsePilotMarker(log) : null;
+  if (task) {
+    const fixturePath = fileURLToPath(new URL("./fixture.json", import.meta.url));
+    const expectedHash = createHash("sha256").update(readFileSync(fixturePath)).digest("hex");
+    assert.equal(task.fixtureSha256, expectedHash, "Guest task must use the exact checked-out fixture");
+  }
   return {
     schemaVersion: 1,
     candidate,
