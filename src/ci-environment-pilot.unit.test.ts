@@ -21,10 +21,11 @@ test("environment experiment cannot silently become a required or callable capab
   for (const job of Object.values(workflow.jobs) as Array<{
     "runs-on": string;
     permissions: object;
+    steps: Array<{ uses?: string; with?: { ref?: string }; run?: string }>;
   }>) {
     expect(job["runs-on"]).toBe("ubuntu-24.04");
     expect(job.permissions).toEqual({ contents: "read" });
-    const steps = job.steps as Array<{ uses?: string; with?: { ref?: string }; run?: string }>;
+    const steps = job.steps;
     const checkout = steps.find((step) => step.uses?.startsWith("actions/checkout@"));
     expect(checkout?.with?.ref).toBe("${{ github.event.pull_request.head.sha || github.sha }}");
     expect(
