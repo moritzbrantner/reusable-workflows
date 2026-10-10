@@ -26,7 +26,7 @@
         testScript = ''
           machine.start()
           machine.wait_for_unit("multi-user.target")
-          print(machine.succeed("PILOT_EXPECT_OS=nixos PILOT_REQUIRE_NODE24=1 node ${./smoke.mjs} ${./fixture.json}"))
+          print(machine.succeed("node ${./smoke.mjs} ${./fixture.json} nixos 24"))
         '';
       };
     };
