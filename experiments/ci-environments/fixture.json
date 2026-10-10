@@ -3,24 +3,10 @@
   "description": "Fixed, dependency-closed workflow task smoke; verifies Node runtime and deterministic fixture behavior only",
   "dependencyGraph": {
     "prepare": [],
-    "inspect": [
-      "prepare"
-    ],
-    "validate": [
-      "prepare"
-    ],
-    "report": [
-      "validate"
-    ]
+    "inspect": ["prepare"],
+    "validate": ["prepare"],
+    "report": ["validate"]
   },
-  "requested": [
-    "inspect",
-    "report"
-  ],
-  "expectedOrder": [
-    "prepare",
-    "inspect",
-    "validate",
-    "report"
-  ]
+  "requested": ["inspect", "report"],
+  "expectedOrder": ["prepare", "inspect", "validate", "report"]
 }
