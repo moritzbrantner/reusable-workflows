@@ -1,0 +1,162 @@
+name: Agent Environment Pilot (manual, non-required)
+
+# Experiment only. Not a reusable capability or production CI gate.
+on:
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Candidate environment or all three
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - ubuntu
+          - devcontainer
+          - nixos-vm
+
+permissions:
+  contents: read
+
+jobs:
+  ubuntu:
+    name: Ubuntu / direct Node task
+    if: ${{ inputs.candidate == 'all' || inputs.candidate == 'ubuntu' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Start wall-clock measurement
+        shell: bash
+        run: |
+          echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+          echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+        with:
+          node-version: "24"
+      - name: Execute common validation task and write receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready="$(date +%s%3N)"
+          node --test experiments/agent-environments/probe-check.mjs
+          node experiments/agent-environments/probe.mjs | tee "$RUNNER_TEMP/agent-pilot.log"
+          end="$(date +%s%3N)"
+          node experiments/agent-environments/record.mjs \
+            --candidate ubuntu --sha "$GITHUB_SHA" --start "$PILOT_START_MS" \
+            --ready "$ready" --end "$end" --log "$RUNNER_TEMP/agent-pilot.log" \
+            --out .artifacts/agent-environment/ubuntu.json
+      - name: Save non-authoritative experiment result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
+        with:
+          name: agent-environment-ubuntu-${{ github.run_id }}
+          path: .artifacts/agent-environment/ubuntu.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  devcontainer:
+    name: OCI Dev Container / direct Node task
+    if: ${{ inputs.candidate == 'all' || inputs.candidate == 'devcontainer' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Start wall-clock measurement
+        shell: bash
+        run: |
+          echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+          echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+        with:
+          node-version: "24"
+      - name: Prepare pinned Dev Containers CLI and image
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @devcontainers/cli@0.89.0
+          docker pull mcr.microsoft.com/devcontainers/javascript-node@sha256:ef380643327dafe138722179c1ac86477a4b1f643c3a2c83d3baa1b8ea226166
+          devcontainer up --no-lockfile --workspace-folder "$GITHUB_WORKSPACE/experiments/agent-environments"
+      - name: Execute same task inside Dev Container and write receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready="$(date +%s%3N)"
+          devcontainer exec --workspace-folder "$GITHUB_WORKSPACE/experiments/agent-environments" node --test probe-check.mjs
+          devcontainer exec --workspace-folder "$GITHUB_WORKSPACE/experiments/agent-environments" node probe.mjs | tee "$RUNNER_TEMP/agent-pilot.log"
+          end="$(date +%s%3N)"
+          node experiments/agent-environments/record.mjs \
+            --candidate devcontainer --sha "$GITHUB_SHA" --start "$PILOT_START_MS" \
+            --ready "$ready" --end "$end" --log "$RUNNER_TEMP/agent-pilot.log" \
+            --image sha256:ef380643327dafe138722179c1ac86477a4b1f643c3a2c83d3baa1b8ea226166 \
+            --out .artifacts/agent-environment/devcontainer.json
+      - name: Save non-authoritative experiment result
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
+        with:
+          name: agent-environment-devcontainer-${{ github.run_id }}
+          path: .artifacts/agent-environment/devcontainer.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  nixos-vm:
+    name: Real NixOS / nested QEMU VM experiment
+    if: ${{ inputs.candidate == 'all' || inputs.candidate == 'nixos-vm' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Start wall-clock measurement
+        shell: bash
+        run: |
+          echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
+          echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Preflight KVM and record genuine unavailability
+        id: kvm
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -e /dev/kvm ]]; then
+            now="$(date +%s%3N)"
+            node experiments/agent-environments/record.mjs \
+              --candidate nixos-vm --sha "$GITHUB_SHA" --start "$PILOT_START_MS" \
+              --ready "$now" --end "$now" --status unavailable --reason no-host-kvm \
+              --out .artifacts/agent-environment/nixos-vm.json
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          else
+            sudo chmod a+rw /dev/kvm
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Install Nix on Ubuntu host for genuine NixOS VM build
+        if: ${{ steps.kvm.outputs.available == 'true' }}
+        uses: NixOS/nix-installer-action@62c1943b776c509394b550f3f983adc14e9212d6 # v1.0.0
+        with:
+          installer-version: 2.35.2
+          enable-kvm: false
+      - name: Build pinned NixOS OS and run probe inside QEMU
+        if: ${{ steps.kvm.outputs.available == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          vm="$(nix build ./experiments/agent-environments#nixosVM --no-link --print-out-paths)"
+          ready="$(date +%s%3N)"
+          cd "$RUNNER_TEMP"
+          export QEMU_KERNEL_PARAMS='console=ttyS0'
+          export QEMU_OPTS='-nographic -enable-kvm'
+          timeout --signal=TERM 600 "$vm/bin/run-agent-pilot-vm" 2>&1 | tee "$RUNNER_TEMP/agent-pilot-nixos.log"
+          end="$(date +%s%3N)"
+          cd "$GITHUB_WORKSPACE"
+          node experiments/agent-environments/record.mjs \
+            --candidate nixos-vm --sha "$GITHUB_SHA" --start "$PILOT_START_MS" \
+            --ready "$ready" --end "$end" --log "$RUNNER_TEMP/agent-pilot-nixos.log" \
+            --out .artifacts/agent-environment/nixos-vm.json
+      - name: Save result and guest diagnostic logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
+        with:
+          name: agent-environment-nixos-vm-${{ github.run_id }}
+          path: |
+            .artifacts/agent-environment/nixos-vm.json
+            ${{ runner.temp }}/agent-pilot-nixos.log
+          if-no-files-found: warn
+          retention-days: 7
