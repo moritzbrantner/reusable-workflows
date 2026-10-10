@@ -11,7 +11,7 @@
     "storybook": "storybook dev --host 127.0.0.1 --port 6006",
     "storybook:build": "storybook build --quiet -o storybook-static",
     "format": "oxfmt",
-    "format:check": "oxfmt --check || (for file in experiments/ci-environments/README.md experiments/ci-environments/fixture.json experiments/ci-environments/smoke.mjs src/ci-environment-pilot.unit.test.ts; do echo FORMAT_BEGIN:$file; oxfmt --stdin-filepath=\"$file\" < \"$file\"; echo FORMAT_END:$file; done; exit 1)",
+    "format:check": "oxfmt --check",
     "lint": "oxlint --format=github",
     "check-types": "tsc --noEmit",
     "test:unit": "vitest run",
