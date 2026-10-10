@@ -47,7 +47,7 @@ jobs:
           time node experiments/ci-environments/smoke.mjs experiments/ci-environments/fixture.json 2>&1 | tee pilot-results/probe.log
       - name: Preserve raw pilot evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-environment-ubuntu-${{ github.run_id }}
           path: pilot-results/
@@ -86,7 +86,7 @@ jobs:
             "$PILOT_IMAGE" node smoke.mjs fixture.json 2>&1 | tee pilot-results/probe.log
       - name: Preserve raw pilot evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-environment-devcontainer-${{ github.run_id }}
           path: pilot-results/
@@ -120,7 +120,7 @@ jobs:
             2>&1 | tee pilot-results/probe.log
       - name: Preserve raw pilot evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-environment-ubuntu-nix-${{ github.run_id }}
           path: pilot-results/
@@ -161,7 +161,7 @@ jobs:
             2>&1 | tee pilot-results/probe.log
       - name: Preserve raw VM evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: ci-environment-nixos-${{ github.run_id }}
           path: pilot-results/
