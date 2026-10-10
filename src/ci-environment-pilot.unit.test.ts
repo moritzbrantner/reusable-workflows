@@ -24,6 +24,14 @@ test("environment experiment cannot silently become a required or callable capab
   }>) {
     expect(job["runs-on"]).toBe("ubuntu-24.04");
     expect(job.permissions).toEqual({ contents: "read" });
+    const steps = job.steps as Array<{ uses?: string; with?: { ref?: string }; run?: string }>;
+    const checkout = steps.find((step) => step.uses?.startsWith("actions/checkout@"));
+    expect(checkout?.with?.ref).toBe("${{ github.event.pull_request.head.sha || github.sha }}");
+    expect(
+      steps.some((step) =>
+        step.run?.includes('test "$(git rev-parse HEAD)" = "$PILOT_SOURCE_SHA"'),
+      ),
+    ).toBe(true);
   }
 });
 
