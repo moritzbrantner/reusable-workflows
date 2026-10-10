@@ -7,12 +7,12 @@ Review the results on **2026-10-18**. This is a **non-required, non-reusable** G
 
 [agent-ci-environment-pilot.yml](../../.github/workflows/agent-ci-environment-pilot.yml) executes the **same committed Node 24 + deterministic dependency-closure smoke fixture** in four environments:
 
-| Job | Actual environment | Preparation measured |
-| --- | --- | --- |
-| `ubuntu` | Native GitHub-hosted Ubuntu 24.04 | actions/setup-node 24 |
+| Job            | Actual environment                                                        | Preparation measured                          |
+| -------------- | ------------------------------------------------------------------------- | --------------------------------------------- |
+| `ubuntu`       | Native GitHub-hosted Ubuntu 24.04                                         | actions/setup-node 24                         |
 | `devcontainer` | Microsoft prebuilt JavaScript/Node Dev Container **image**, by OCI digest | OCI image pull + startup (run by host Docker) |
-| `ubuntu-nix` | GitHub-hosted Ubuntu 24.04 with a pinned Nix development shell | Nix installer + `nix develop` |
-| `nixos-vm` | **Genuine NixOS guest** in QEMU/KVM on a GitHub-hosted Ubuntu machine | Nix installer + NixOS test build/VM boot |
+| `ubuntu-nix`   | GitHub-hosted Ubuntu 24.04 with a pinned Nix development shell            | Nix installer + `nix develop`                 |
+| `nixos-vm`     | **Genuine NixOS guest** in QEMU/KVM on a GitHub-hosted Ubuntu machine     | Nix installer + NixOS test build/VM boot      |
 
 The NixOS job is deliberately **not** called a GitHub-hosted NixOS runner, and Ubuntu with Nix is deliberately **not** called NixOS. GitHub does not publish a standard hosted NixOS runner image. The guest is verified from `/etc/os-release` as `ID=nixos`; the container must report `ID=debian`, and the host and Ubuntu+Nix report `ID=ubuntu`. Every task asserts Node major version 24 and yields a deterministic fixture/workload SHA-256.
 
@@ -24,7 +24,7 @@ The Dev Container image is `mcr.microsoft.com/devcontainers/javascript-node@sha2
 
 - A change to this experimental workflow or directory on `main` starts one pilot automatically. Also use **Actions → Agent CI Environment Pilot → Run workflow** to collect independent attempts; PRs exercise three lower-cost arms, while the NixOS VM runs only on `main` or manual dispatch.
 - Read the **job-level duration** from the GitHub Actions jobs API, not just the smoke's `runtimeMs`. Steps explicitly separate setup, pull/build, and smoke, and the `ci-environment-*` artifacts retain immutable-input provenance, raw logs and the runner image variable.
-- Use **different fresh runners** for cold samples. Compare at least **five successful independent samples per candidate**, and five genuinely cache-warm fresh-runner runs if a persisted-cache strategy is introduced. Re-running the smoke twice within one job is *not* a fresh-runner warm sample.
+- Use **different fresh runners** for cold samples. Compare at least **five successful independent samples per candidate**, and five genuinely cache-warm fresh-runner runs if a persisted-cache strategy is introduced. Re-running the smoke twice within one job is _not_ a fresh-runner warm sample.
 - Collect source SHA, runner image and resources, OCI index digest, Nixpkgs commit, runtime versions, cold/warm classification, queue delay, job duration, summed runner-minutes, pull/install/boot duration, time to first passing test, failures and retries, and GitHub run/job URLs. Count image creation/storage and any dedicated-runner cost rather than ignoring them.
 - Compare correctness only if all candidates run **the same source and assertions**. Mark a candidate **unavailable** when it fails installation, KVM admission, cache acquisition, version validation, or task execution. Do not quietly fall back to a different environment.
 - For coding-agent throughput, follow up with the existing **repository-owned `bun run validate:semantic` contract**, and ideally identical task packets, acceptance contracts, and code changes. Require matching Bun/toolchain versions and full validation semantics first. A fast toy smoke alone cannot demonstrate agent task productivity.
