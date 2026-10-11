@@ -37,6 +37,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  temporary-format-inspection:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+      - run: bun install --frozen-lockfile
+      - name: Show canonical Oxfmt changes
+        run: |
+          node_modules/.bin/oxfmt src/verified-wasm-cli.unit.test.ts
+          git diff -- src/verified-wasm-cli.unit.test.ts
+
   verified-wasm-cli:
     name: Verified ${{ matrix.tool }} precompiled CLI
     runs-on: ubuntu-24.04
