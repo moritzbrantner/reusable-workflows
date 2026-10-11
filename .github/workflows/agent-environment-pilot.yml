@@ -50,7 +50,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
         with:
-          name: agent-environment-ubuntu-${{ github.run_id }}
+          name: agent-environment-ubuntu-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/agent-environment/ubuntu.json
           if-no-files-found: warn
           retention-days: 7
@@ -94,7 +94,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
         with:
-          name: agent-environment-devcontainer-${{ github.run_id }}
+          name: agent-environment-devcontainer-${{ github.run_id }}-${{ github.run_attempt }}
           path: .artifacts/agent-environment/devcontainer.json
           if-no-files-found: warn
           retention-days: 7
@@ -154,7 +154,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7
         with:
-          name: agent-environment-nixos-vm-${{ github.run_id }}
+          name: agent-environment-nixos-vm-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             .artifacts/agent-environment/nixos-vm.json
             ${{ runner.temp }}/agent-pilot-nixos.log
