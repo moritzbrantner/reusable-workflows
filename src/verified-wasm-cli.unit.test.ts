@@ -1,11 +1,25 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const script = resolve(import.meta.dirname, "../.github/actions/install-verified-wasm-cli/install.sh");
-const action = resolve(import.meta.dirname, "../.github/actions/install-verified-wasm-cli/action.yml");
+const script = resolve(
+  import.meta.dirname,
+  "../.github/actions/install-verified-wasm-cli/install.sh",
+);
+const action = resolve(
+  import.meta.dirname,
+  "../.github/actions/install-verified-wasm-cli/action.yml",
+);
 
 describe("verified WASM CLI action", () => {
   it("retains exact SHA-256 pins for supported release identities", () => {
@@ -55,7 +69,9 @@ describe("verified WASM CLI action", () => {
       const fakeBin = join(dir, "bin");
       mkdirSync(fakeBin);
       const fakeCurl = join(fakeBin, "curl");
-      writeFileSync(fakeCurl, [
+      writeFileSync(
+        fakeCurl,
+        [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
         "while [[ $# -gt 0 ]]; do",
@@ -67,7 +83,8 @@ describe("verified WASM CLI action", () => {
         "done",
         "exit 1",
         "",
-      ].join("\n"));
+        ].join("\n"),
+      );
       chmodSync(fakeCurl, 0o755);
       const githubPath = join(dir, "github-path");
       writeFileSync(githubPath, "");
