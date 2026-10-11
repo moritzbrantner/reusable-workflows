@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "task": "deterministic-agent-validation-selection",
+  "cases": [
+    {
+      "id": "single-source-change",
+      "changedFiles": ["src/adapter.ts"],
+      "dependencies": {
+        "src/adapter.ts": ["tests/adapter.test.ts"]
+      },
+      "expected": {
+        "mode": "affected",
+        "tests": ["tests/adapter.test.ts"]
+      }
+    },
+    {
+      "id": "shared-workflow-change",
+      "changedFiles": [".github/workflows/validate.yml"],
+      "dependencies": {
+        "src/adapter.ts": ["tests/adapter.test.ts"]
+      },
+      "expected": {
+        "mode": "full-required",
+        "tests": []
+      }
+    },
+    {
+      "id": "unknown-source-change",
+      "changedFiles": ["src/unknown.ts"],
+      "dependencies": {
+        "src/adapter.ts": ["tests/adapter.test.ts"]
+      },
+      "expected": {
+        "mode": "full-required",
+        "tests": []
+      }
+    },
+    {
+      "id": "multiple-covered-sources",
+      "changedFiles": ["src/z.ts", "src/a.ts"],
+      "dependencies": {
+        "src/a.ts": ["tests/a.test.ts", "tests/shared.test.ts"],
+        "src/z.ts": ["tests/shared.test.ts", "tests/z.test.ts"]
+      },
+      "expected": {
+        "mode": "affected",
+        "tests": ["tests/a.test.ts", "tests/shared.test.ts", "tests/z.test.ts"]
+      }
+    }
+  ]
+}

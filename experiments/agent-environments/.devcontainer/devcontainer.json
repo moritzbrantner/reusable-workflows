@@ -1,0 +1,5 @@
+{
+  "name": "reusable-workflows-environment-pilot",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node@sha256:ef380643327dafe138722179c1ac86477a4b1f643c3a2c83d3baa1b8ea226166",
+  "overrideCommand": true
+}
