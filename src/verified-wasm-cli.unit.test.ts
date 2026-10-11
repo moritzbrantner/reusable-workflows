@@ -72,17 +72,17 @@ describe("verified WASM CLI action", () => {
       writeFileSync(
         fakeCurl,
         [
-        "#!/usr/bin/env bash",
-        "set -euo pipefail",
-        "while [[ $# -gt 0 ]]; do",
-        '  if [[ "$1" == "--output" ]]; then',
-        '    printf "invalid bytes" > "$2"',
-        "    exit 0",
-        "  fi",
-        "  shift",
-        "done",
-        "exit 1",
-        "",
+          "#!/usr/bin/env bash",
+          "set -euo pipefail",
+          "while [[ $# -gt 0 ]]; do",
+          '  if [[ "$1" == "--output" ]]; then',
+          '    printf "invalid bytes" > "$2"',
+          "    exit 0",
+          "  fi",
+          "  shift",
+          "done",
+          "exit 1",
+          "",
         ].join("\n"),
       );
       chmodSync(fakeCurl, 0o755);
