@@ -37,6 +37,33 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verified-wasm-cli:
+    name: Verified ${{ matrix.tool }} precompiled CLI
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: wasm-pack
+            version: "0.14.0"
+          - tool: wasm-bindgen
+            version: "0.2.129"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install verified CLI
+        uses: ./.github/actions/install-verified-wasm-cli
+        with:
+          tool: ${{ matrix.tool }}
+          version: ${{ matrix.version }}
+      - name: Validate exact released executable
+        env:
+          CLI_TOOL: ${{ matrix.tool }}
+          CLI_VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          command -v "$CLI_TOOL"
+          test "$("$CLI_TOOL" --version)" = "$CLI_TOOL $CLI_VERSION"
+
   fast-validation:
     uses: ./.github/workflows/fast-validation.yml
     with:
