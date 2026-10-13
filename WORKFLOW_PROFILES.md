@@ -88,6 +88,16 @@ After a repository adopts exported, immutable capability pins, Renovate should p
 
 The generator should emit Renovate-recognizable immutable workflow references and explain how a consuming repository enables the existing shared Renovate preset. Reuse the policy in `coding-agent-conventions` for cadence, approval, and merge behavior; do not add a second dependency updater or automatic-migration mechanism to this site. No guarantee of compatibility follows from a newer commit SHA or successful syntax parsing alone.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 8 — C: reviewable migration package).**
+
+The interactive generator also serves repositories that already have GitHub Actions workflows. Given an existing repository's actual workflow files and profile declaration where present, a user can choose the desired canonical profile/roles and preview a **reviewable migration package**: the proposed `.github/workflow-profile.json`, new or changed caller workflows, an explicit per-file before/after comparison, and a list of workflows and exceptions that will be preserved or need attention.
+
+- Derive profile reconciliation, legacy-path eligibility, and exception preservation from the **existing `platform-upgrader workflow-profile-v1` contract**, not an independent browser migration authority. The site may present the proposal and export its reviewable files; applying migrations remains the responsibility of the consumer and `platform-upgrader`.
+- Preserve unknown existing workflows and valid reasoned exceptions. Do not assume a file can be deleted from its name or because the desired profile differs. Propose removal only for a catalog-declared obsolete managed path after verifying it is neither enabled nor excepted; keep every proposed removal visible for review, never silent.
+- Retain repository-owned command and lifecycle semantics unless the user explicitly changes them. Required missing input and unresolved migration conflicts remain visible and prevent exporting a package represented as complete, consistently with question 5. Do not invent substitute commands, treat a structural audit as proof of runtime parity, or drop unmatched existing jobs.
+- Export proposed changes and explicit preserved files/exceptions for human review; **do not** write to GitHub, open a pull request, or automatically apply or delete files. Provide a way to use the existing migration tooling when adopting the package.
+- Keep the same canonical profile catalog, immutable capability pins, and v1.3 compatibility boundary as the new-repository path. How existing repository files enter the generator is not settled by this decision.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
