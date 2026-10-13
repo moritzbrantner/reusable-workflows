@@ -57,6 +57,17 @@ For every enabled caller workflow that requires repository-specific validation, 
 
 The UI must identify required commands that are still missing and must not claim an incomplete export is ready to run. This decision does not authorize command inference from uploaded repository configuration or a direct GitHub repository integration. The consumer remains the authority for command semantics; the generator only composes and serializes the supplied values.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 4 — A: editable CI presets).**
+
+The current-profile generator offers an immediately understandable *editable starting configuration* for when checks run:
+
+- Pull requests: fast repository-owned validation by default.
+- `main`: a broader repository-owned confidence check by default.
+- Expensive/deep validation: offered as optional manual or scheduled execution, not a mandatory gate or automatic extra workflow.
+- Users can inspect and modify triggers and the validation depth associated with each lifecycle stage before previewing or exporting caller workflows. The UI and export must reflect those changes rather than silently retaining preset values.
+
+The preset is a convenience, **not** a new required `fast/standard/deep` tier schema or a fleet-wide trigger policy. Each consumer owns its actual validation tiers/commands, schedules, path filters, and concurrency/cancellation policy; keep those decisions visible and configurable in the generated caller files. Do not move tier semantics into `reusable-workflows`, `coding-tooling` or a newly invented central pipeline DSL.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
