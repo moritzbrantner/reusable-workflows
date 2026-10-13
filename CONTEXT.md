@@ -151,4 +151,14 @@ Repository-local `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-wo
 
 ## Compatibility policy
 
-`workflow-standard-v1.3` is frozen for compatibility. New consumers of the capability line may follow `main`; update callers when an upstream interface change requires it.
+**Owner decision — 2026-10-13, /steer question 1: A (stable, versioned contracts).**
+
+Published reusable workflow contracts are stable for their supported consumers. Compatible changes may update a capability's implementation or add optional interface elements, but must preserve existing callable paths, input and output contracts, and observable caller behavior.
+
+Breaking changes must be published under a separately versioned capability contract, with documented changes and an explicit consumer migration. Existing supported contracts remain available during migration. Do not silently change the meaning of an existing published contract or automatically move consumers across a breaking boundary.
+
+Capabilities are versioned independently; there is no new monolithic Workflow Standard. The historical `workflow-standard-v1.3` tag and `contracts/workflows.json` snapshot remain frozen.
+
+Consumers pin tested immutable revisions, rather than using the moving `main` branch as a stability reference. Workflow YAML remains the contract source of truth, with manifests generated from it.
+
+Automated compatibility enforcement for the current capability line is not yet established; the frozen v1.3 checks alone do not prove the broader guarantee.
