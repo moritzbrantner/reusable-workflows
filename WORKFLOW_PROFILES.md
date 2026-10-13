@@ -82,6 +82,12 @@ Recommendation is a convenience, not permission to invent a release, claim unver
 
 Keep version selection consistent with independently versioned capability contracts and the compatibility policy. Do not duplicate release authority or add a manually maintained second source of truth for capability interfaces.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 7 — A: Renovate update proposals).**
+
+After a repository adopts exported, immutable capability pins, Renovate should propose compatible updates in reviewable pull requests rather than requiring a return to this generator. Each proposal must preserve the intended callable contract, identify the old and candidate immutable revisions, and run the consumer repository's validation. A breaking or unverified-compatibility change requires an explicit migration, not an ordinary automatic pin update.
+
+The generator should emit Renovate-recognizable immutable workflow references and explain how a consuming repository enables the existing shared Renovate preset. Reuse the policy in `coding-agent-conventions` for cadence, approval, and merge behavior; do not add a second dependency updater or automatic-migration mechanism to this site. No guarantee of compatibility follows from a newer commit SHA or successful syntax parsing alone.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
