@@ -59,7 +59,7 @@ The UI must identify required commands that are still missing and must not claim
 
 **Owner decision (2026-10-13, `/steer reusable-workflows` question 4 — A: editable CI presets).**
 
-The current-profile generator offers an immediately understandable *editable starting configuration* for when checks run:
+The current-profile generator offers an editable starting configuration for when checks run:
 
 - Pull requests: fast repository-owned validation by default.
 - `main`: a broader repository-owned confidence check by default.
