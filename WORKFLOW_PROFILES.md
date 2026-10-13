@@ -51,6 +51,12 @@ New consumer repositories should be able to configure the current workflow profi
 - Keep the frozen `workflow-standard-v1.3` generator clearly separate and functional for historical consumers. The new experience represents the current canonical profiles rather than changing the old release's contracts.
 - Reuse the canonical profile catalog, capability contracts, and migration/audit semantics. The site is an interactive configuration and export surface, not a second policy authority or a replacement for `platform-upgrader` or `coding-tooling`. The selected export is not an automatic GitHub repository edit or pull request.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 3 — A: interactive command entry).**
+
+For every enabled caller workflow that requires repository-specific validation, build, release, or deployment commands, the generator presents editable command fields. Users enter the actual commands explicitly. The preview and export use those entered commands, not guessed framework defaults or a generated template full of purportedly runnable placeholder commands.
+
+The UI must identify required commands that are still missing and must not claim an incomplete export is ready to run. This decision does not authorize command inference from uploaded repository configuration or a direct GitHub repository integration. The consumer remains the authority for command semantics; the generator only composes and serializes the supplied values.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
