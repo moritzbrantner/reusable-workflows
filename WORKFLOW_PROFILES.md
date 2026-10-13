@@ -104,6 +104,14 @@ For existing-repository migration, users enter a **public GitHub repository URL*
 
 The import is read-only: no GitHub authorization, private repository access, filesystem upload, write permission, direct pull request, or automatic migration is part of this experience. Public-only availability and fetch failures (missing repository/files, API limits, network errors) must be explicit; never treat failed or partial discovery as an empty repository or silently generate a complete migration from incomplete evidence. Existing workflows and reasoned exceptions still follow the `platform-upgrader` preservation rules.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 10 — A: default branch only).**
+
+For a public GitHub URL import, inspect **only the repository's reported default branch**. Do not offer a branch, tag, or commit selector in the generator and do not assume the default branch is named `main`.
+
+Resolve that default branch to an exact commit SHA before collecting the workflow files and optional profile declaration. Read every file from that same immutable source commit, and show both the branch name and resolved SHA in the migration preview and export so the proposal is reproducible even if the default branch advances afterward. A new import may resolve a newer default-branch head, but must never silently replace the inspected revision inside an existing proposal.
+
+Unsupported revision-specific URLs, missing default-branch data, or an inconsistent/partial fetch must produce an explicit error rather than silently inspecting a different revision or reporting an empty repository.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
