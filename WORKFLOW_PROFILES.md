@@ -38,6 +38,21 @@ Maintained consumers record their resolved profile at `.github/workflow-profile.
 
 `coding-tooling workflow-profile audit` checks the declaration against the files in `.github/workflows/` without network access. Missing canonical workflows and undeclared extra workflows are drift.
 
+## Interactive adoption experience
+
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 2 — B: interactive generator).**
+
+New consumer repositories should be able to configure the current workflow profiles on the GitHub Pages reference site, instead of being limited to text instructions or the historical v1.3 generator:
+
+- Choose one of the canonical profiles from `profiles/workflow-profiles.json`, then enable or disable that profile's optional workflow roles. Keep required roles explicit and mandatory.
+- Preview the selected roles, their canonical workflow paths, the resulting `.github/workflow-profile.json` declaration, and the repository-local caller workflow files.
+- Export the configuration and caller workflows for review and use in the consumer repository. Make unresolved consumer-specific inputs visible rather than silently inventing commands or claiming generated files are validated when they are not.
+- Use tested immutable references for reusable workflow calls, consistent with the versioned capability compatibility policy. Do not treat a moving `main` branch as a stable consumer reference.
+- Keep the frozen `workflow-standard-v1.3` generator clearly separate and functional for historical consumers. The new experience represents the current canonical profiles rather than changing the old release's contracts.
+- Reuse the canonical profile catalog, capability contracts, and migration/audit semantics. The site is an interactive configuration and export surface, not a second policy authority or a replacement for `platform-upgrader` or `coding-tooling`. The selected export is not an automatic GitHub repository edit or pull request.
+
+**Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
+
 ## Ownership
 
 - repository-owned commands and `coding-tooling` own validation semantics;
