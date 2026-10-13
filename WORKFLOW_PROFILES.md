@@ -74,6 +74,14 @@ Users may select profiles and roles, edit their commands, and inspect an incompl
 
 Do not silently fill missing fields with guessed commands, TODO placeholders, or an implicit default. Disabling an optional role removes its requirements; a required role cannot be disabled. Once every enabled role is complete, the export becomes available and contains exactly the reviewed configuration. This gate validates configuration completeness and shape, not whether user-entered commands actually execute successfully.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 6 — A: recommended verified immutable pins).**
+
+For every selected reusable capability, the generator should preselect a known-compatible, verified immutable revision when reliable release and compatibility evidence exists. Show the selected capability, exact revision, and verification basis so users can inspect or replace the recommendation before exporting. The resulting caller workflows must reference the exact selected immutable revision, not the moving `main` branch.
+
+Recommendation is a convenience, not permission to invent a release, claim unverified compatibility, or silently change a user's selection. A replacement revision must be a valid immutable ref for the selected callable capability; check it against the available contract evidence. If the generator has no trustworthy compatible recommendation, disclose that and require the user to supply and validate an immutable revision before export rather than falling back to `@main`.
+
+Keep version selection consistent with independently versioned capability contracts and the compatibility policy. Do not duplicate release authority or add a manually maintained second source of truth for capability interfaces.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
