@@ -98,6 +98,12 @@ The interactive generator also serves repositories that already have GitHub Acti
 - Export proposed changes and explicit preserved files/exceptions for human review; **do not** write to GitHub, open a pull request, or automatically apply or delete files. Provide a way to use the existing migration tooling when adopting the package.
 - Keep the same canonical profile catalog, immutable capability pins, and v1.3 compatibility boundary as the new-repository path. How existing repository files enter the generator is not settled by this decision.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 9 — B: read-only public GitHub URL).**
+
+For existing-repository migration, users enter a **public GitHub repository URL**. The generator retrieves that repository's actual workflow files from `.github/workflows/` and its `.github/workflow-profile.json` declaration when present, then uses those retrieved files as the input to the reviewable migration preview described in question 8. Show which repository and source revision supplied the files, so the before/after proposal can be reproduced and is not confused with a later repository change.
+
+The import is read-only: no GitHub authorization, private repository access, filesystem upload, write permission, direct pull request, or automatic migration is part of this experience. Public-only availability and fetch failures (missing repository/files, API limits, network errors) must be explicit; never treat failed or partial discovery as an empty repository or silently generate a complete migration from incomplete evidence. Existing workflows and reasoned exceptions still follow the `platform-upgrader` preservation rules.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
