@@ -68,6 +68,12 @@ The current-profile generator offers an editable starting configuration for when
 
 The preset is a convenience, **not** a new required `fast/standard/deep` tier schema or a fleet-wide trigger policy. Each consumer owns its actual validation tiers/commands, schedules, path filters, and concurrency/cancellation policy; keep those decisions visible and configurable in the generated caller files. Do not move tier semantics into `reusable-workflows`, `coding-tooling` or a newly invented central pipeline DSL.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 5 — A: require completed enabled roles).**
+
+Users may select profiles and roles, edit their commands, and inspect an incomplete configuration in the live preview. Do not allow export of runnable caller workflows or a complete bundle until every enabled role has all its required repository-owned commands and other mandatory inputs supplied and validated at the generator's configuration/schema boundary. Missing values are explicitly identified beside their respective fields and the unavailable export action clearly explains what remains to be completed.
+
+Do not silently fill missing fields with guessed commands, TODO placeholders, or an implicit default. Disabling an optional role removes its requirements; a required role cannot be disabled. Once every enabled role is complete, the export becomes available and contains exactly the reviewed configuration. This gate validates configuration completeness and shape, not whether user-entered commands actually execute successfully.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
