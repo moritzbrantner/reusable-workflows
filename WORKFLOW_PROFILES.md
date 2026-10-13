@@ -112,6 +112,12 @@ Resolve that default branch to an exact commit SHA before collecting the workflo
 
 Unsupported revision-specific URLs, missing default-branch data, or an inconsistent/partial fetch must produce an explicit error rather than silently inspecting a different revision or reporting an empty repository.
 
+**Owner decision (2026-10-13, `/steer reusable-workflows` question 11 — A: preserve existing required check names).**
+
+An existing-repository migration should retain the names and identity of currently required GitHub Actions checks wherever feasible, so branch-protection and ruleset requirements continue to match. The migration preview must show a before/after mapping for existing required workflow and job check names where those requirements are known.
+
+If a requested profile or workflow restructuring necessarily changes a required check, surface the exact old/new names and the required manual branch-protection update; do not claim the migration is drop-in safe. A missing read-only view of branch protection must be reported as **unverified**, not as evidence that no required checks exist. Do not duplicate expensive validations merely to keep a familiar check name; prefer preserving check names on the actual intended validation jobs, and distinguish compatibility labels from validation semantics.
+
 **Status:** Owner-approved product direction; current Pages implementation and independent browser acceptance are still pending.
 
 ## Ownership
