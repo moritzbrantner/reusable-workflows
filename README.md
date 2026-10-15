@@ -36,9 +36,13 @@ stable release      -> promote/deliver the same qualified artifact
 
 Prefer qualifying and promoting an exact immutable candidate over a long-lived `develop -> nightly -> beta -> staging -> production` branch chain.
 
-## Compatibility release
+## Compatibility and capability releases
 
-`workflow-standard-v1.3` is frozen for existing consumers. Its tag and `contracts/workflows.json` snapshot remain immutable. Do not publish `workflow-standard-v1.4` or build a monolithic `workflow-standard-v2`; new work on `main` evolves capabilities independently.
+`workflow-standard-v1.3` is frozen for existing consumers. Its tag and `contracts/workflows.json` snapshot remain immutable. Do not publish `workflow-standard-v1.4` or build a monolithic `workflow-standard-v2`.
+
+**Owner decision (2026-10-13): stable, independently versioned capability contracts.** Published capabilities retain compatible callable interfaces. Breaking changes require a separate versioned contract, migration guidance, and explicit consumer updates. The authoritative policy is in [CONTEXT.md](CONTEXT.md#compatibility-policy).
+
+Pin consumers to an immutable, reviewed revision. The moving `main` branch is not a stability pin. Capability YAML remains the interface source; generated metadata describes the current interfaces.
 
 ## Source-first boundary
 
@@ -115,7 +119,7 @@ jobs:
     permissions:
       contents: write
       actions: write
-    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@main
+    uses: moritzbrantner/reusable-workflows/.github/workflows/promote-branches.yml@15e2a80f13e16d29e432ab761891b5d520622360
     with:
       source_branch: staging
       target_branch: production
@@ -133,14 +137,14 @@ Repository-local `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-wo
 
 ## Generic validation usage
 
-A generic consumer can delegate to one repository-owned command:
+A generic consumer can delegate to one repository-owned command. The SHA below illustrates an immutable reference; select and validate the compatible capability revision for your consumer:
 
 ```yaml
 jobs:
   fast:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/command-validation.yml@main
+    uses: moritzbrantner/reusable-workflows/.github/workflows/command-validation.yml@15e2a80f13e16d29e432ab761891b5d520622360
     with:
       setup_command: bun install --frozen-lockfile
       command: bun run validate:fast

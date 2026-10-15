@@ -40,6 +40,8 @@ Use `application`, `library`, `engine-lab`, `service`, or `template`. The profil
 
 ## 3. Choose the smallest hosted adapter
 
+The example workflow calls below use an immutable illustrative SHA. Replace it with the tested compatible revision selected for each consumer; do not treat `main` as a stable consumer ref.
+
 ### Generic or public repository
 
 Use `fast-validation.yml` around one repository-owned command:
@@ -61,7 +63,7 @@ jobs:
     permissions:
       contents: read
       packages: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@main
+    uses: moritzbrantner/reusable-workflows/.github/workflows/fast-validation.yml@15e2a80f13e16d29e432ab761891b5d520622360
     with:
       command: bun run validate:fast
 ```
@@ -86,7 +88,7 @@ jobs:
   fast:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@main
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@15e2a80f13e16d29e432ab761891b5d520622360
     with:
       tier: fast
       strict: true
@@ -183,7 +185,7 @@ local/source development
 
 Existing repositories pinned to `workflow-standard-v1.3` keep the released v1.3 interfaces, including the older multi-input `fast-validation.yml` and `validate-repo.yml` compatibility surface.
 
-Existing callers may move to `main` when they adopt the thinner capability interface. Keep any intentional compatibility pins until the caller is updated.
+Existing callers may deliberately migrate to a compatible versioned capability contract, pinning a reviewed immutable revision. Breaking changes require a separate contract and explicit migration guidance; keep frozen compatibility pins until the caller is migrated rather than replacing them with the moving `main` branch.
 
 ## Advanced capabilities
 
