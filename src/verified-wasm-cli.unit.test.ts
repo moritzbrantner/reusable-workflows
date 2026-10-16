@@ -27,11 +27,15 @@ describe("verified WASM CLI action", () => {
     const workflowAction = readFileSync(action, "utf8");
 
     expect(source).toContain("sha256sum --check --status");
+    expect(source).toContain("wasm-pack/0.15.0/Linux-x86_64)");
+    expect(source).toContain("wasm-pack/0.15.0/Linux-aarch64)");
     expect(source).toContain("wasm-pack/0.14.0/Linux-x86_64)");
     expect(source).toContain("wasm-pack/0.14.0/Linux-aarch64)");
     expect(source).toContain("wasm-bindgen/0.2.129/Linux-x86_64)");
     expect(source).toContain("wasm-bindgen/0.2.129/Linux-aarch64)");
     expect([...source.matchAll(/^\s+digest=([a-f0-9]{64})$/gm)].map((match) => match[1])).toEqual([
+      "c09f971ecaed9a2efc80fdcea7a00ef6b53c7fadc8c57d1f61b53a6aa66b668a",
+      "e17ef0806381c3a0acb9c9ddad643a49facaa5a2ecf657a421d4d8f3357a24b7",
       "278a8d668085821f4d1a637bd864f1713f872b0ae3a118c77562a308c0abfe8d",
       "5941c7b05060440ff37ee50fe9009a408e63fa5ba607a3b0736f5a887ec5f2ca",
       "82d12bb940e2d4e72e0d5605387fc1b8ca179044e012b620f0ce4e7440e8320e",
