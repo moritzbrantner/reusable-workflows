@@ -7,6 +7,15 @@ tool="$VERIFIED_WASM_TOOL"
 version="$VERIFIED_WASM_VERSION"
 host="$(uname -s)-$(uname -m)"
 case "$tool/$version/$host" in
+  # Official wasm-pack v0.15.0 SHA-256 digests from the GitHub release.
+  wasm-pack/0.15.0/Linux-x86_64)
+    target=x86_64-unknown-linux-musl
+    digest=c09f971ecaed9a2efc80fdcea7a00ef6b53c7fadc8c57d1f61b53a6aa66b668a
+    ;;
+  wasm-pack/0.15.0/Linux-aarch64)
+    target=aarch64-unknown-linux-musl
+    digest=e17ef0806381c3a0acb9c9ddad643a49facaa5a2ecf657a421d4d8f3357a24b7
+    ;;
   wasm-pack/0.14.0/Linux-x86_64)
     target=x86_64-unknown-linux-musl
     digest=278a8d668085821f4d1a637bd864f1713f872b0ae3a118c77562a308c0abfe8d
