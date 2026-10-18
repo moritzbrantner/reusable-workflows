@@ -37,6 +37,7 @@ describe("repository validation scheduling", () => {
     };
     try {
       git("init", "-q");
+      git("config", "diff.renames", "true");
       mkdirSync(join(root, "src/app"), { recursive: true });
       writeFileSync(join(root, "src/app/workflowCatalog.ts"), "export const example = 1;\n");
       const base = commit();
