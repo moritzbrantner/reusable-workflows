@@ -238,3 +238,25 @@ bun run validate:fast
 `validate.yml` keeps pull requests deliberately small: the fast semantic gate, workflow syntax, and the deployable Pages artifact are the default blockers. Browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. The Pages artifact enables exact-source deployment reuse; ordinary validation results are still not reused across revisions.
 
 `smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. The repository's ordinary `validate.yml` now produces the reference Pages artifact for every pull request and `main`; `deploy-docs-pages.yml` resolves/reuses the successful `main` artifact and deploys it without rebuilding. Release qualification/promotion remains covered by the smoke workflow for consumers that genuinely need an immutable release lifecycle. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
+
+### Final merge check
+
+`.github/actions/merge-ready` evaluates results without rerunning validation or querying other runs. Keep one caller job named `merge-ready`, use `if: always()`, and put every required validation in its direct `needs`. Pin the action to a full commit SHA:
+
+```yaml
+merge-ready:
+  name: merge-ready
+  if: ${{ always() }}
+  needs: [validate]
+  runs-on: ubuntu-latest
+  permissions: {}
+  steps:
+    - uses: moritzbrantner/reusable-workflows/.github/actions/merge-ready@<commit-sha>
+      with:
+        needs: ${{ toJSON(needs) }}
+        required: '["validate"]'
+```
+
+`required` is a non-empty JSON array of job IDs. Missing, failed, cancelled, unknown, or unexpectedly skipped required results fail. Dependencies omitted from `required` are explicitly optional. `allow-skipped` permits only `skipped`, never missing, failure, or cancellation; compute it from the same explicit scope conditions that select validation. For docs-only exceptions, require the successful scope-classification job and permit validation skips only when its output proves docs-only. Never derive exceptions from a failed dependency or from its result being `skipped`.
+
+The caller must run on every relevant PR without workflow-level path filters. Consolidate existing conditional validation into that caller where needed, preserving its scope and test commands. Deployment-only jobs do not belong in the merge gate. `needs` binds results to the current run and source revision; do not aggregate by check name across heads. Check GitHub's observed job names and source before requiring exactly `merge-ready` from GitHub Actions (app ID 15368). Preserve unrelated protections, review policy, and force-push/deletion restrictions. Enable repository auto-merge and opt into Renovate platform auto-merge only after the required gate is observed and enforced. Do not enable native automerge globally while unprotected consumers remain.

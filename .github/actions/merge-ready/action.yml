@@ -1,0 +1,48 @@
+name: Merge ready
+description: Evaluate caller-owned required job results from this workflow run.
+inputs:
+  needs:
+    description: JSON from toJSON(needs); all required jobs must be direct dependencies.
+    required: true
+  required:
+    description: Non-empty JSON array of required job IDs. Other dependencies are explicitly optional.
+    required: true
+  allow-skipped:
+    description: JSON array of required jobs intentionally out of scope for this run. Never permits failure or cancellation.
+    required: false
+    default: "[]"
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+      env:
+        MERGE_NEEDS: ${{ inputs.needs }}
+        MERGE_REQUIRED: ${{ inputs.required }}
+        MERGE_ALLOW_SKIPPED: ${{ inputs.allow-skipped }}
+      with:
+        script: |
+          const list = (raw, label) => {
+            const value = JSON.parse(raw);
+            if (!Array.isArray(value) || value.some(id => typeof id !== 'string' || !id.trim()) || new Set(value).size !== value.length) {
+              throw new Error(`${label} must be a JSON array of unique non-empty job IDs`);
+            }
+            return value;
+          };
+          const needs = JSON.parse(process.env.MERGE_NEEDS);
+          const required = list(process.env.MERGE_REQUIRED, 'required');
+          const allowed = list(process.env.MERGE_ALLOW_SKIPPED, 'allow-skipped');
+          if (!needs || typeof needs !== 'object' || Array.isArray(needs) || required.length === 0) {
+            throw new Error('needs must be an object and required must not be empty');
+          }
+          if (allowed.some(id => !required.includes(id))) {
+            throw new Error('allow-skipped must be a subset of required');
+          }
+          const failures = required.filter(id => {
+            const result = Object.hasOwn(needs, id) ? needs[id]?.result : undefined;
+            return result !== 'success' && !(result === 'skipped' && allowed.includes(id));
+          });
+          if (failures.length) {
+            core.setFailed(`Required validations did not succeed: ${failures.map(id => `${id}=${needs[id]?.result ?? 'missing'}`).join(', ')}`);
+          } else {
+            core.info('All required validations succeeded or were explicitly out of scope.');
+          }
