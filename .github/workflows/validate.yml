@@ -106,7 +106,7 @@ jobs:
               revision = [os.environ["BASE_SHA"], os.environ["HEAD_SHA"]]
               if event_name == "pull_request":
                   revision = ["...".join(revision)]
-              paths = subprocess.check_output(["git", "diff", "--name-only", "-z", *revision]).decode().split("\0")
+              paths = subprocess.check_output(["git", "diff", "--no-renames", "--name-only", "-z", *revision]).decode().split("\0")
               smoke_patterns = [
                   ".github/actions/**", ".github/workflows/**", "repository-pages/**",
                   "scripts/generate-workflow-manifest.ts", "scripts/validate-workflow-contracts.ts",
