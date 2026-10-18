@@ -67,6 +67,11 @@ on:
         required: false
         type: boolean
         default: false
+      apt_packages:
+        description: "Space-separated apt packages installed once per job before any command runs (e.g. libudev-dev)."
+        required: false
+        type: string
+        default: ""
       artifact_paths:
         required: false
         type: string
@@ -109,10 +114,6 @@ on:
         required: false
         type: boolean
         default: false
-      cargo_cache_dependency_path:
-        required: false
-        type: string
-        default: "**/Cargo.lock"
       concurrency_group:
         required: false
         type: string
@@ -191,19 +192,18 @@ jobs:
 
       - name: Cache Cargo
         if: ${{ inputs.cache_cargo }}
-        uses: actions/cache@v5
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles(inputs.cargo_cache_dependency_path) }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          workspaces: ${{ inputs.working_directory }}
 
-      - name: Install Xvfb
-        if: ${{ inputs.install_xvfb }}
-        run: sudo apt-get update && sudo apt-get install -y xvfb
+      - name: Install system packages
+        if: ${{ inputs.install_xvfb || inputs.apt_packages != '' }}
+        env:
+          APT_PACKAGES: ${{ inputs.apt_packages }}${{ inputs.install_xvfb && ' xvfb' || '' }}
+        run: |
+          sudo apt-get update -qq
+          # shellcheck disable=SC2086 # word-split the space-separated package list
+          sudo apt-get install -y -qq $APT_PACKAGES
         working-directory: .
 
       - name: Install dependencies
