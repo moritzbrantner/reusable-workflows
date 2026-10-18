@@ -8,10 +8,7 @@ describe("repository validation scheduling", () => {
       new URL("../.github/workflows/validate.yml", import.meta.url),
       "utf8",
     );
-    const smoke = readFileSync(
-      new URL("../.github/workflows/smoke-reusable-workflows.yml", import.meta.url),
-      "utf8",
-    );
+    const smoke = validate;
 
     expect(validate).not.toContain("validation-impact.yml");
     expect(validate).not.toContain("validation-evidence.yml");

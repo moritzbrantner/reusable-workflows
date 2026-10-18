@@ -139,10 +139,10 @@ export function HomePage() {
             </div>
             <p className="connection-copy">
               This graph is intentionally narrower than the full capability catalog. It maps the
-              public repository's own Caller Workflows from <code>validate.yml</code>,{" "}
-              <code>deploy-docs-pages.yml</code>, and <code>smoke-reusable-workflows.yml</code>. The
-              private <code>coding-tooling-validation.yml</code> adapter is exercised by consumers
-              that can access coding-tooling.
+              public repository's own Caller Workflows from <code>validate.yml</code> (including
+              conditional smoke jobs) and <code>deploy-docs-pages.yml</code>. The private{" "}
+              <code>coding-tooling-validation.yml</code> adapter is exercised by consumers that can
+              access coding-tooling.
             </p>
           </div>
 

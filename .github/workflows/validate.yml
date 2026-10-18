@@ -40,6 +40,17 @@ on:
         type: boolean
         default: false
 
+      run_smoke_workflows:
+        description: "Run the existing reusable-workflow smoke suite."
+        required: false
+        type: boolean
+        default: false
+      run_integration_prebuilt:
+        description: "Run the existing integration prebuilt artifact smoke."
+        required: false
+        type: boolean
+        default: false
+
 permissions:
   contents: read
 
@@ -48,6 +59,76 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validation-scope:
+    runs-on: ubuntu-latest
+    outputs:
+      smoke: ${{ steps.scope.outputs.smoke }}
+      prebuilt: ${{ steps.scope.outputs.prebuilt }}
+      allow-skipped: ${{ steps.scope.outputs.allow-skipped }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+      - id: scope
+        shell: python
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          import fnmatch
+          import json
+          import os
+          import subprocess
+
+          with open(os.environ["GITHUB_EVENT_PATH"]) as source:
+              event = json.load(source)
+          event_name = os.environ["GITHUB_EVENT_NAME"]
+          inputs = event.get("inputs") or {}
+          def enabled(name):
+              return str(inputs.get(name, False)).lower() == "true"
+          labels = {label["name"] for label in event.get("pull_request", {}).get("labels", [])}
+          def optional(flag, label):
+              return event_name == "push" or (
+                  event_name == "workflow_dispatch" and (enabled("run_full_validation") or enabled(flag))
+              ) or (event_name == "pull_request" and bool(labels & {"ci:full", label}))
+          selected = {
+              "e2e-validation": optional("run_e2e", "ci:e2e"),
+              "storybook-validation": optional("run_storybook", "ci:storybook"),
+              "link-validation": optional("run_link_validation", "ci:links"),
+              "performance-validation": optional("run_performance", "ci:perf"),
+              "artifact-build": event_name in {"push", "pull_request"} or any(
+                  enabled(flag) for flag in ["run_full_validation", "run_e2e", "run_storybook", "run_link_validation"]
+              ),
+          }
+          smoke = enabled("run_smoke_workflows") or enabled("run_full_validation")
+          prebuilt = enabled("run_integration_prebuilt") or enabled("run_full_validation")
+          if event_name != "workflow_dispatch":
+              revision = [os.environ["BASE_SHA"], os.environ["HEAD_SHA"]]
+              if event_name == "pull_request":
+                  revision = ["...".join(revision)]
+              paths = subprocess.check_output(["git", "diff", "--name-only", "-z", *revision]).decode().split("\0")
+              smoke_patterns = [
+                  ".github/actions/**", ".github/workflows/**", "repository-pages/**",
+                  "scripts/generate-workflow-manifest.ts", "scripts/validate-workflow-contracts.ts",
+                  "scripts/workflow-catalog-data.ts", "src/app/workflowCatalog.ts",
+                  "src/validate-workflow-contracts.test.ts",
+              ]
+              prebuilt_patterns = [
+                  ".github/actions/consume-build-artifact/**", ".github/workflows/build-artifact.yml",
+                  ".github/workflows/integration-validation.yml", ".github/workflows/smoke-integration-prebuilt.yml",
+                  ".github/workflows/validate.yml",
+              ]
+              smoke = any(fnmatch.fnmatchcase(path, pattern) for path in paths for pattern in smoke_patterns)
+              prebuilt = event_name == "pull_request" and any(
+                  fnmatch.fnmatchcase(path, pattern) for path in paths for pattern in prebuilt_patterns
+              )
+          selected.update({"smoke-verified-wasm-cli": smoke, "smoke-fast-validation": smoke, "smoke-build-artifact": smoke, "smoke-build-artifact-reuse": smoke, "smoke-consume-build-artifact": smoke, "smoke-command-validation": smoke, "smoke-command-validation-second": smoke, "smoke-public-contract-validation": smoke, "smoke-repository-pages-build": smoke, "smoke-integration-validation": smoke, "smoke-e2e-validation": smoke, "smoke-storybook-validation": smoke, "smoke-link-validation": smoke, "smoke-performance-validation": smoke, "smoke-stage-validation": smoke, "smoke-validate-repo": smoke, "smoke-release-qualification": smoke, "smoke-artifact-promotion": smoke, "smoke-release-template": smoke, "prebuilt-smoke-build-artifact": prebuilt, "prebuilt-smoke-integration-validation": prebuilt})
+          skipped = [job for job, required in selected.items() if not required]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              print(f"smoke={str(smoke).lower()}", file=output)
+              print(f"prebuilt={str(prebuilt).lower()}", file=output)
+              print(f"allow-skipped={json.dumps(skipped)}", file=output)
+
   coding-tooling-fast:
     uses: ./.github/workflows/coding-tooling-validation.yml
     permissions:
@@ -245,3 +326,488 @@ jobs:
         benchmark-results/*.md
         performance-results/current-build.md
       upload_artifacts_on: ${{ github.event_name == 'pull_request' && 'failure' || 'always' }}
+
+  smoke-verified-wasm-cli:
+    needs: ["validation-scope"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    name: Verified ${{ matrix.tool }} precompiled CLI
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - tool: wasm-pack
+            version: "0.14.0"
+          - tool: wasm-bindgen
+            version: "0.2.129"
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install verified CLI
+        uses: ./.github/actions/install-verified-wasm-cli
+        with:
+          tool: ${{ matrix.tool }}
+          version: ${{ matrix.version }}
+      - name: Validate exact released executable
+        env:
+          CLI_TOOL: ${{ matrix.tool }}
+          CLI_VERSION: ${{ matrix.version }}
+        run: |
+          set -euo pipefail
+          command -v "$CLI_TOOL"
+          test "$("$CLI_TOOL" --version)" = "$CLI_TOOL $CLI_VERSION"
+
+  smoke-fast-validation:
+    needs: ["validation-scope"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/fast-validation.yml
+    with:
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      command: "echo smoke fast validation"
+
+  smoke-build-artifact:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/build-artifact.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_key: reusable-workflows-smoke-artifact-v1
+      bun_version: "1.4.0"
+      cache_bun: true
+      cache_cargo: true
+      cargo_tool_cache_key: smoke-cli-v1
+      setup_command: "mkdir -p \"$CARGO_INSTALL_ROOT/bin\" && printf '#!/usr/bin/env bash\\necho cached-tool\\n' > \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && chmod +x \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && reusable-workflows-smoke-tool"
+      build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
+      artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
+      reuse_across_runs: true
+      artifact_retention_days: 1
+
+  smoke-build-artifact-reuse:
+    needs: ["validation-scope", "smoke-build-artifact"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/build-artifact.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_key: reusable-workflows-smoke-artifact-v1
+      bun_version: "1.4.0"
+      cache_bun: true
+      cache_cargo: true
+      cargo_tool_cache_key: smoke-cli-v1
+      setup_command: "mkdir -p \"$CARGO_INSTALL_ROOT/bin\" && printf '#!/usr/bin/env bash\\necho cached-tool\\n' > \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && chmod +x \"$CARGO_INSTALL_ROOT/bin/reusable-workflows-smoke-tool\" && reusable-workflows-smoke-tool"
+      build_command: "mkdir -p .artifacts/build-artifact-smoke && printf 'verified build artifact\n' > .artifacts/build-artifact-smoke/artifact.txt"
+      artifact_paths: .artifacts/build-artifact-smoke/artifact.txt
+      reuse_across_runs: true
+      artifact_retention_days: 1
+
+  smoke-consume-build-artifact:
+    needs: ["validation-scope", "smoke-build-artifact", "smoke-build-artifact-reuse"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify resolver reused the existing build
+        env:
+          REUSED: ${{ needs.smoke-build-artifact-reuse.outputs.reused }}
+        run: test "$REUSED" = "true"
+      - name: Consume exact build artifact
+        id: consume
+        uses: ./.github/actions/consume-build-artifact
+        with:
+          producer_run_id: ${{ needs.smoke-build-artifact-reuse.outputs.producer_run_id }}
+          receipt_artifact_name: ${{ needs.smoke-build-artifact-reuse.outputs.receipt_artifact_name }}
+          artifact_name: ${{ needs.smoke-build-artifact-reuse.outputs.artifact_name }}
+          artifact_digest: ${{ needs.smoke-build-artifact-reuse.outputs.artifact_digest }}
+          source_sha: ${{ needs.smoke-build-artifact-reuse.outputs.source_sha }}
+          artifact_key: ${{ needs.smoke-build-artifact-reuse.outputs.artifact_key }}
+          identity_digest: ${{ needs.smoke-build-artifact-reuse.outputs.identity_digest }}
+          destination_path: .artifacts/consumed-build-artifact
+          github_token: ${{ github.token }}
+      - name: Verify consumed bytes and reuse timing
+        env:
+          REUSE_LOOKUP_MS: ${{ needs.smoke-build-artifact-reuse.outputs.reuse_lookup_ms }}
+          SETUP_MS: ${{ needs.smoke-build-artifact.outputs.setup_ms }}
+          BUILD_MS: ${{ needs.smoke-build-artifact.outputs.build_ms }}
+          UPLOAD_MS: ${{ needs.smoke-build-artifact.outputs.upload_ms }}
+          ARTIFACT_BYTES: ${{ needs.smoke-build-artifact.outputs.artifact_bytes }}
+          CONSUME_MS: ${{ steps.consume.outputs.consume_ms }}
+          MATERIALIZED_BYTES: ${{ steps.consume.outputs.materialized_bytes }}
+        run: |
+          test "$(cat .artifacts/consumed-build-artifact/artifact.txt)" = "verified build artifact"
+          [[ "$REUSE_LOOKUP_MS" =~ ^[0-9]+$ ]]
+          [[ "$SETUP_MS" =~ ^[0-9]+$ ]]
+          [[ "$BUILD_MS" =~ ^[0-9]+$ ]]
+          [[ "$UPLOAD_MS" =~ ^[0-9]+$ ]]
+          [[ "$ARTIFACT_BYTES" =~ ^[0-9]+$ ]]
+          [[ "$CONSUME_MS" =~ ^[0-9]+$ ]]
+          [[ "$MATERIALIZED_BYTES" =~ ^[0-9]+$ ]]
+
+  smoke-command-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/command-validation.yml
+    with:
+      setup_command: "npm install --global bun@1.4.0 && echo smoke generic bootstrap"
+      command: "echo smoke generic validation"
+
+  smoke-command-validation-second:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/command-validation.yml
+    with:
+      setup_command: "npm install --global bun@1.4.0"
+      command: "echo smoke second generic validation"
+
+  smoke-public-contract-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/public-contract-validation.yml
+
+  smoke-repository-pages-build:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+      - name: Install repository Pages dependencies
+        working-directory: repository-pages
+        run: bun install
+      - name: Build repository Pages static export
+        working-directory: repository-pages
+        env:
+          NEXT_PUBLIC_REPOSITORY: moritzbrantner/reusable-workflows
+          NEXT_PUBLIC_BASE_PATH: /reusable-workflows
+        run: bun run build
+
+  smoke-integration-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/integration-validation.yml
+    with:
+      concurrency_group: ${{ format('smoke-integration-validation-{0}', github.ref) }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      integration_command: "echo smoke integration"
+      migration_command: "echo smoke migration"
+      package_check_command: "echo smoke package"
+      artifact_paths: ""
+
+  smoke-e2e-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/e2e-validation.yml
+    with:
+      concurrency_group: ${{ format('smoke-e2e-validation-{0}', github.ref) }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      install_playwright: false
+      e2e_command: "echo smoke e2e"
+      artifact_paths: ""
+
+  smoke-storybook-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/storybook-validation.yml
+    with:
+      concurrency_group: ${{ format('smoke-storybook-validation-{0}', github.ref) }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      storybook_build_command: "echo smoke storybook build"
+      storybook_test_command: "echo smoke storybook test"
+      accessibility_command: "echo smoke accessibility"
+      visual_command: "echo smoke visual"
+      artifact_paths: ""
+
+  smoke-link-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/link-validation.yml
+    with:
+      concurrency_group: ${{ format('smoke-link-validation-{0}', github.ref) }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      link_check_command: "echo smoke links"
+      artifact_paths: ""
+
+  smoke-performance-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/performance-validation.yml
+    with:
+      concurrency_group: ${{ format('smoke-performance-validation-{0}', github.ref) }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      build_command: "echo smoke performance build"
+      unlighthouse_command: "echo smoke unlighthouse"
+      benchmark_command: "mkdir -p benchmark-results && { echo '# Smoke Benchmark Summary'; echo; echo 'smoke benchmark'; } > benchmark-results/smoke.md"
+      bundle_size_command: "echo smoke bundle"
+      api_report_command: "echo smoke api"
+      summary_paths: benchmark-results/smoke.md
+      artifact_paths: ""
+
+  smoke-stage-validation:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/stage-validation.yml
+    with:
+      concurrency_group: ${{ format('smoke-stage-validation-{0}', github.ref) }}
+      stage: develop
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      develop_command: "echo smoke develop"
+      artifact_paths: ""
+
+  smoke-validate-repo:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/validate-repo.yml
+    with:
+      concurrency_group: ${{ format('smoke-validate-repo-{0}', github.ref) }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      format_command: "echo smoke format"
+      lint_command: "echo smoke lint"
+      typecheck_command: "echo smoke typecheck"
+      test_command: "echo smoke test"
+      build_command: "echo smoke build"
+      e2e_command: "echo smoke e2e"
+      artifact_paths: ""
+
+  smoke-release-qualification:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/release-qualification.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      setup_command: "npm install --global bun@1.4.0"
+      qualification_command: "echo smoke release qualification"
+      build_command: "mkdir -p .artifacts/release-qualification-smoke && echo qualified > .artifacts/release-qualification-smoke/artifact.txt"
+      artifact_paths: .artifacts/release-qualification-smoke/artifact.txt
+      artifact_retention_days: 1
+
+  smoke-artifact-promotion:
+    needs: ["validation-scope", "smoke-release-qualification"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      attestations: read
+      contents: read
+    uses: ./.github/workflows/artifact-promotion.yml
+    with:
+      qualification_run_id: ${{ github.run_id }}
+      qualification_receipt_artifact_name: ${{ needs.smoke-release-qualification.outputs.receipt_artifact_name }}
+      artifact_retention_days: 1
+
+  smoke-release-template:
+    needs: ["validation-scope", "smoke-fast-validation"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    permissions:
+      actions: read
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/release-template.yml
+    with:
+      concurrency_group: ${{ format('smoke-release-template-{0}', github.ref) }}
+      release_type: smoke
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      validate_command: "echo smoke release validate"
+      build_command: "echo smoke release build"
+      release_command: ""
+      artifact_paths: ""
+
+  prebuilt-smoke-build-artifact:
+    needs: ["validation-scope"]
+    if: ${{ needs.validation-scope.outputs.prebuilt == 'true' }}
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    uses: ./.github/workflows/build-artifact.yml
+    with:
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      artifact_key: integration-prebuilt-smoke-v1
+      use_environment_v1: false
+      build_command: mkdir -p .artifacts/integration-prebuilt && printf 'verified integration artifact\n' > .artifacts/integration-prebuilt/artifact.txt
+      artifact_paths: .artifacts/integration-prebuilt/artifact.txt
+      reuse_across_runs: true
+      artifact_retention_days: 1
+
+  prebuilt-smoke-integration-validation:
+    needs: ["validation-scope", "prebuilt-smoke-build-artifact"]
+    if: ${{ needs.validation-scope.outputs.prebuilt == 'true' }}
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+    uses: ./.github/workflows/integration-validation.yml
+    with:
+      concurrency_group: ${{ format('prebuilt-smoke-integration-validation-{0}', github.ref) }}
+      node_version: ""
+      bun_version: ""
+      install_command: ""
+      prebuilt_artifact_run_id: ${{ needs.prebuilt-smoke-build-artifact.outputs.producer_run_id }}
+      prebuilt_artifact_receipt_name: ${{ needs.prebuilt-smoke-build-artifact.outputs.receipt_artifact_name }}
+      prebuilt_artifact_name: ${{ needs.prebuilt-smoke-build-artifact.outputs.artifact_name }}
+      prebuilt_artifact_digest: ${{ needs.prebuilt-smoke-build-artifact.outputs.artifact_digest }}
+      prebuilt_source_sha: ${{ needs.prebuilt-smoke-build-artifact.outputs.source_sha }}
+      prebuilt_artifact_key: ${{ needs.prebuilt-smoke-build-artifact.outputs.artifact_key }}
+      prebuilt_identity_digest: ${{ needs.prebuilt-smoke-build-artifact.outputs.identity_digest }}
+      prebuilt_artifact_destination: .artifacts/integration-consumed
+      integration_command: test "$(cat .artifacts/integration-consumed/artifact.txt)" = "verified integration artifact"
+      artifact_paths: ""
+
+  merge-ready:
+    name: merge-ready
+    if: ${{ always() }}
+    needs:
+      [
+        "validation-scope",
+        "coding-tooling-fast",
+        "actionlint",
+        "artifact-build",
+        "e2e-validation",
+        "storybook-validation",
+        "link-validation",
+        "performance-validation",
+        "smoke-verified-wasm-cli",
+        "smoke-fast-validation",
+        "smoke-build-artifact",
+        "smoke-build-artifact-reuse",
+        "smoke-consume-build-artifact",
+        "smoke-command-validation",
+        "smoke-command-validation-second",
+        "smoke-public-contract-validation",
+        "smoke-repository-pages-build",
+        "smoke-integration-validation",
+        "smoke-e2e-validation",
+        "smoke-storybook-validation",
+        "smoke-link-validation",
+        "smoke-performance-validation",
+        "smoke-stage-validation",
+        "smoke-validate-repo",
+        "smoke-release-qualification",
+        "smoke-artifact-promotion",
+        "smoke-release-template",
+        "prebuilt-smoke-build-artifact",
+        "prebuilt-smoke-integration-validation",
+      ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: moritzbrantner/reusable-workflows/.github/actions/merge-ready@b0f25f241d76af2584dfc9e375084ff5c5cb97da
+        with:
+          needs: ${{ toJSON(needs) }}
+          required: '["validation-scope", "coding-tooling-fast", "actionlint", "artifact-build", "e2e-validation", "storybook-validation", "link-validation", "performance-validation", "smoke-verified-wasm-cli", "smoke-fast-validation", "smoke-build-artifact", "smoke-build-artifact-reuse", "smoke-consume-build-artifact", "smoke-command-validation", "smoke-command-validation-second", "smoke-public-contract-validation", "smoke-repository-pages-build", "smoke-integration-validation", "smoke-e2e-validation", "smoke-storybook-validation", "smoke-link-validation", "smoke-performance-validation", "smoke-stage-validation", "smoke-validate-repo", "smoke-release-qualification", "smoke-artifact-promotion", "smoke-release-template", "prebuilt-smoke-build-artifact", "prebuilt-smoke-integration-validation"]'
+          allow-skipped: ${{ needs.validation-scope.outputs.allow-skipped || '[]' }}
