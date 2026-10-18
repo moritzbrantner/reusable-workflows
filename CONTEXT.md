@@ -147,7 +147,7 @@ The chain deliberately stops short of silently releasing to public users. Androi
 
 - `validate-repo.yml`
 
-Repository-local `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` validate this repository itself and are not reusable capability APIs.
+Repository-local `validate.yml` (including its conditional smoke jobs) and `deploy-docs-pages.yml` validate this repository itself and are not reusable capability APIs.
 
 ## Compatibility policy
 

@@ -45,6 +45,8 @@ const workflowDetails = [
       "Runs e2e, Storybook, link, and performance jobs only after the fast gate passes.",
       "Supports manual dispatch inputs and PR labels for selectively enabling costly validation suites.",
       "Keeps CI concurrency scoped to the workflow and Git ref.",
+      "Runs the existing smoke jobs for workflow-contract path changes or explicit dispatch.",
+      "Reports one merge-ready check over every validation required for the current scope.",
     ],
     icon: Workflow,
   },
@@ -63,22 +65,6 @@ const workflowDetails = [
       "Grants Pages and OIDC permissions only for the deployment path.",
     ],
     icon: Globe2,
-  },
-  {
-    file: ".github/workflows/smoke-reusable-workflows.yml",
-    title: "Smoke Reusable Workflows",
-    summary:
-      "Low-cost Caller Workflow that exercises the reusable workflow API with minimal shell commands.",
-    role: "Caller Workflow",
-    useWhen:
-      "Use this workflow to catch Workflow Contract regressions in Reusable Workflows without running the full application test suite.",
-    responsibilities: [
-      "Runs automatically only when workflow API surface or contract-validation files change.",
-      "Calls every reusable validation workflow with no-op or smoke commands after the fast smoke check passes.",
-      "Verifies optional setup paths can be disabled for smoke runs.",
-      "Keeps a manual dispatch path for explicit Reusable Workflow smoke coverage.",
-    ],
-    icon: ShieldCheck,
   },
   {
     file: ".github/workflows/fast-validation.yml",
@@ -279,8 +265,9 @@ const workflowGraphNodes = [
   },
   {
     id: "smoke",
-    label: "Smoke Reusable Workflows",
-    description: "Smoke Caller Workflow that exercises Reusable Workflows with minimal commands.",
+    label: "Validate smoke jobs",
+    description:
+      "Conditional jobs in Validate that exercise Reusable Workflows with minimal commands.",
     group: "Caller Workflow",
     x: 0,
     y: 760,

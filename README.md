@@ -133,7 +133,7 @@ Pushes with this token do not start push-triggered workflows. Each optional `dis
 
 - `validate-repo.yml` — combined scaffold-v2 compatibility workflow. Do not adopt it in new repositories.
 
-Repository-local `validate.yml`, `deploy-docs-pages.yml`, and `smoke-reusable-workflows.yml` exercise this repository itself; they are not part of the reusable API.
+Repository-local `validate.yml` (including its conditional smoke jobs) and `deploy-docs-pages.yml` exercise this repository itself; they are not part of the reusable API.
 
 ## Generic validation usage
 
@@ -237,7 +237,7 @@ bun run validate:fast
 
 `validate.yml` keeps pull requests deliberately small: the fast semantic gate, workflow syntax, and the deployable Pages artifact are the default blockers. Browser, link, Storybook, and performance lanes run after merge on `main`, by manual dispatch, or when a pull request explicitly carries the matching `ci:*` label. The Pages artifact enables exact-source deployment reuse; ordinary validation results are still not reused across revisions.
 
-`smoke-reusable-workflows.yml` dogfoods the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. The repository's ordinary `validate.yml` now produces the reference Pages artifact for every pull request and `main`; `deploy-docs-pages.yml` resolves/reuses the successful `main` artifact and deploys it without rebuilding. Release qualification/promotion remains covered by the smoke workflow for consumers that genuinely need an immutable release lifecycle. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
+The conditional smoke jobs in `validate.yml` dogfood the generic command/public-contract/build-artifact/reuse/release-qualification/promotion path. Branch pushes do not run a duplicate smoke suite when a pull request already provides the PR smoke boundary; push smoke is reserved for `main`. The repository's ordinary `validate.yml` now produces the reference Pages artifact for every pull request and `main`; `deploy-docs-pages.yml` resolves/reuses the successful `main` artifact and deploys it without rebuilding. Release qualification/promotion remains covered by these smoke jobs for consumers that genuinely need an immutable release lifecycle. Credentialed Expo store delivery remains consumer-canary-only because this repository does not own a real App Store/Google Play product or store credentials.
 
 ### Final merge check
 

@@ -44,5 +44,9 @@
       "benchmark": ["bun", "run", "bench"]
     }
   },
-  "conventionRefs": ["AGENT-001", "AGENT-007"]
+  "conventionRefs": ["AGENT-001", "AGENT-007"],
+  "merge": {
+    "authority": "hosted",
+    "requiredChecks": ["merge-ready"]
+  }
 }
