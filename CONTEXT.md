@@ -162,3 +162,6 @@ Capabilities are versioned independently; there is no new monolithic Workflow St
 Consumers pin tested immutable revisions, rather than using the moving `main` branch as a stability reference. Workflow YAML remains the contract source of truth, with manifests generated from it.
 
 Automated compatibility enforcement for the current capability line is not yet established; the frozen v1.3 checks alone do not prove the broader guarantee.
+
+**Final merge check**  
+`.github/actions/merge-ready` is a composite action evaluated inside one caller-owned `merge-ready` job. The caller owns required job IDs and explicit scope-based skip exceptions. It consumes same-run `needs` results without fetching unrelated checks or introducing a nested workflow check name.
