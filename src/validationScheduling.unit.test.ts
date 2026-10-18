@@ -1,8 +1,68 @@
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { describe, expect, test } from "vitest";
 
 describe("repository validation scheduling", () => {
+  test("keeps smoke validation required when source is renamed into documentation", () => {
+    const validate = readFileSync(
+      new URL("../.github/workflows/validate.yml", import.meta.url),
+      "utf8",
+    );
+    const body = validate.split("        run: |\n")[1]?.split("\n  coding-tooling-fast:")[0];
+    if (!body) {
+      throw new Error("Validation scope script is missing");
+    }
+    const scope = body
+      .split("\n")
+      .map((line) => line.slice(10))
+      .join("\n");
+    const root = mkdtempSync(join(tmpdir(), "validation-scope-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
+    const commit = () => {
+      git("add", ".");
+      git(
+        "-c",
+        "user.name=Scope Test",
+        "-c",
+        "user.email=scope@example.invalid",
+        "commit",
+        "-qm",
+        "fixture",
+      );
+      return git("rev-parse", "HEAD");
+    };
+    try {
+      git("init", "-q");
+      mkdirSync(join(root, "src/app"), { recursive: true });
+      writeFileSync(join(root, "src/app/workflowCatalog.ts"), "export const example = 1;\n");
+      const base = commit();
+      mkdirSync(join(root, "docs"));
+      renameSync(join(root, "src/app/workflowCatalog.ts"), join(root, "docs/catalog.md"));
+      const head = commit();
+      const eventPath = join(root, "event.json");
+      const outputPath = join(root, "output");
+      writeFileSync(eventPath, JSON.stringify({ pull_request: { labels: [] } }));
+      execFileSync("python3", ["-c", scope], {
+        cwd: root,
+        env: {
+          ...process.env,
+          BASE_SHA: base,
+          HEAD_SHA: head,
+          GITHUB_EVENT_NAME: "pull_request",
+          GITHUB_EVENT_PATH: eventPath,
+          GITHUB_OUTPUT: outputPath,
+        },
+      });
+      expect(readFileSync(outputPath, "utf8")).toContain("smoke=true\n");
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("keeps ordinary validation direct and free of reusable validation evidence", () => {
     const validate = readFileSync(
       new URL("../.github/workflows/validate.yml", import.meta.url),
