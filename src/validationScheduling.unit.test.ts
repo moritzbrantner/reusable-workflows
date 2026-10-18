@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 
 describe("repository validation scheduling", () => {
-  test("keeps smoke validation required when source is renamed into documentation", () => {
+  test("keeps renamed-source scope and current PR labels required across reruns", () => {
     const validate = readFileSync(
       new URL("../.github/workflows/validate.yml", import.meta.url),
       "utf8",
@@ -46,19 +46,54 @@ describe("repository validation scheduling", () => {
       const head = commit();
       const eventPath = join(root, "event.json");
       const outputPath = join(root, "output");
-      writeFileSync(eventPath, JSON.stringify({ pull_request: { labels: [] } }));
-      execFileSync("python3", ["-c", scope], {
-        cwd: root,
-        env: {
-          ...process.env,
-          BASE_SHA: base,
-          HEAD_SHA: head,
-          GITHUB_EVENT_NAME: "pull_request",
-          GITHUB_EVENT_PATH: eventPath,
-          GITHUB_OUTPUT: outputPath,
-        },
-      });
+      writeFileSync(eventPath, JSON.stringify({ number: 1, pull_request: { labels: [] } }));
+      const bin = join(root, "bin");
+      const response = join(root, "current-pr.json");
+      mkdirSync(bin);
+      writeFileSync(join(bin, "gh"), `#!/bin/sh\ncat '${response}'\n`, { mode: 0o755 });
+      writeFileSync(response, JSON.stringify({ head: { sha: head }, labels: [] }));
+      const runScope = () =>
+        execFileSync("python3", ["-c", scope], {
+          cwd: root,
+          stdio: "pipe",
+          env: {
+            ...process.env,
+            PATH: `${bin}:${process.env.PATH ?? ""}`,
+            GITHUB_REPOSITORY: "fixture/repository",
+            BASE_SHA: base,
+            HEAD_SHA: head,
+            GITHUB_EVENT_NAME: "pull_request",
+            GITHUB_EVENT_PATH: eventPath,
+            GITHUB_OUTPUT: outputPath,
+          },
+        });
+      runScope();
       expect(readFileSync(outputPath, "utf8")).toContain("smoke=true\n");
+      writeFileSync(
+        response,
+        JSON.stringify({ head: { sha: head }, labels: [{ name: "CI:PERF" }] }),
+      );
+      writeFileSync(outputPath, "");
+      runScope();
+      const promoted = readFileSync(outputPath, "utf8");
+      expect(promoted).toContain("performance-validation=true\n");
+      const skipped = promoted.split("allow-skipped=")[1]?.split("\n")[0];
+      expect(JSON.parse(skipped ?? "null")).not.toContain("performance-validation");
+      writeFileSync(
+        eventPath,
+        JSON.stringify({ number: 1, pull_request: { labels: [{ name: "ci:perf" }] } }),
+      );
+      writeFileSync(response, JSON.stringify({ head: { sha: head }, labels: [] }));
+      writeFileSync(outputPath, "");
+      runScope();
+      expect(readFileSync(outputPath, "utf8")).toContain("performance-validation=false\n");
+      writeFileSync(response, JSON.stringify({ head: { sha: "stale-head" }, labels: [] }));
+      writeFileSync(outputPath, "");
+      expect(runScope).toThrow();
+      expect(readFileSync(outputPath, "utf8")).toBe("");
+      writeFileSync(join(bin, "gh"), "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+      expect(runScope).toThrow();
+      expect(readFileSync(outputPath, "utf8")).toBe("");
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -87,10 +122,10 @@ describe("repository validation scheduling", () => {
       "utf8",
     );
 
-    expect(validate).toContain("needs: [coding-tooling-fast, actionlint]");
+    expect(validate).toContain("needs: [validation-scope, coding-tooling-fast, actionlint]");
     expect(validate).toContain("(github.event_name == 'push' && github.ref == 'refs/heads/main')");
-    expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:e2e')");
-    expect(validate).toContain("contains(github.event.pull_request.labels.*.name, 'ci:perf')");
+    expect(validate).toContain("needs.validation-scope.outputs.e2e-validation == 'true'");
+    expect(validate).toContain("needs.validation-scope.outputs.performance-validation == 'true'");
   });
 
   test("builds Pages once in validation and reuses the exact artifact for deployment", () => {

@@ -60,8 +60,15 @@ concurrency:
 
 jobs:
   validation-scope:
+    permissions:
+      contents: read
+      pull-requests: read
     runs-on: ubuntu-latest
     outputs:
+      e2e-validation: ${{ steps.scope.outputs.e2e-validation }}
+      storybook-validation: ${{ steps.scope.outputs.storybook-validation }}
+      link-validation: ${{ steps.scope.outputs.link-validation }}
+      performance-validation: ${{ steps.scope.outputs.performance-validation }}
       smoke: ${{ steps.scope.outputs.smoke }}
       prebuilt: ${{ steps.scope.outputs.prebuilt }}
       allow-skipped: ${{ steps.scope.outputs.allow-skipped }}
@@ -72,6 +79,7 @@ jobs:
       - id: scope
         shell: python
         env:
+          GH_TOKEN: ${{ github.token }}
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
@@ -86,7 +94,14 @@ jobs:
           inputs = event.get("inputs") or {}
           def enabled(name):
               return str(inputs.get(name, False)).lower() == "true"
-          labels = {label["name"] for label in event.get("pull_request", {}).get("labels", [])}
+          labels = set()
+          if event_name == "pull_request":
+              current = json.loads(subprocess.check_output([
+                  "gh", "api", f"repos/{os.environ['GITHUB_REPOSITORY']}/pulls/{event['number']}"
+              ]))
+              if current["head"]["sha"] != os.environ["HEAD_SHA"]:
+                  raise RuntimeError("PR head changed; this validation scope is stale")
+              labels = {label["name"].casefold() for label in current["labels"]}
           def optional(flag, label):
               return event_name == "push" or (
                   event_name == "workflow_dispatch" and (enabled("run_full_validation") or enabled(flag))
@@ -125,6 +140,8 @@ jobs:
           selected.update({"smoke-verified-wasm-cli": smoke, "smoke-fast-validation": smoke, "smoke-build-artifact": smoke, "smoke-build-artifact-reuse": smoke, "smoke-consume-build-artifact": smoke, "smoke-command-validation": smoke, "smoke-command-validation-second": smoke, "smoke-public-contract-validation": smoke, "smoke-repository-pages-build": smoke, "smoke-integration-validation": smoke, "smoke-e2e-validation": smoke, "smoke-storybook-validation": smoke, "smoke-link-validation": smoke, "smoke-performance-validation": smoke, "smoke-stage-validation": smoke, "smoke-validate-repo": smoke, "smoke-release-qualification": smoke, "smoke-artifact-promotion": smoke, "smoke-release-template": smoke, "prebuilt-smoke-build-artifact": prebuilt, "prebuilt-smoke-integration-validation": prebuilt})
           skipped = [job for job, required in selected.items() if not required]
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              for job in ["e2e-validation", "storybook-validation", "link-validation", "performance-validation"]:
+                  print(f"{job}={str(selected[job]).lower()}", file=output)
               print(f"smoke={str(smoke).lower()}", file=output)
               print(f"prebuilt={str(prebuilt).lower()}", file=output)
               print(f"allow-skipped={json.dumps(skipped)}", file=output)
@@ -192,13 +209,13 @@ jobs:
       artifact_retention_days: 1
 
   e2e-validation:
-    needs: [artifact-build]
+    needs: [validation-scope, artifact-build]
     if: >-
       ${{
         !cancelled() && needs.artifact-build.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e)) ||
-          (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:e2e')))
+          (github.event_name == 'pull_request' && needs.validation-scope.outputs.e2e-validation == 'true')
         )
       }}
     uses: ./.github/workflows/e2e-validation.yml
@@ -224,13 +241,13 @@ jobs:
         test-results
 
   storybook-validation:
-    needs: [artifact-build]
+    needs: [validation-scope, artifact-build]
     if: >-
       ${{
         !cancelled() && needs.artifact-build.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_storybook)) ||
-          (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:storybook')))
+          (github.event_name == 'pull_request' && needs.validation-scope.outputs.storybook-validation == 'true')
         )
       }}
     uses: ./.github/workflows/storybook-validation.yml
@@ -260,13 +277,13 @@ jobs:
         test-results
 
   link-validation:
-    needs: [artifact-build]
+    needs: [validation-scope, artifact-build]
     if: >-
       ${{
         !cancelled() && needs.artifact-build.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_link_validation)) ||
-          (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:links')))
+          (github.event_name == 'pull_request' && needs.validation-scope.outputs.link-validation == 'true')
         )
       }}
     uses: ./.github/workflows/link-validation.yml
@@ -296,7 +313,7 @@ jobs:
         linkinator-report.json
 
   performance-validation:
-    needs: [coding-tooling-fast, actionlint]
+    needs: [validation-scope, coding-tooling-fast, actionlint]
     if: >-
       ${{
         !cancelled() &&
@@ -304,7 +321,7 @@ jobs:
         needs.actionlint.result == 'success' && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_performance)) ||
-          (github.event_name == 'pull_request' && (contains(github.event.pull_request.labels.*.name, 'ci:full') || contains(github.event.pull_request.labels.*.name, 'ci:perf')))
+          (github.event_name == 'pull_request' && needs.validation-scope.outputs.performance-validation == 'true')
         )
       }}
     uses: ./.github/workflows/performance-validation.yml
