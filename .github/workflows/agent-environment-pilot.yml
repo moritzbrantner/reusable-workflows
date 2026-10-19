@@ -31,7 +31,7 @@ jobs:
           echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
           echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: "24"
       - name: Execute common validation task and write receipt
@@ -67,7 +67,7 @@ jobs:
           echo "PILOT_START_MS=$(date +%s%3N)" >> "$GITHUB_ENV"
           echo "PILOT_RUNNER_IMAGE_VERSION=${ImageVersion:-unknown}" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.1.0
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version: "24"
       - name: Prepare pinned Dev Containers CLI and image
