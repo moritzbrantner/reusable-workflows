@@ -1,5 +1,14 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["github>moritzbrantner/coding-agent-conventions"],
-  "platformAutomerge": true
+  "platformAutomerge": true,
+  "packageRules": [
+    {
+      "description": "coding-tooling-validation.yml deliberately runs the current coding-tooling action (@main); a unit test guards it, so it is not pinned to a digest.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["moritzbrantner/coding-tooling"],
+      "matchCurrentValue": "main",
+      "pinDigests": false
+    }
+  ]
 }
