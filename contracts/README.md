@@ -17,3 +17,7 @@ bun run contracts:generate .artifacts/workflow-capabilities.json
 ```
 
 This keeps current inputs, secrets, outputs, defaults, and job permissions derived from the actual workflow YAML rather than manually maintaining a second authoritative copy.
+
+## Current contract compatibility
+
+`bun run contracts:compat` (CI passes the pull request base) compares the generated contracts at the merge base with the working tree and fails on breaking interface changes. See `CONTEXT.md#compatibility-policy`. Breaking changes go into a new versioned workflow file; `retired-workflows.json` records a migrated-away path as `{ "<path>": { "replacement": "<new path>", "migration": "<caller changes>" } }`.
