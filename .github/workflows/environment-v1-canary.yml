@@ -12,7 +12,7 @@ on:
         description: Retained for compatibility; setup uses the repository's declared tools.
         required: false
         type: string
-        default: 1.4.0
+        default: "latest"
       timeout_minutes:
         description: Maximum smoke job runtime.
         required: false

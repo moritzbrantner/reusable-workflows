@@ -17,7 +17,7 @@ on:
         description: Bun version to install. Empty disables Bun setup.
         required: false
         type: string
-        default: "1.4.0"
+        default: "latest"
       install_command:
         description: Repository-owned dependency/setup command. Empty skips setup.
         required: false
