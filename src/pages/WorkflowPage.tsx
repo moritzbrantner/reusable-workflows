@@ -302,7 +302,7 @@ function buildCurrentUsageSnippet(
     workflow.file === ".github/workflows/promote-branches.yml"
       ? "contents: write\n      actions: write"
       : "contents: read";
-  return `jobs:\n  ${workflow.slug}:\n    permissions:\n      ${permissions}\n    uses: moritzbrantner/reusable-workflows/${workflow.file}@main\n    with:\n      # pass inputs from the current workflow YAML`;
+  return `jobs:\n  ${workflow.slug}:\n    permissions:\n      ${permissions}\n    uses: moritzbrantner/reusable-workflows/${workflow.file}@<commit-sha> # pin a tested immutable revision\n    with:\n      # pass inputs from the current workflow YAML`;
 }
 
 function RelationshipCard({
