@@ -41,8 +41,10 @@ const deployQualifiedPagesWorkflowPath = ".github/workflows/deploy-qualified-pag
 const releaseQualificationWorkflowPath = ".github/workflows/release-qualification.yml";
 const environmentCanaryWorkflowPath = ".github/workflows/environment-v1-canary.yml";
 const currentCodingToolingUse = /uses:\s*moritzbrantner\/coding-tooling@main(?:\s|$)/m;
-const maintainedAttestUse = /uses:\s*actions\/attest@v\d+(?:\s|$)/m;
-const maintainedDownloadArtifactUse = /uses:\s*actions\/download-artifact@v\d+(?:\s|$)/m;
+// A maintained release: the tag itself, or a commit SHA pinned to it with a "# vN" comment.
+const maintainedAttestUse = /uses:\s*actions\/attest@(?:v\d+|[0-9a-f]{40}\s+#\s*v\d+)(?:[\s.]|$)/m;
+const maintainedDownloadArtifactUse =
+  /uses:\s*actions\/download-artifact@(?:v\d+|[0-9a-f]{40}\s+#\s*v\d+)(?:[\s.]|$)/m;
 const executionReceiptKind = "reusable-workflows/execution-receipt";
 const executionReceiptOutputs = ["receipt_artifact_name", "receipt_path"];
 
