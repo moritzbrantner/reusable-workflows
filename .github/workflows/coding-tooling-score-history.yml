@@ -57,22 +57,28 @@ jobs:
         with:
           bun-version: 1.4.3
 
+      # The producer checkout lives under .tooling/, which coding-tooling discovery
+      # skips; excluding it from git keeps it out of consumer ignore-aware tools too.
+      - name: Keep producer checkout out of consumer source
+        shell: bash
+        run: echo "/.tooling/" >> .git/info/exclude
+
       - name: Check out current coding-tooling
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           repository: moritzbrantner/coding-tooling
           ref: main
-          path: .coding-tooling-source
+          path: .tooling/coding-tooling
           persist-credentials: false
 
       - name: Install coding-tooling dependencies
-        working-directory: .coding-tooling-source
+        working-directory: .tooling/coding-tooling
         run: bun install --frozen-lockfile
 
       - name: Capture repository verification
         id: verification
         continue-on-error: true
-        uses: ./.coding-tooling-source
+        uses: ./.tooling/coding-tooling
         with:
           tier: ${{ inputs.tier }}
           config: ${{ inputs.config }}
@@ -84,7 +90,7 @@ jobs:
         id: score
         if: ${{ always() }}
         continue-on-error: true
-        uses: ./.coding-tooling-source
+        uses: ./.tooling/coding-tooling
         with:
           operation: score
           validation-report: .artifacts/coding-tooling/history-run.json
@@ -117,7 +123,7 @@ jobs:
           set -euo pipefail
           commit_timestamp="$(git show -s --format=%cI "$GITHUB_SHA")"
           validation_tier="${{ inputs.tier }}"
-          bun .coding-tooling-source/scripts/append-score-history.mjs \
+          bun .tooling/coding-tooling/scripts/append-score-history.mjs \
             --history .score-history/history.json \
             --score .artifacts/coding-tooling/history-score.json \
             --repository "$GITHUB_REPOSITORY" \
