@@ -275,7 +275,7 @@ export function HomePage() {
   validate:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@main
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@<commit-sha> # pin a tested immutable revision
     with:
       tier: fast
       strict: true`}</CodeBlockCode>
