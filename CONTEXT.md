@@ -32,7 +32,7 @@ Caller-owned policy for when validation, qualification, promotion, or delivery r
 `coding-tooling-validation.yml`, the hosted adapter that delegates operation/tier/report semantics to `coding-tooling`. Failure artifacts are diagnostic only and cannot make a later revision green.
 
 **Coding Tooling Score History Adapter**  
-`coding-tooling-score-history.yml`, a persistent-evidence adapter that checks out the current `coding-tooling` branch once and runs validation, scoring, and attribution from that checkout.
+`coding-tooling-score-history.yml`, a persistent-evidence adapter that checks out the current `coding-tooling` branch once under the discovery-ignored, git-excluded `.tooling/coding-tooling` path (so the producer never becomes a consumer component) and runs validation, scoring, and attribution from that checkout.
 
 **Public Contract Adapter**  
 `public-contract-validation.yml`, a thin transport wrapper around canonical public-contract evidence.
