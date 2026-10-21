@@ -54,6 +54,14 @@ requested validation or delivery that actually requires a freshly produced artif
   Documentation extensions alone are not proof that the published site is unchanged.
 - If any changed input is relevant or uncertain, run the existing producer as before. Incomplete
   diffs, unavailable base revisions, or ambiguous dependencies must not cause a skip.
+**Implementation.** `validate.yml`'s `validation-scope` skips `artifact-build` on a pull request only
+when the diff is non-empty, no E2E/Storybook/link check is requested, and every changed path is a
+root-level `*.md`, `docs/**`, `experiments/**`, `examples/**`, `tests/**` or `src/**/*.unit.test.ts(x)`
+file — none of which the Vite graph, workflow catalog, agent pages, metrics or size check read. The
+skip is listed in the job summary and the job is allowed-skipped for `merge-ready`. `main` keeps the
+existing flow: every main build folds the new run into the metrics history, so its Pages inputs are
+never provably unchanged.
+
 - Avoid a generic validation-impact engine, reusable success-evidence framework, or new
   environment-fingerprint gate. The rule concerns only a proven-unaffected Pages artifact.
 - Keep fast validation, workflow syntax checks, and the existing required check names and outcomes.

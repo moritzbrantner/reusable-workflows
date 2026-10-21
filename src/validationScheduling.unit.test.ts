@@ -23,7 +23,7 @@ describe("repository validation scheduling", () => {
     const git = (...args: string[]) =>
       execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
     const commit = () => {
-      git("add", ".");
+      git("add", "-A", "--", ".", ":!bin", ":!event.json", ":!output", ":!current-pr.json");
       git(
         "-c",
         "user.name=Scope Test",
@@ -52,7 +52,7 @@ describe("repository validation scheduling", () => {
       mkdirSync(bin);
       writeFileSync(join(bin, "gh"), `#!/bin/sh\ncat '${response}'\n`, { mode: 0o755 });
       writeFileSync(response, JSON.stringify({ head: { sha: head }, labels: [] }));
-      const runScope = () =>
+      const runScope = (range = { BASE_SHA: base, HEAD_SHA: head }) =>
         execFileSync("python3", ["-c", scope], {
           cwd: root,
           stdio: "pipe",
@@ -60,8 +60,7 @@ describe("repository validation scheduling", () => {
             ...process.env,
             PATH: `${bin}:${process.env.PATH ?? ""}`,
             GITHUB_REPOSITORY: "fixture/repository",
-            BASE_SHA: base,
-            HEAD_SHA: head,
+            ...range,
             GITHUB_EVENT_NAME: "pull_request",
             GITHUB_EVENT_PATH: eventPath,
             GITHUB_OUTPUT: outputPath,
@@ -69,6 +68,33 @@ describe("repository validation scheduling", () => {
         });
       runScope();
       expect(readFileSync(outputPath, "utf8")).toContain("smoke=true\n");
+      // A rename out of src/ touches a site input, so the Pages artifact still builds.
+      expect(readFileSync(outputPath, "utf8")).toContain("artifact-build=true\n");
+
+      writeFileSync(join(root, "README.md"), "docs\n");
+      writeFileSync(join(root, "docs/catalog.md"), "changed\n");
+      const docsOnly = commit();
+      const docsRange = { BASE_SHA: head, HEAD_SHA: docsOnly };
+      writeFileSync(response, JSON.stringify({ head: { sha: docsOnly }, labels: [] }));
+      writeFileSync(outputPath, "");
+      runScope(docsRange);
+      const docsScope = readFileSync(outputPath, "utf8");
+      expect(docsScope).toContain("artifact-build=false\n");
+      expect(JSON.parse(docsScope.split("allow-skipped=")[1]?.split("\n")[0] ?? "null")).toContain(
+        "artifact-build",
+      );
+      writeFileSync(
+        response,
+        JSON.stringify({ head: { sha: docsOnly }, labels: [{ name: "ci:e2e" }] }),
+      );
+      writeFileSync(outputPath, "");
+      runScope(docsRange);
+      expect(readFileSync(outputPath, "utf8")).toContain("artifact-build=true\n");
+      writeFileSync(response, JSON.stringify({ head: { sha: docsOnly }, labels: [] }));
+      writeFileSync(outputPath, "");
+      runScope({ BASE_SHA: docsOnly, HEAD_SHA: docsOnly });
+      expect(readFileSync(outputPath, "utf8")).toContain("artifact-build=true\n");
+      writeFileSync(response, JSON.stringify({ head: { sha: head }, labels: [] }));
       writeFileSync(
         response,
         JSON.stringify({ head: { sha: head }, labels: [{ name: "CI:PERF" }] }),
@@ -141,7 +167,9 @@ describe("repository validation scheduling", () => {
     const buildCommand =
       'build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"';
 
-    expect(validate).toContain("needs: [coding-tooling-fast, actionlint, performance-validation]");
+    expect(validate).toContain(
+      "needs: [validation-scope, coding-tooling-fast, actionlint, performance-validation]",
+    );
     expect(validate).toContain("github.event_name == 'pull_request'");
     expect(validate).toContain(buildCommand);
     expect(validate).toContain("reuse_across_runs: true");
