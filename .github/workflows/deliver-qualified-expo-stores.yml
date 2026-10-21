@@ -97,7 +97,7 @@ jobs:
         id: receipt-download
         if: ${{ steps.coordinates.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: ${{ inputs.promotion_receipt_artifact_name }}
           path: .artifacts/reusable-workflows/promotion-receipt
@@ -162,7 +162,7 @@ jobs:
         id: checkout
         if: ${{ steps.promotion.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ steps.promotion.outputs.source_sha }}
 
@@ -207,7 +207,7 @@ jobs:
         id: artifact-download
         if: ${{ steps.artifact.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           artifact-ids: ${{ steps.artifact.outputs.id }}
           path: .artifacts/reusable-workflows/qualified-expo-archive
@@ -559,7 +559,7 @@ jobs:
 
       - name: Upload delivery receipt and evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
           path: |

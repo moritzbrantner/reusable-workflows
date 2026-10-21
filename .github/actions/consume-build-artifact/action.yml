@@ -89,7 +89,7 @@ runs:
         mkdir -p "$DESTINATION_PATH"
 
     - name: Download producer receipt
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       with:
         name: ${{ inputs.receipt_artifact_name }}
         path: ${{ runner.temp }}/verified-build-artifact-receipt
@@ -173,7 +173,7 @@ runs:
         PY
 
     - name: Download exact verified artifact
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
       with:
         artifact-ids: ${{ steps.coordinates.outputs.artifact_id }}
         path: ${{ inputs.destination_path }}

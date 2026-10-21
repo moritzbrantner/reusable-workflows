@@ -107,7 +107,7 @@ jobs:
           }
 
       - name: Check out exact consumer commit
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ inputs.source_sha }}
 
@@ -174,7 +174,7 @@ jobs:
         id: artifact
         if: ${{ steps.qualification.outcome == 'success' && steps.build.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ steps.metadata.outputs.artifact_name }}
           path: ${{ inputs.artifact_paths }}
@@ -257,7 +257,7 @@ jobs:
         id: provenance
         if: ${{ steps.predicate-validation.outcome == 'success' }}
         continue-on-error: true
-        uses: actions/attest@v4
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-name: ${{ steps.metadata.outputs.artifact_name }}
           subject-digest: sha256:${{ steps.artifact.outputs.artifact-digest }}
@@ -390,7 +390,7 @@ jobs:
 
       - name: Upload execution receipt and provenance predicate
         if: ${{ always() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ steps.metadata.outputs.receipt_artifact_name }}
           path: |
