@@ -69,6 +69,7 @@ jobs:
       storybook-validation: ${{ steps.scope.outputs.storybook-validation }}
       link-validation: ${{ steps.scope.outputs.link-validation }}
       performance-validation: ${{ steps.scope.outputs.performance-validation }}
+      artifact-build: ${{ steps.scope.outputs.artifact-build }}
       smoke: ${{ steps.scope.outputs.smoke }}
       prebuilt: ${{ steps.scope.outputs.prebuilt }}
       allow-skipped: ${{ steps.scope.outputs.allow-skipped }}
@@ -137,11 +138,30 @@ jobs:
               prebuilt = event_name == "pull_request" and any(
                   fnmatch.fnmatchcase(path, pattern) for path in paths for pattern in prebuilt_patterns
               )
+          # Paths the Pages build (Vite graph, workflow catalog, agent pages, metrics, size check)
+          # provably never reads. Anything else, an empty diff, or a requested browser check builds.
+          def site_independent(path):
+              return (
+                  ("/" not in path and path.endswith(".md"))
+                  or path.startswith(("docs/", "experiments/", "examples/", "tests/"))
+                  or (path.startswith("src/") and path.endswith((".unit.test.ts", ".unit.test.tsx")))
+              )
+          changed = [path for path in paths if path] if event_name == "pull_request" else []
+          browser_requested = any(
+              selected[job] for job in ["e2e-validation", "storybook-validation", "link-validation"]
+          )
+          if changed and not browser_requested and all(site_independent(path) for path in changed):
+              selected["artifact-build"] = False
+              with open(os.environ.get("GITHUB_STEP_SUMMARY", os.devnull), "a") as summary:
+                  print("Pages artifact build skipped: every changed path is outside the site build inputs:", file=summary)
+                  for path in changed:
+                      print(f"- `{path}`", file=summary)
           selected.update({"smoke-verified-wasm-cli": smoke, "smoke-fast-validation": smoke, "smoke-build-artifact": smoke, "smoke-build-artifact-reuse": smoke, "smoke-consume-build-artifact": smoke, "smoke-command-validation": smoke, "smoke-command-validation-second": smoke, "smoke-public-contract-validation": smoke, "smoke-repository-pages-build": smoke, "smoke-integration-validation": smoke, "smoke-e2e-validation": smoke, "smoke-storybook-validation": smoke, "smoke-link-validation": smoke, "smoke-performance-validation": smoke, "smoke-stage-validation": smoke, "smoke-validate-repo": smoke, "smoke-release-qualification": smoke, "smoke-artifact-promotion": smoke, "smoke-release-template": smoke, "prebuilt-smoke-build-artifact": prebuilt, "prebuilt-smoke-integration-validation": prebuilt})
           skipped = [job for job, required in selected.items() if not required]
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               for job in ["e2e-validation", "storybook-validation", "link-validation", "performance-validation"]:
                   print(f"{job}={str(selected[job]).lower()}", file=output)
+              print(f"artifact-build={str(selected['artifact-build']).lower()}", file=output)
               print(f"smoke={str(smoke).lower()}", file=output)
               print(f"prebuilt={str(prebuilt).lower()}", file=output)
               print(f"allow-skipped={json.dumps(skipped)}", file=output)
@@ -189,7 +209,7 @@ jobs:
       tier: fast
 
   artifact-build:
-    needs: [coding-tooling-fast, actionlint, performance-validation]
+    needs: [validation-scope, coding-tooling-fast, actionlint, performance-validation]
     if: >-
       ${{
         always() &&
@@ -198,7 +218,7 @@ jobs:
         needs.actionlint.result == 'success' &&
         (needs.performance-validation.result == 'success' || needs.performance-validation.result == 'skipped') && (
           (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-          github.event_name == 'pull_request' ||
+          (github.event_name == 'pull_request' && needs.validation-scope.outputs.artifact-build == 'true') ||
           (github.event_name == 'workflow_dispatch' && (inputs.run_full_validation || inputs.run_e2e || inputs.run_storybook || inputs.run_link_validation))
         )
       }}
