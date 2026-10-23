@@ -1,0 +1,72 @@
+name: Install System Packages
+description: >-
+  Install Ubuntu system packages on GitHub-hosted runners without stalling on a slow apt mirror:
+  skip what the image already provides, restore resolved .deb files from actions/cache, and
+  time-box mirror access with a public-archive fallback.
+
+inputs:
+  packages:
+    description: Whitespace-separated apt package names.
+    required: false
+    default: ""
+  environment_file:
+    description: Optional .repository-environment.toml whose [system].apt packages are added.
+    required: false
+    default: ""
+  playwright_browsers:
+    description: >-
+      Add Playwright's Linux system dependencies. "none" (default) disables this; an empty string
+      or "all" selects every browser; otherwise a space-separated browser list such as "chromium".
+    required: false
+    default: none
+  playwright_cli:
+    description: Command that runs the repository's Playwright CLI.
+    required: false
+    default: bunx playwright
+  download_timeout_seconds:
+    description: Time limit for one package download attempt before falling back to archive.ubuntu.com.
+    required: false
+    default: "300"
+
+outputs:
+  packages:
+    description: Packages that were missing and installed; empty when the image already provided everything.
+    value: ${{ steps.resolve.outputs.packages }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve missing system packages
+      id: resolve
+      shell: bash
+      env:
+        SYSTEM_PACKAGES: ${{ inputs.packages }}
+        SYSTEM_PACKAGES_ENVIRONMENT_FILE: ${{ inputs.environment_file }}
+        SYSTEM_PACKAGES_PLAYWRIGHT: ${{ inputs.playwright_browsers != 'none' && 'true' || '' }}
+        SYSTEM_PACKAGES_PLAYWRIGHT_BROWSERS: ${{ inputs.playwright_browsers != 'all' && inputs.playwright_browsers || '' }}
+        SYSTEM_PACKAGES_PLAYWRIGHT_CLI: ${{ inputs.playwright_cli }}
+      run: bash "$GITHUB_ACTION_PATH/install.sh" resolve
+
+    - name: Restore system package archives
+      id: restore
+      if: ${{ steps.resolve.outputs.packages != '' }}
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.resolve.outputs.archive_dir }}
+        key: ${{ steps.resolve.outputs.cache_key }}
+        restore-keys: ${{ steps.resolve.outputs.restore_prefix }}
+
+    - name: Install system packages
+      if: ${{ steps.resolve.outputs.packages != '' }}
+      shell: bash
+      env:
+        SYSTEM_PACKAGES_MISSING: ${{ steps.resolve.outputs.packages }}
+        SYSTEM_PACKAGES_DOWNLOAD_TIMEOUT: ${{ inputs.download_timeout_seconds }}
+      run: bash "$GITHUB_ACTION_PATH/install.sh" install
+
+    - name: Save system package archives
+      if: ${{ steps.resolve.outputs.packages != '' && steps.restore.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: ${{ steps.resolve.outputs.archive_dir }}
+        key: ${{ steps.resolve.outputs.cache_key }}
