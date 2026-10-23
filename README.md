@@ -109,7 +109,7 @@ A mobile qualified artifact for `deliver-qualified-expo-stores.yml` must contain
 - `release-template.yml` — repository-specific release skeleton. It no longer wires `NPM_TOKEN`/`node_auth_token` or requests `packages`/`id-token` write; do not use it for npm publishing.
 - `stage-validation.yml` — legacy support for consumers that already select commands from a stage/branch model.
 - `promote-branches.yml` — exact-tested-SHA branch promotion for consumers that genuinely need promotion branches.
-- `toolchain-refresh.yml` — scheduled environment-v1 maintenance adapter for exact toolchain-pin proposals.
+- `toolchain-refresh.yml` — scheduled environment-v1 maintenance adapter that proposes refreshed repository-native toolchain declarations.
 
 `promote-branches.yml` uses only the built-in `GITHUB_TOKEN`. The caller job must explicitly grant `contents: write` and `actions: write`; reusable workflows cannot elevate the caller's token permissions. Branch protection must permit this promotion. Workflow files under `.github/workflows` must already match the tested commit on the target branch: the token cannot push workflow-file changes, so preflight rejects that diff before promotion. Synchronize those files through the repository's normal reviewed workflow first.
 
@@ -224,7 +224,9 @@ Reusable workflows own GitHub-specific mechanics: exact checkout, bounded comman
 
 Dependency automation is separate from workflow architecture. Dependabot or Renovate may propose updates while repository-owned validation decides whether they are acceptable.
 
-`toolchain-refresh.yml` is likewise separate from normal package dependency automation. It operates only on exact repository-native environment pins supported by `platform-upgrader`, delegates acceptance to the consumer's full gate, and never owns semantic validation or floating-version policy.
+`toolchain-refresh.yml` is likewise separate from normal package dependency automation. It operates only on repository-native environment declarations supported by `platform-upgrader`, delegates acceptance to the consumer's full gate, and never owns semantic validation.
+
+Toolchains track the latest stable release (owner decision 2026-10-23). Every `bun_version` input defaults to `latest` (omit it rather than passing an exact version), and `rust_toolchain` should be `stable`. A repository's `packageManager` or `rust-toolchain.toml` declaration is a minimum, not a CI pin, and coding-tooling conformance does not fail on a declared-versus-installed difference.
 
 ## Repository validation
 

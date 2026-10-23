@@ -55,7 +55,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: 1.4.3
+          bun-version: latest
 
       # The producer checkout lives under .tooling/, which coding-tooling discovery
       # skips; excluding it from git keeps it out of consumer ignore-aware tools too.

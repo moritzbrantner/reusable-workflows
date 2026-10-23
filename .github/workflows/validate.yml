@@ -230,7 +230,7 @@ jobs:
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_key: reusable-workflows-web-dist-v1
-      bun_version: "1.4.0"
+      bun_version: "latest"
       cache_bun: true
       build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"
       artifact_paths: dist
@@ -437,7 +437,7 @@ jobs:
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_key: reusable-workflows-smoke-artifact-v1
-      bun_version: "1.4.0"
+      bun_version: "latest"
       cache_bun: true
       cache_cargo: true
       cargo_tool_cache_key: smoke-cli-v1
@@ -460,7 +460,7 @@ jobs:
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
       artifact_key: reusable-workflows-smoke-artifact-v1
-      bun_version: "1.4.0"
+      bun_version: "latest"
       cache_bun: true
       cache_cargo: true
       cargo_tool_cache_key: smoke-cli-v1
@@ -526,7 +526,7 @@ jobs:
       attestations: write
     uses: ./.github/workflows/command-validation.yml
     with:
-      setup_command: "npm install --global bun@1.4.0 && echo smoke generic bootstrap"
+      setup_command: "npm install --global bun@latest && echo smoke generic bootstrap"
       command: "echo smoke generic validation"
 
   smoke-command-validation-second:
@@ -540,7 +540,7 @@ jobs:
       attestations: write
     uses: ./.github/workflows/command-validation.yml
     with:
-      setup_command: "npm install --global bun@1.4.0"
+      setup_command: "npm install --global bun@latest"
       command: "echo smoke second generic validation"
 
   smoke-public-contract-validation:
@@ -568,7 +568,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: "1.4.3"
+          bun-version: latest
       - name: Install repository Pages dependencies
         working-directory: repository-pages
         run: bun install
@@ -734,7 +734,7 @@ jobs:
     uses: ./.github/workflows/release-qualification.yml
     with:
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-      setup_command: "npm install --global bun@1.4.0"
+      setup_command: "npm install --global bun@latest"
       qualification_command: "echo smoke release qualification"
       build_command: "mkdir -p .artifacts/release-qualification-smoke && echo qualified > .artifacts/release-qualification-smoke/artifact.txt"
       artifact_paths: .artifacts/release-qualification-smoke/artifact.txt

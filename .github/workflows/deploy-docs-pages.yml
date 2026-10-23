@@ -29,7 +29,7 @@ jobs:
     with:
       source_sha: ${{ github.event.workflow_run.head_sha || github.sha }}
       artifact_key: reusable-workflows-web-dist-v1
-      bun_version: "1.4.0"
+      bun_version: "latest"
       cache_bun: true
       build_command: "bun scripts/prepare-build-metrics-history.ts && bun run build && bun run size:check:dist"
       artifact_paths: dist
