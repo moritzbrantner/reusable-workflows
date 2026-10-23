@@ -86,7 +86,6 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 15. `deliver-qualified-expo-stores.yml` delivers only a promoted artifact containing a verified mobile release manifest and exact binary digests. It may install an exact EAS CLI for submission but cannot invoke `eas build`, accept a build command, or use `--latest`.
 16. Store identity, App Store Connect/Play Console metadata, EAS build/submit profiles, TestFlight groups, Play tracks/rollouts, and final public exposure remain caller/application policy.
 17. Concurrency policy belongs in caller workflows unless an API/persistent writer requires capability-local serialization.
-18. `toolchain-refresh.yml` owns only hosted freshness orchestration; toolchain semantics and acceptance stay with platform-upgrader/environment-v1/the consumer.
 
 ## Capability classes
 
@@ -141,7 +140,6 @@ The chain deliberately stops short of silently releasing to public users. Androi
 - `release-template.yml`
 - `stage-validation.yml`
 - `promote-branches.yml`
-- `toolchain-refresh.yml`
 
 ### Compatibility only
 
