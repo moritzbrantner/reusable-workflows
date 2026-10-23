@@ -306,9 +306,16 @@ jobs:
           path: ${{ runner.temp }}/reusable-workflows-playwright
           key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ hashFiles(inputs.playwright_cache_dependency_path) }}-${{ inputs.install_playwright_browsers }}
 
+      - name: Install Playwright system dependencies
+        if: ${{ inputs.install_playwright }}
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2d1a38dd14cb6d0ce95e01d5febd1adbc6c74d87 # main
+        with:
+          playwright_browsers: ${{ inputs.install_playwright_browsers || 'all' }}
+          working_directory: ${{ inputs.working_directory }}
+
       - name: Install Playwright browsers
         if: ${{ inputs.install_playwright }}
-        run: bunx playwright install --with-deps ${{ inputs.install_playwright_browsers }}
+        run: bunx playwright install ${{ inputs.install_playwright_browsers }}
 
       - name: Consume verified prebuilt artifact
         if: ${{ inputs.prebuilt_artifact_run_id != '' }}

@@ -156,7 +156,7 @@ jobs:
                   print("Pages artifact build skipped: every changed path is outside the site build inputs:", file=summary)
                   for path in changed:
                       print(f"- `{path}`", file=summary)
-          selected.update({"smoke-verified-wasm-cli": smoke, "smoke-fast-validation": smoke, "smoke-build-artifact": smoke, "smoke-build-artifact-reuse": smoke, "smoke-consume-build-artifact": smoke, "smoke-command-validation": smoke, "smoke-command-validation-second": smoke, "smoke-public-contract-validation": smoke, "smoke-repository-pages-build": smoke, "smoke-integration-validation": smoke, "smoke-e2e-validation": smoke, "smoke-storybook-validation": smoke, "smoke-link-validation": smoke, "smoke-performance-validation": smoke, "smoke-stage-validation": smoke, "smoke-validate-repo": smoke, "smoke-release-qualification": smoke, "smoke-artifact-promotion": smoke, "smoke-release-template": smoke, "prebuilt-smoke-build-artifact": prebuilt, "prebuilt-smoke-integration-validation": prebuilt})
+          selected.update({"smoke-verified-wasm-cli": smoke, "smoke-system-packages": smoke, "smoke-fast-validation": smoke, "smoke-build-artifact": smoke, "smoke-build-artifact-reuse": smoke, "smoke-consume-build-artifact": smoke, "smoke-command-validation": smoke, "smoke-command-validation-second": smoke, "smoke-public-contract-validation": smoke, "smoke-repository-pages-build": smoke, "smoke-integration-validation": smoke, "smoke-e2e-validation": smoke, "smoke-storybook-validation": smoke, "smoke-link-validation": smoke, "smoke-performance-validation": smoke, "smoke-stage-validation": smoke, "smoke-validate-repo": smoke, "smoke-release-qualification": smoke, "smoke-artifact-promotion": smoke, "smoke-release-template": smoke, "prebuilt-smoke-build-artifact": prebuilt, "prebuilt-smoke-integration-validation": prebuilt})
           skipped = [job for job, required in selected.items() if not required]
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               for job in ["e2e-validation", "storybook-validation", "link-validation", "performance-validation"]:
@@ -407,6 +407,30 @@ jobs:
           set -euo pipefail
           command -v "$CLI_TOOL"
           test "$("$CLI_TOOL" --version)" = "$CLI_TOOL $CLI_VERSION"
+
+  smoke-system-packages:
+    needs: ["validation-scope"]
+    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    name: Cached system packages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Install system packages
+        id: install
+        uses: ./.github/actions/install-system-packages
+        with:
+          packages: ffmpeg poppler-utils tesseract-ocr tesseract-ocr-eng cmake xvfb
+      - name: Validate installed tools
+        env:
+          INSTALLED: ${{ steps.install.outputs.packages }}
+        run: |
+          set -euo pipefail
+          echo "installed: $INSTALLED"
+          ffmpeg -hide_banner -version | head -1
+          pdftotext -v 2>&1 | head -1
+          tesseract --version | head -1
+          command -v cmake Xvfb
 
   smoke-fast-validation:
     needs: ["validation-scope"]
@@ -829,6 +853,7 @@ jobs:
         "link-validation",
         "performance-validation",
         "smoke-verified-wasm-cli",
+        "smoke-system-packages",
         "smoke-fast-validation",
         "smoke-build-artifact",
         "smoke-build-artifact-reuse",
@@ -855,5 +880,5 @@ jobs:
       - uses: moritzbrantner/reusable-workflows/.github/actions/merge-ready@b0f25f241d76af2584dfc9e375084ff5c5cb97da
         with:
           needs: ${{ toJSON(needs) }}
-          required: '["validation-scope", "coding-tooling-fast", "actionlint", "artifact-build", "e2e-validation", "storybook-validation", "link-validation", "performance-validation", "smoke-verified-wasm-cli", "smoke-fast-validation", "smoke-build-artifact", "smoke-build-artifact-reuse", "smoke-consume-build-artifact", "smoke-command-validation", "smoke-command-validation-second", "smoke-public-contract-validation", "smoke-repository-pages-build", "smoke-integration-validation", "smoke-e2e-validation", "smoke-storybook-validation", "smoke-link-validation", "smoke-performance-validation", "smoke-stage-validation", "smoke-validate-repo", "smoke-release-qualification", "smoke-artifact-promotion", "smoke-release-template", "prebuilt-smoke-build-artifact", "prebuilt-smoke-integration-validation"]'
+          required: '["validation-scope", "coding-tooling-fast", "actionlint", "artifact-build", "e2e-validation", "storybook-validation", "link-validation", "performance-validation", "smoke-verified-wasm-cli", "smoke-system-packages", "smoke-fast-validation", "smoke-build-artifact", "smoke-build-artifact-reuse", "smoke-consume-build-artifact", "smoke-command-validation", "smoke-command-validation-second", "smoke-public-contract-validation", "smoke-repository-pages-build", "smoke-integration-validation", "smoke-e2e-validation", "smoke-storybook-validation", "smoke-link-validation", "smoke-performance-validation", "smoke-stage-validation", "smoke-validate-repo", "smoke-release-qualification", "smoke-artifact-promotion", "smoke-release-template", "prebuilt-smoke-build-artifact", "prebuilt-smoke-integration-validation"]'
           allow-skipped: ${{ needs.validation-scope.outputs.allow-skipped || '[]' }}
