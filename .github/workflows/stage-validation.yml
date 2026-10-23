@@ -246,16 +246,24 @@ jobs:
 
       - name: Install Xvfb
         if: ${{ inputs.install_xvfb }}
-        run: sudo apt-get update && sudo apt-get install -y xvfb
-        working-directory: .
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2d1a38dd14cb6d0ce95e01d5febd1adbc6c74d87 # main
+        with:
+          packages: xvfb
 
       - name: Install dependencies
         if: ${{ inputs.install_command != '' }}
         run: ${{ inputs.install_command }}
 
+      - name: Install Playwright system dependencies
+        if: ${{ inputs.install_playwright }}
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2d1a38dd14cb6d0ce95e01d5febd1adbc6c74d87 # main
+        with:
+          playwright_browsers: ${{ inputs.install_playwright_browsers || 'all' }}
+          working_directory: ${{ inputs.working_directory }}
+
       - name: Install Playwright browsers
         if: ${{ inputs.install_playwright }}
-        run: bunx playwright install --with-deps ${{ inputs.install_playwright_browsers }}
+        run: bunx playwright install ${{ inputs.install_playwright_browsers }}
 
       - name: Run pre-command
         if: ${{ inputs.pre_command != '' }}

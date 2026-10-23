@@ -198,13 +198,9 @@ jobs:
 
       - name: Install system packages
         if: ${{ inputs.install_xvfb || inputs.apt_packages != '' }}
-        env:
-          APT_PACKAGES: ${{ inputs.apt_packages }}${{ inputs.install_xvfb && ' xvfb' || '' }}
-        run: |
-          sudo apt-get update -qq
-          # shellcheck disable=SC2086 # word-split the space-separated package list
-          sudo apt-get install -y -qq $APT_PACKAGES
-        working-directory: .
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2d1a38dd14cb6d0ce95e01d5febd1adbc6c74d87 # main
+        with:
+          packages: ${{ inputs.apt_packages }}${{ inputs.install_xvfb && ' xvfb' || '' }}
 
       - name: Install dependencies
         if: ${{ inputs.install_command != '' }}
@@ -234,9 +230,16 @@ jobs:
         if: ${{ inputs.build_command != '' }}
         run: ${{ inputs.build_command }}
 
+      - name: Install Playwright system dependencies
+        if: ${{ inputs.install_playwright }}
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2d1a38dd14cb6d0ce95e01d5febd1adbc6c74d87 # main
+        with:
+          playwright_browsers: ${{ inputs.install_playwright_browsers || 'all' }}
+          working_directory: ${{ inputs.working_directory }}
+
       - name: Install Playwright browsers
         if: ${{ inputs.install_playwright }}
-        run: bunx playwright install --with-deps ${{ inputs.install_playwright_browsers }}
+        run: bunx playwright install ${{ inputs.install_playwright_browsers }}
 
       - name: Run e2e tests with Xvfb
         if: ${{ inputs.e2e_command != '' && inputs.install_xvfb }}

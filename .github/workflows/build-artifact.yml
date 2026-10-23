@@ -545,6 +545,13 @@ jobs:
         continue-on-error: true
         run: ${{ inputs.setup_command }}
 
+      - name: Install environment-v1 system packages
+        if: ${{ steps.reuse.outputs.hit != 'true' && steps.environment.outputs.detected == 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') }}
+        continue-on-error: true
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2d1a38dd14cb6d0ce95e01d5febd1adbc6c74d87 # main
+        with:
+          environment_file: .repository-environment.toml
+
       - name: Run standard environment-v1 setup
         id: environment-setup
         if: ${{ steps.reuse.outputs.hit != 'true' && steps.environment.outputs.detected == 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') }}
