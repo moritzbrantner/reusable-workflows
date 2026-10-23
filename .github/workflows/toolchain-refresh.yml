@@ -17,7 +17,7 @@ on:
         type: string
         default: "bash scripts/codex-environment.sh setup"
       update_command:
-        description: Optional repository-owned mutation for lock/generated metadata after exact pins change.
+        description: Optional repository-owned mutation for lock/generated metadata after toolchain declarations change.
         required: false
         type: string
         default: ""
@@ -130,24 +130,11 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Resolve platform-upgrader Bun
-        if: steps.context.outputs.blocked != 'true'
-        id: updater
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(node -p "require('./.tooling/platform-upgrader/package.json').packageManager.split('@')[1]")"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::platform-upgrader must declare an exact Bun version"
-            exit 2
-          fi
-          echo "bun_version=$version" >> "$GITHUB_OUTPUT"
-
       - name: Set up platform-upgrader Bun
         if: steps.context.outputs.blocked != 'true'
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          bun-version: ${{ steps.updater.outputs.bun_version }}
+          bun-version: latest
 
       - name: Preserve platform-upgrader runtime
         if: steps.context.outputs.blocked != 'true'
@@ -243,7 +230,7 @@ jobs:
 
           body="$RUNNER_TEMP/toolchain-refresh-pr.md"
           {
-            echo "Automated exact-pin refresh to the newest stable toolchains accepted by the candidate gate."
+            echo "Automated refresh to the newest stable toolchains accepted by the candidate gate."
             echo
             echo "Base revision: \`$BASE_SHA\`"
             echo
@@ -251,7 +238,6 @@ jobs:
             echo
             echo "Repository full gate passed: \`$FULL_GATE_COMMAND\`"
             echo
-            echo "This PR updates exact repository-native pins; it does not introduce floating versions."
           } > "$body"
 
           existing="$(gh pr list --state open --head "$UPGRADE_BRANCH" --base "$BASE_BRANCH" --json number --jq '.[0].number // empty')"
