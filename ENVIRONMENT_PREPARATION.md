@@ -30,8 +30,9 @@ Workflows and bespoke consumer jobs install Ubuntu packages through
 `playwright install --with-deps`. GitHub-hosted runners pull from `azure.archive.ubuntu.com`,
 which intermittently trickles at a few KB/s and pushes jobs into `timeout-minutes`. The action:
 
-1. skips packages the runner image already provides (dpkg-installed, or a command of the same
-   name on `PATH`, such as the image's `cmake`), and does not touch apt when nothing is missing;
+1. skips packages the runner image already has dpkg-installed, and does not touch apt when
+   nothing is missing (a same-named binary outside dpkg, such as the image's `/usr/local/bin/cmake`,
+   does not count, because environment verification checks dpkg state);
 2. restores the resolved `.deb` files from `actions/cache`, keyed by the runner image and the exact
    package URIs, so warm runs download nothing from the Ubuntu pool;
 3. time-boxes `apt-get update` (120 s) and the download (`download_timeout_seconds`, 300 s), and on a
