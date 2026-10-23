@@ -23,6 +23,10 @@ inputs:
     description: Command that runs the repository's Playwright CLI.
     required: false
     default: bunx playwright
+  working_directory:
+    description: Directory where environment_file is resolved and the Playwright CLI runs.
+    required: false
+    default: "."
   download_timeout_seconds:
     description: Time limit for one package download attempt before falling back to archive.ubuntu.com.
     required: false
@@ -39,6 +43,7 @@ runs:
     - name: Resolve missing system packages
       id: resolve
       shell: bash
+      working-directory: ${{ inputs.working_directory }}
       env:
         SYSTEM_PACKAGES: ${{ inputs.packages }}
         SYSTEM_PACKAGES_ENVIRONMENT_FILE: ${{ inputs.environment_file }}
