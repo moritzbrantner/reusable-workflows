@@ -3,9 +3,9 @@
 #
 # GitHub-hosted runners fetch packages from azure.archive.ubuntu.com, which intermittently
 # trickles at a few KB/s and pushes jobs into timeout-minutes. This script:
-#   1. skips packages the runner image already provides (dpkg-installed, or a command of the
-#      same name on PATH such as the image's /usr/local/bin/cmake), so apt is not touched at all
-#      when nothing is missing;
+#   1. skips packages the runner image already has dpkg-installed, so apt is not touched at all
+#      when nothing is missing (a same-named binary outside dpkg, such as the image's
+#      /usr/local/bin/cmake, does not count: environment verification checks dpkg state);
 #   2. keeps downloaded .deb files in a directory the action caches with actions/cache, keyed by
 #      the exact resolved package URIs, so warm runs download nothing from the Ubuntu pool;
 #   3. time-boxes every network phase and, on a stall, drops the Azure mirror for the public
@@ -80,8 +80,7 @@ PY
 is_provided() {
   local package="$1" status
   status="$(dpkg-query -W -f='${db:Status-Abbrev}' "$package" 2>/dev/null || true)"
-  [[ "$status" == ii* ]] && return 0
-  command -v "$package" >/dev/null 2>&1
+  [[ "$status" == ii* ]]
 }
 
 prefer_public_archive() {

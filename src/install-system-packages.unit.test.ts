@@ -103,7 +103,7 @@ if [[ "$*" == *--print-uris* ]]; then
   done
 fi`,
   );
-  // cmake is provided by the image outside dpkg.
+  // cmake exists outside dpkg, as on GitHub runners; it must still be installed.
   stub("cmake", "exit 0");
 });
 
@@ -119,7 +119,7 @@ describe("install-system-packages action", () => {
   });
 
   it("does not contact apt when the image already provides every package", () => {
-    const result = run("resolve", { SYSTEM_PACKAGES: "xvfb cmake" });
+    const result = run("resolve", { SYSTEM_PACKAGES: "xvfb" });
     expect(result.status, result.stderr).toBe(0);
     expect(result.outputs.packages).toBe("");
     expect(result.aptLog).toBe("");
@@ -133,13 +133,13 @@ describe("install-system-packages action", () => {
       SYSTEM_PACKAGES_ENVIRONMENT_FILE: environment,
     });
     expect(result.status, result.stderr).toBe(0);
-    expect(result.outputs.packages).toBe("ffmpeg tesseract-ocr");
+    expect(result.outputs.packages).toBe("cmake ffmpeg tesseract-ocr");
     expect(result.outputs.cache_key.startsWith(result.outputs.restore_prefix)).toBe(true);
     expect(result.outputs.restore_prefix).toMatch(/^system-packages-v1-ubuntu24-/);
     expect(result.aptLog).toContain("update -qq");
     expect(result.aptLog).toContain("Acquire::Retries=3");
     expect(readFileSync(`${result.outputs.archive_dir}.wanted`, "utf8")).toBe(
-      "ffmpeg_1_amd64.deb\ntesseract-ocr_1_amd64.deb\n",
+      "cmake_1_amd64.deb\nffmpeg_1_amd64.deb\ntesseract-ocr_1_amd64.deb\n",
     );
   });
 
