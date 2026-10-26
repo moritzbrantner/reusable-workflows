@@ -287,7 +287,7 @@ jobs:
 
       - name: Install Xvfb
         if: ${{ inputs.install_xvfb }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2ec8d067031d4e9d093701f23a00b0ddcaef42d8 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@fa354ad57d45f3b3bda1d3e172202466b3cbce5f # main
         with:
           packages: xvfb
 
@@ -309,7 +309,7 @@ jobs:
 
       - name: Install Playwright system dependencies
         if: ${{ inputs.install_playwright }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@2ec8d067031d4e9d093701f23a00b0ddcaef42d8 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@fa354ad57d45f3b3bda1d3e172202466b3cbce5f # main
         with:
           playwright_browsers: ${{ inputs.install_playwright_browsers || 'all' }}
           working_directory: ${{ inputs.working_directory }}
@@ -324,7 +324,7 @@ jobs:
 
       - name: Consume verified prebuilt artifact
         if: ${{ inputs.prebuilt_artifact_run_id != '' }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@2ec8d067031d4e9d093701f23a00b0ddcaef42d8 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@fa354ad57d45f3b3bda1d3e172202466b3cbce5f # main
         with:
           producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
           receipt_artifact_name: ${{ inputs.prebuilt_artifact_receipt_name }}
