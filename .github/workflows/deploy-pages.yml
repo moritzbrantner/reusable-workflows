@@ -203,7 +203,7 @@ jobs:
 
       - name: Consume verified prebuilt artifact
         if: ${{ inputs.prebuilt_artifact_run_id != '' }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@fb927cea41daaca500e02bf983c5254a151ae0ae # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@a4bcf4e4e382058b39490e0ed723854f0600f73b # main
         with:
           producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
           receipt_artifact_name: ${{ inputs.prebuilt_artifact_receipt_name }}
