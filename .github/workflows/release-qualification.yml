@@ -136,7 +136,7 @@ jobs:
       - name: Install environment-v1 system packages
         if: ${{ steps.environment.outputs.detected == 'true' && (steps.bootstrap.outcome == 'success' || steps.bootstrap.outcome == 'skipped') }}
         continue-on-error: true
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@33b6fc98c08e50afe34984b82fc24c369abe9238 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@556f65c16362a73dc8a0a36849749fef0e3e64d9 # main
         with:
           environment_file: .repository-environment.toml
 

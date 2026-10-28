@@ -308,7 +308,7 @@ jobs:
 
       - name: Install Playwright system dependencies
         if: ${{ inputs.install_playwright }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@33b6fc98c08e50afe34984b82fc24c369abe9238 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@556f65c16362a73dc8a0a36849749fef0e3e64d9 # main
         with:
           playwright_browsers: ${{ inputs.install_playwright_browsers || 'all' }}
           working_directory: ${{ inputs.working_directory }}
@@ -319,7 +319,7 @@ jobs:
 
       - name: Consume verified prebuilt artifact
         if: ${{ inputs.prebuilt_artifact_run_id != '' }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@33b6fc98c08e50afe34984b82fc24c369abe9238 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/consume-build-artifact@556f65c16362a73dc8a0a36849749fef0e3e64d9 # main
         with:
           producer_run_id: ${{ inputs.prebuilt_artifact_run_id }}
           receipt_artifact_name: ${{ inputs.prebuilt_artifact_receipt_name }}
