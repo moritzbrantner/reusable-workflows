@@ -45,7 +45,7 @@ jobs:
       - name: Check out consumer repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Install declared system packages
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@41ea8f65f12a2c9307834a7c640374f3ab2f9a35 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@3da7f9206cc007d190ae3ca72eaf4a1c0841fbe9 # main
         with:
           environment_file: .repository-environment.toml
       - name: Prepare declared environment
