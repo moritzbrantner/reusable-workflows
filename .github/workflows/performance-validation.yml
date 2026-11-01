@@ -253,7 +253,7 @@ jobs:
 
       - name: Install Playwright system dependencies
         if: ${{ inputs.install_playwright }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@9d3509db452271baaba85757022149d407f8e18a # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@ce950447a1e0cbed601dc6d7b3e42fa0e53ab3c6 # main
         with:
           playwright_browsers: ${{ inputs.install_playwright_browsers || 'all' }}
           working_directory: ${{ inputs.working_directory }}
