@@ -38,7 +38,7 @@ jobs:
   public-contract:
     permissions:
       contents: read
-    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@c4fbf3588bd03526ce47192f3cf86cc956d89dff # main
+    uses: moritzbrantner/reusable-workflows/.github/workflows/coding-tooling-validation.yml@b3a72de56401dd720226e2f743c91a9f228f8043 # main
     with:
       operation: public-contract
       config: ${{ inputs.config }}
