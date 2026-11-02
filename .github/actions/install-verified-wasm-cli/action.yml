@@ -1,18 +1,19 @@
 name: Install Verified WASM CLI
-description: Install an exact SHA-256-verified upstream WASM CLI release without compiling the CLI from source.
+description: Install a version-pinned official WASM CLI using the publisher's GitHub release digest, without a maintained SHA table or source compilation.
 inputs:
   tool:
     description: "Supported tools: wasm-pack or wasm-bindgen"
     required: true
   version:
-    description: "Exact supported upstream release version"
+    description: "Exact upstream release version (major.minor.patch)"
     required: true
 runs:
   using: composite
   steps:
-    - name: Install checksum-verified release
+    - name: Install official publisher release
       shell: bash
       env:
         VERIFIED_WASM_TOOL: ${{ inputs.tool }}
         VERIFIED_WASM_VERSION: ${{ inputs.version }}
+        VERIFIED_WASM_GITHUB_TOKEN: ${{ github.token }}
       run: bash "$GITHUB_ACTION_PATH/install.sh"

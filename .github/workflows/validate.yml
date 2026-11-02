@@ -71,6 +71,7 @@ jobs:
       performance-validation: ${{ steps.scope.outputs.performance-validation }}
       artifact-build: ${{ steps.scope.outputs.artifact-build }}
       smoke: ${{ steps.scope.outputs.smoke }}
+      wasm-smoke: ${{ steps.scope.outputs.wasm-smoke }}
       prebuilt: ${{ steps.scope.outputs.prebuilt }}
       allow-skipped: ${{ steps.scope.outputs.allow-skipped }}
     steps:
@@ -117,6 +118,7 @@ jobs:
               ),
           }
           smoke = enabled("run_smoke_workflows") or enabled("run_full_validation")
+          wasm_smoke = smoke
           prebuilt = enabled("run_integration_prebuilt") or enabled("run_full_validation")
           if event_name != "workflow_dispatch":
               revision = [os.environ["BASE_SHA"], os.environ["HEAD_SHA"]]
@@ -135,6 +137,17 @@ jobs:
                   ".github/workflows/validate.yml",
               ]
               smoke = any(fnmatch.fnmatchcase(path, pattern) for path in paths for pattern in smoke_patterns)
+              # The WASM installer smoke must not run for unrelated workflow changes.
+              # Explicit workflow_dispatch can still request the full smoke suite.
+              wasm_smoke = smoke and any(
+                  fnmatch.fnmatchcase(path, pattern)
+                  for path in paths
+                  for pattern in [
+                      ".github/actions/install-verified-wasm-cli/**",
+                      "src/verified-wasm-cli.unit.test.ts",
+                      ".github/workflows/validate.yml",
+                  ]
+              )
               prebuilt = event_name == "pull_request" and any(
                   fnmatch.fnmatchcase(path, pattern) for path in paths for pattern in prebuilt_patterns
               )
@@ -156,13 +169,14 @@ jobs:
                   print("Pages artifact build skipped: every changed path is outside the site build inputs:", file=summary)
                   for path in changed:
                       print(f"- `{path}`", file=summary)
-          selected.update({"smoke-verified-wasm-cli": smoke, "smoke-system-packages": smoke, "smoke-fast-validation": smoke, "smoke-build-artifact": smoke, "smoke-build-artifact-reuse": smoke, "smoke-consume-build-artifact": smoke, "smoke-command-validation": smoke, "smoke-command-validation-second": smoke, "smoke-public-contract-validation": smoke, "smoke-repository-pages-build": smoke, "smoke-integration-validation": smoke, "smoke-e2e-validation": smoke, "smoke-storybook-validation": smoke, "smoke-link-validation": smoke, "smoke-performance-validation": smoke, "smoke-stage-validation": smoke, "smoke-validate-repo": smoke, "smoke-release-qualification": smoke, "smoke-artifact-promotion": smoke, "smoke-release-template": smoke, "prebuilt-smoke-build-artifact": prebuilt, "prebuilt-smoke-integration-validation": prebuilt})
+          selected.update({"smoke-verified-wasm-cli": wasm_smoke, "smoke-system-packages": smoke, "smoke-fast-validation": smoke, "smoke-build-artifact": smoke, "smoke-build-artifact-reuse": smoke, "smoke-consume-build-artifact": smoke, "smoke-command-validation": smoke, "smoke-command-validation-second": smoke, "smoke-public-contract-validation": smoke, "smoke-repository-pages-build": smoke, "smoke-integration-validation": smoke, "smoke-e2e-validation": smoke, "smoke-storybook-validation": smoke, "smoke-link-validation": smoke, "smoke-performance-validation": smoke, "smoke-stage-validation": smoke, "smoke-validate-repo": smoke, "smoke-release-qualification": smoke, "smoke-artifact-promotion": smoke, "smoke-release-template": smoke, "prebuilt-smoke-build-artifact": prebuilt, "prebuilt-smoke-integration-validation": prebuilt})
           skipped = [job for job, required in selected.items() if not required]
           with open(os.environ["GITHUB_OUTPUT"], "a") as output:
               for job in ["e2e-validation", "storybook-validation", "link-validation", "performance-validation"]:
                   print(f"{job}={str(selected[job]).lower()}", file=output)
               print(f"artifact-build={str(selected['artifact-build']).lower()}", file=output)
               print(f"smoke={str(smoke).lower()}", file=output)
+              print(f"wasm-smoke={str(wasm_smoke).lower()}", file=output)
               print(f"prebuilt={str(prebuilt).lower()}", file=output)
               print(f"allow-skipped={json.dumps(skipped)}", file=output)
 
@@ -375,13 +389,9 @@ jobs:
 
   smoke-verified-wasm-cli:
     needs: ["validation-scope"]
-    if: ${{ needs.validation-scope.outputs.smoke == 'true' }}
+    if: ${{ needs.validation-scope.outputs.wasm-smoke == 'true' }}
     permissions:
-      actions: read
-      contents: write
-      packages: write
-      id-token: write
-      attestations: write
+      contents: read
     name: Verified ${{ matrix.tool }} precompiled CLI
     runs-on: ubuntu-24.04
     strategy:
