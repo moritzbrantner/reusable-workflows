@@ -50,6 +50,56 @@ on:
         required: false
         type: boolean
         default: false
+      browser:
+        description: Capture a Playwright Chromium journey from separately served reference and candidate sites, requiring strict browser comparability.
+        required: false
+        type: boolean
+        default: false
+      browser_bun_version:
+        description: Optional exact Bun version for browser consumers using Bun; an empty value leaves runtime setup to the consumer.
+        required: false
+        type: string
+        default: ""
+      browser_site_directory:
+        description: Relative directory containing the built static site in each checkout; required in browser mode.
+        required: false
+        type: string
+        default: ""
+      browser_port:
+        description: Local HTTP port used by the consumer's browser scenario.
+        required: false
+        type: number
+        default: 4173
+      browser_ready_path:
+        description: HTTP path that must respond successfully before each browser capture.
+        required: false
+        type: string
+        default: /
+      browser_server_log_id:
+        description: Optional stable server-log basename for a single browser workload; defaults to its scenario basename.
+        required: false
+        type: string
+        default: ""
+      browser_preflight_command:
+        description: Optional candidate-owned browser correctness checks, executed before building the static sites.
+        required: false
+        type: string
+        default: ""
+      browser_build_command:
+        description: Repository-owned static-site build command, run separately in both checkouts; required in browser mode.
+        required: false
+        type: string
+        default: ""
+      browser_server_acceptance_command:
+        description: Optional candidate-owned browser correctness checks run against its served site before timing capture.
+        required: false
+        type: string
+        default: ""
+      browser_artifact_paths:
+        description: Optional newline-separated correctness evidence paths relative to RUNNER_TEMP, retained alongside browser captures.
+        required: false
+        type: string
+        default: ""
 
 jobs:
   runtime-evidence:
@@ -63,6 +113,14 @@ jobs:
       WORKLOADS: ${{ inputs.workloads }}
       WORKLOAD_FILES: ${{ inputs.workload_files }}
       PRIME_COMMAND: ${{ inputs.prime_command }}
+      BROWSER_SITE_DIRECTORY: ${{ inputs.browser_site_directory }}
+      BROWSER_PORT: ${{ inputs.browser_port }}
+      BROWSER_READY_PATH: ${{ inputs.browser_ready_path }}
+      BROWSER_SERVER_LOG_ID: ${{ inputs.browser_server_log_id }}
+      BROWSER_PREFLIGHT_COMMAND: ${{ inputs.browser_preflight_command }}
+      BROWSER_BUILD_COMMAND: ${{ inputs.browser_build_command }}
+      BROWSER_SERVER_ACCEPTANCE_COMMAND: ${{ inputs.browser_server_acceptance_command }}
+      BROWSER_ARTIFACT_PATHS: ${{ inputs.browser_artifact_paths }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
     steps:
@@ -77,6 +135,17 @@ jobs:
           [[ "$RUNTIME_PROFILER_REV" =~ ^[0-9a-f]{40}$ ]] || exit 1
           [[ -z "$MOONLIGHT_REV" || "$MOONLIGHT_REV" =~ ^[0-9a-f]{40}$ ]] || exit 1
           [[ -n "$WORKLOADS" && -n "$WORKLOAD_FILES" ]] || exit 1
+          if [[ '${{ inputs.browser }}' == 'true' ]]; then
+            [[ -n "$BROWSER_BUILD_COMMAND" && -n "$BROWSER_SITE_DIRECTORY" ]] || exit 1
+            [[ "$BROWSER_SITE_DIRECTORY" =~ ^[a-zA-Z0-9_./-]+$ &&
+               "$BROWSER_SITE_DIRECTORY" != /* && "$BROWSER_SITE_DIRECTORY" != .. &&
+               "$BROWSER_SITE_DIRECTORY" != ../* && "$BROWSER_SITE_DIRECTORY" != */../* &&
+               "$BROWSER_SITE_DIRECTORY" != */.. && "$BROWSER_SITE_DIRECTORY" != *//* ]] || exit 1
+            [[ "$BROWSER_PORT" =~ ^[0-9]+$ && "$BROWSER_PORT" -ge 1 && "$BROWSER_PORT" -le 65535 ]] || exit 1
+            [[ "$BROWSER_READY_PATH" == /* && "$BROWSER_READY_PATH" != *$'\n'* &&
+               "$BROWSER_READY_PATH" != *$'\r'* ]] || exit 1
+            [[ -z "$BROWSER_SERVER_LOG_ID" || "$BROWSER_SERVER_LOG_ID" =~ ^[a-zA-Z0-9_-]+$ ]] || exit 1
+          fi
 
       - name: Check out exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -99,6 +168,12 @@ jobs:
           repository: moritzbrantner/moonlight
           ref: ${{ inputs.moonlight_revision }}
           path: moonlight
+
+      - name: Set up consumer Bun for Chromium
+        if: ${{ inputs.browser && inputs.browser_bun_version != '' }}
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: ${{ inputs.browser_bun_version }}
 
       - name: Install Rust
         shell: bash
@@ -179,7 +254,32 @@ jobs:
           test -z "$(git -C reference status --porcelain)"
           test -z "$(git -C candidate status --porcelain)"
 
+      - name: Install repository-pinned Playwright Chromium
+        if: ${{ inputs.browser }}
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install playwright install --with-deps chromium
+
+      - name: Run candidate-owned browser correctness checks
+        if: ${{ inputs.browser && inputs.browser_preflight_command != '' }}
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -e -o pipefail -c "$BROWSER_PREFLIGHT_COMMAND"
+
+      - name: Build both browser benchmark sites
+        if: ${{ inputs.browser }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd reference && bash -e -o pipefail -c "$BROWSER_BUILD_COMMAND")
+          (cd candidate && bash -e -o pipefail -c "$BROWSER_BUILD_COMMAND")
+
       - name: Capture and compare runtime evidence
+        if: ${{ !inputs.browser }}
         shell: bash
         run: |
           set -euo pipefail
@@ -229,6 +329,82 @@ jobs:
           test "$count" -gt 0
           cat "$summary" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Capture and strictly compare Chromium evidence
+        if: ${{ inputs.browser }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          summary="$RUNNER_TEMP/runtime-browser-summary.md"
+          echo '### Chromium runtime-profiler comparisons' > "$summary"
+          capture_side() {
+            local side="$1" workload="$2" scenario="$3"
+            local site_directory="$side/$BROWSER_SITE_DIRECTORY"
+            local log_id="${BROWSER_SERVER_LOG_ID:-$workload}"
+            local server_pid
+            test -d "$site_directory"
+            python3 -m http.server "$BROWSER_PORT" \
+              --bind 127.0.0.1 --directory "$site_directory" \
+              >"$RUNNER_TEMP/$side-$log_id-server.log" 2>&1 &
+            server_pid=$!
+            trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+            curl --fail --retry 20 --retry-delay 1 --retry-all-errors \
+              "http://127.0.0.1:$BROWSER_PORT$BROWSER_READY_PATH" >/dev/null
+            if [[ "$side" == 'candidate' && -n "$BROWSER_SERVER_ACCEPTANCE_COMMAND" ]]; then
+              (cd candidate && BROWSER_ORIGIN="http://127.0.0.1:$BROWSER_PORT" \
+                bash -e -o pipefail -c "$BROWSER_SERVER_ACCEPTANCE_COMMAND")
+            fi
+            (
+              cd "$side"
+              runtime-profiler capture --scenario "$scenario" \
+                --output "$RUNNER_TEMP/$side-$workload"
+              runtime-profiler validate --bundle "$RUNNER_TEMP/$side-$workload"
+            )
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+            trap - EXIT
+          }
+          while IFS= read -r scenario || [[ -n "$scenario" ]]; do
+            [[ -z "$scenario" ]] && continue
+            if [[ ! "$scenario" =~ ^[a-zA-Z0-9_./-]+$ ||
+                  "$scenario" == /* || "$scenario" == .. ||
+                  "$scenario" == ../* || "$scenario" == */../* ||
+                  "$scenario" == */.. || "$scenario" == *//* ||
+                  "$scenario" != *.json ]]; then
+              echo "Invalid browser scenario: $scenario" >&2
+              exit 1
+            fi
+            workload="$(basename "$scenario" .json)"
+            if [[ -n "$BROWSER_SERVER_LOG_ID" && "$count" -gt 0 ]]; then
+              echo 'A custom server log ID requires one browser scenario' >&2
+              exit 1
+            fi
+            test -f "candidate/$scenario"
+            test -f "reference/$scenario"
+            test ! -e "$RUNNER_TEMP/$workload-comparison.json" || {
+              echo "Duplicate browser workload ID: $workload" >&2
+              exit 1
+            }
+            capture_side reference "$workload" "$scenario"
+            capture_side candidate "$workload" "$scenario"
+            runtime-profiler compare-browser \
+              --reference "$RUNNER_TEMP/reference-$workload" \
+              --candidate "$RUNNER_TEMP/candidate-$workload" --json \
+              | tee "$RUNNER_TEMP/$workload-comparison.json"
+            jq -e '.status == "comparable"' "$RUNNER_TEMP/$workload-comparison.json" >/dev/null
+            {
+              echo
+              echo "#### $workload"
+              echo '> Strict browser comparability is required; performance interpretation remains consumer-owned.'
+              echo '```json'
+              cat "$RUNNER_TEMP/$workload-comparison.json"
+              echo '```'
+            } >> "$summary"
+            count=$((count + 1))
+          done <<< "$WORKLOADS"
+          test "$count" -gt 0
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run pinned Moonlight correctness evaluation
         if: ${{ inputs.moonlight_revision != '' }}
         working-directory: candidate
@@ -254,7 +430,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload evidence for exact candidate
-        if: always()
+        if: ${{ always() && !inputs.browser }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ inputs.artifact_name }}-${{ github.event.pull_request.head.sha }}
@@ -263,5 +439,40 @@ jobs:
             ${{ runner.temp }}/candidate-*
             ${{ runner.temp }}/runtime-*.json
             ${{ runner.temp }}/moonlight.md
+          if-no-files-found: warn
+          retention-days: ${{ inputs.artifact_retention_days }}
+
+      - name: Stage browser captures and consumer correctness artifacts
+        if: ${{ always() && inputs.browser }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          staging="$RUNNER_TEMP/browser-artifact-upload"
+          mkdir -p "$staging"
+          shopt -s nullglob
+          for path in "$RUNNER_TEMP"/reference-* "$RUNNER_TEMP"/candidate-* "$RUNNER_TEMP"/*-comparison.json; do
+            cp -a -- "$path" "$staging/"
+          done
+          while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
+            [[ -z "$relative_path" ]] && continue
+            if [[ ! "$relative_path" =~ ^[a-zA-Z0-9_./-]+$ ||
+                  "$relative_path" == /* || "$relative_path" == .. ||
+                  "$relative_path" == ../* || "$relative_path" == */../* ||
+                  "$relative_path" == */.. || "$relative_path" == *//* ]]; then
+              echo "Invalid browser artifact path: $relative_path" >&2
+              exit 1
+            fi
+            if [[ -e "$RUNNER_TEMP/$relative_path" ]]; then
+              mkdir -p "$staging/$(dirname "$relative_path")"
+              cp -a -- "$RUNNER_TEMP/$relative_path" "$staging/$relative_path"
+            fi
+          done <<< "$BROWSER_ARTIFACT_PATHS"
+
+      - name: Upload browser evidence for exact candidate
+        if: ${{ always() && inputs.browser }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ inputs.artifact_name }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/browser-artifact-upload/
           if-no-files-found: warn
           retention-days: ${{ inputs.artifact_retention_days }}
