@@ -9,6 +9,12 @@
       "matchDepNames": ["moritzbrantner/coding-tooling"],
       "matchCurrentValue": "main",
       "pinDigests": false
+    },
+    {
+      "description": "Internal action and workflow references stay pinned to deliberately promoted revisions; avoid Renovate self-digest updates after every repository commit.",
+      "matchManagers": ["github-actions"],
+      "matchDepNames": ["moritzbrantner/reusable-workflows"],
+      "enabled": false
     }
   ]
 }
