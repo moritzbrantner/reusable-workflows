@@ -246,7 +246,7 @@ jobs:
 
       - name: Install Xvfb
         if: ${{ inputs.install_xvfb }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@72da98e285868bae479f902bc0e4dbc55e876db6 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@3f5eb59bb739b47444c741dd5295024a551973d6 # main
         with:
           packages: xvfb
 
@@ -256,7 +256,7 @@ jobs:
 
       - name: Install Playwright system dependencies
         if: ${{ inputs.install_playwright }}
-        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@72da98e285868bae479f902bc0e4dbc55e876db6 # main
+        uses: moritzbrantner/reusable-workflows/.github/actions/install-system-packages@3f5eb59bb739b47444c741dd5295024a551973d6 # main
         with:
           playwright_browsers: ${{ inputs.install_playwright_browsers || 'all' }}
           working_directory: ${{ inputs.working_directory }}
