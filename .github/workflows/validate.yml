@@ -533,6 +533,7 @@ jobs:
       - name: Verify consumed bytes and reuse timing
         env:
           REUSE_LOOKUP_MS: ${{ needs.smoke-build-artifact-reuse.outputs.reuse_lookup_ms }}
+          PRODUCER_REUSED: ${{ needs.smoke-build-artifact.outputs.reused }}
           SETUP_MS: ${{ needs.smoke-build-artifact.outputs.setup_ms }}
           BUILD_MS: ${{ needs.smoke-build-artifact.outputs.build_ms }}
           UPLOAD_MS: ${{ needs.smoke-build-artifact.outputs.upload_ms }}
@@ -542,10 +543,17 @@ jobs:
         run: |
           test "$(cat .artifacts/consumed-build-artifact/artifact.txt)" = "verified build artifact"
           [[ "$REUSE_LOOKUP_MS" =~ ^[0-9]+$ ]]
-          [[ "$SETUP_MS" =~ ^[0-9]+$ ]]
-          [[ "$BUILD_MS" =~ ^[0-9]+$ ]]
-          [[ "$UPLOAD_MS" =~ ^[0-9]+$ ]]
-          [[ "$ARTIFACT_BYTES" =~ ^[0-9]+$ ]]
+          if [[ "$PRODUCER_REUSED" == "true" ]]; then
+            # A verified artifact from a prior run skips producer work and has no fresh timings.
+            test -z "$SETUP_MS" && test -z "$BUILD_MS"
+            test -z "$UPLOAD_MS" && test -z "$ARTIFACT_BYTES"
+          else
+            test "$PRODUCER_REUSED" = "false"
+            [[ "$SETUP_MS" =~ ^[0-9]+$ ]]
+            [[ "$BUILD_MS" =~ ^[0-9]+$ ]]
+            [[ "$UPLOAD_MS" =~ ^[0-9]+$ ]]
+            [[ "$ARTIFACT_BYTES" =~ ^[0-9]+$ ]]
+          fi
           [[ "$CONSUME_MS" =~ ^[0-9]+$ ]]
           [[ "$MATERIALIZED_BYTES" =~ ^[0-9]+$ ]]
 
