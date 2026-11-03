@@ -1,0 +1,267 @@
+name: Runtime Evidence
+
+on:
+  workflow_call:
+    inputs:
+      workloads:
+        description: Newline-separated, repository-relative runtime-profiler scenario JSON paths.
+        required: true
+        type: string
+      workload_files:
+        description: Newline-separated candidate files to copy into the reference checkout for a common workload contract.
+        required: true
+        type: string
+      prime_command:
+        description: Optional repository-owned shell command, run once in each checkout before capture.
+        required: false
+        type: string
+        default: ""
+      profiler_revision:
+        description: Exact 40-character runtime-profiler commit SHA.
+        required: true
+        type: string
+      moonlight_revision:
+        description: Optional exact 40-character Moonlight commit SHA for correctness evaluation.
+        required: false
+        type: string
+        default: ""
+      moonlight_project:
+        description: Repository-relative Moonlight project configuration.
+        required: false
+        type: string
+        default: moonlight.eval.toml
+      artifact_name:
+        description: Prefix for the exact-PR-head evidence artifact.
+        required: false
+        type: string
+        default: runtime-evidence
+      artifact_retention_days:
+        description: Artifact retention in days; 0 uses the repository default.
+        required: false
+        type: number
+        default: 0
+      job_name:
+        description: Consumer-visible job name to preserve existing check identities.
+        required: false
+        type: string
+        default: Runtime evidence and behavior
+      check_worktree_clean:
+        description: Require both checkouts to be clean after the repository-owned priming command.
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  runtime-evidence:
+    name: ${{ inputs.job_name }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    env:
+      RUNTIME_PROFILER_REV: ${{ inputs.profiler_revision }}
+      MOONLIGHT_REV: ${{ inputs.moonlight_revision }}
+      WORKLOADS: ${{ inputs.workloads }}
+      WORKLOAD_FILES: ${{ inputs.workload_files }}
+      PRIME_COMMAND: ${{ inputs.prime_command }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Validate caller evidence contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ && "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo 'This capability requires an exact pull-request base and head SHA' >&2
+            exit 1
+          }
+          [[ "$RUNTIME_PROFILER_REV" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ -z "$MOONLIGHT_REV" || "$MOONLIGHT_REV" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          [[ -n "$WORKLOADS" && -n "$WORKLOAD_FILES" ]] || exit 1
+
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: candidate
+          fetch-depth: 0
+
+      - name: Check out exact reference
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: reference
+          fetch-depth: 0
+
+      - name: Check out pinned Moonlight
+        if: ${{ inputs.moonlight_revision != '' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: moritzbrantner/moonlight
+          ref: ${{ inputs.moonlight_revision }}
+          path: moonlight
+
+      - name: Install Rust
+        shell: bash
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+
+      - name: Identify Rust toolchain for profiler binary cache
+        id: rust-toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "digest=$(rustc --version --verbose | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      # Cache is scoped by GitHub to the PR/ref. This accelerates repeat runs of
+      # the same PR; unrelated PRs need a main-branch seed or a published binary.
+      - name: Restore exact-revision profiler binary
+        id: profiler-cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/runtime-profiler-tools/bin/runtime-profiler
+          key: runtime-profiler-${{ runner.os }}-${{ runner.arch }}-${{ inputs.profiler_revision }}-${{ steps.rust-toolchain.outputs.digest }}
+
+      - name: Install pinned runtime-profiler on cache miss
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.profiler-cache.outputs.cache-hit }}" != 'true' ]]; then
+            cargo install \
+              --git https://github.com/moritzbrantner/runtime-profiler \
+              --rev "$RUNTIME_PROFILER_REV" --locked \
+              --root "$RUNNER_TEMP/runtime-profiler-tools"
+          fi
+          test -x "$RUNNER_TEMP/runtime-profiler-tools/bin/runtime-profiler"
+          echo "$RUNNER_TEMP/runtime-profiler-tools/bin" >> "$GITHUB_PATH"
+
+      - name: Give reference the identical candidate workload contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          copied=0
+          while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
+            [[ -z "$relative_path" ]] && continue
+            if [[ ! "$relative_path" =~ ^[a-zA-Z0-9_./-]+$ ||
+                  "$relative_path" == /* || "$relative_path" == .. ||
+                  "$relative_path" == ../* || "$relative_path" == */../* ||
+                  "$relative_path" == */.. || "$relative_path" == *//* ]]; then
+              echo "Invalid workload file: $relative_path" >&2
+              exit 1
+            fi
+            test -f "candidate/$relative_path"
+            mkdir -p "reference/$(dirname "$relative_path")"
+            cp "candidate/$relative_path" "reference/$relative_path"
+            git -C reference add -- "$relative_path"
+            copied=$((copied + 1))
+          done <<< "$WORKLOAD_FILES"
+          test "$copied" -gt 0
+          if ! git -C reference diff --cached --quiet; then
+            git -C reference \
+              -c user.name='runtime-profiler' \
+              -c user.email='runtime-profiler@invalid' \
+              commit -m 'chore: attach comparable profiler workload contract'
+          fi
+
+      - name: Prime repository-owned workloads
+        if: ${{ inputs.prime_command != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd reference && bash -e -o pipefail -c "$PRIME_COMMAND")
+          (cd candidate && bash -e -o pipefail -c "$PRIME_COMMAND")
+
+      - name: Verify workload priming did not modify source
+        if: ${{ inputs.check_worktree_clean }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git -C reference status --porcelain)"
+          test -z "$(git -C candidate status --porcelain)"
+
+      - name: Capture and compare runtime evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          summary="$RUNNER_TEMP/runtime-evidence-summary.md"
+          echo '### runtime-profiler comparisons' > "$summary"
+          while IFS= read -r scenario || [[ -n "$scenario" ]]; do
+            [[ -z "$scenario" ]] && continue
+            if [[ ! "$scenario" =~ ^[a-zA-Z0-9_./-]+$ ||
+                  "$scenario" == /* || "$scenario" == .. ||
+                  "$scenario" == ../* || "$scenario" == */../* ||
+                  "$scenario" == */.. || "$scenario" == *//* ||
+                  "$scenario" != *.json ]]; then
+              echo "Invalid scenario: $scenario" >&2
+              exit 1
+            fi
+            workload="$(basename "$scenario" .json)"
+            test -f "candidate/$scenario"
+            test -f "reference/$scenario"
+            test ! -e "$RUNNER_TEMP/runtime-$workload.json" || {
+              echo "Duplicate workload ID: $workload" >&2
+              exit 1
+            }
+            (
+              cd reference
+              runtime-profiler capture --scenario "$scenario" --output "$RUNNER_TEMP/reference-$workload"
+              runtime-profiler validate --bundle "$RUNNER_TEMP/reference-$workload"
+            )
+            (
+              cd candidate
+              runtime-profiler capture --scenario "$scenario" --output "$RUNNER_TEMP/candidate-$workload"
+              runtime-profiler validate --bundle "$RUNNER_TEMP/candidate-$workload"
+            )
+            runtime-profiler score \
+              --reference "$RUNNER_TEMP/reference-$workload" \
+              --candidate "$RUNNER_TEMP/candidate-$workload" --json \
+              | tee "$RUNNER_TEMP/runtime-$workload.json"
+            {
+              echo
+              echo "#### $workload"
+              echo '```json'
+              cat "$RUNNER_TEMP/runtime-$workload.json"
+              echo '```'
+            } >> "$summary"
+            count=$((count + 1))
+          done <<< "$WORKLOADS"
+          test "$count" -gt 0
+          cat "$summary" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run pinned Moonlight correctness evaluation
+        if: ${{ inputs.moonlight_revision != '' }}
+        working-directory: candidate
+        shell: bash
+        env:
+          MOONLIGHT_PROJECT: ${{ inputs.moonlight_project }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$BASE_SHA" "$HEAD_SHA"
+          cargo run --quiet \
+            --manifest-path ../moonlight/Cargo.toml \
+            -p moonlight-cli --bin moonlight -- \
+            eval run \
+            --project "$MOONLIGHT_PROJECT" \
+            --storage-path .moonlight/runtime-evidence.jsonl \
+            --format markdown \
+            --baseline-ref "$BASE_SHA" \
+            --candidate-ref "$HEAD_SHA" \
+            | tee "$RUNNER_TEMP/moonlight.md"
+          {
+            echo '### Moonlight evaluation'
+            cat "$RUNNER_TEMP/moonlight.md"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence for exact candidate
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ inputs.artifact_name }}-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/reference-*
+            ${{ runner.temp }}/candidate-*
+            ${{ runner.temp }}/runtime-*.json
+            ${{ runner.temp }}/moonlight.md
+          if-no-files-found: warn
+          retention-days: ${{ inputs.artifact_retention_days }}

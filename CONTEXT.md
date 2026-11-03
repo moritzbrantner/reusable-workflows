@@ -43,6 +43,9 @@ Caller-owned policy for when validation, qualification, promotion, or delivery r
 **Build Artifact Adapter**  
 `build-artifact.yml`, an ordinary-CI producer for one exact source SHA. It runs a caller-owned build command exactly once, preserves the artifact with its archive digest, binds caller-owned semantic identity plus runner/build context into deterministic identity evidence, and emits Execution Receipt v1. It does not qualify a release, promote, publish, or deploy.
 
+**Runtime Evidence Adapter**
+`runtime-evidence.yml` transports exact-PR-head vs exact-base runtime-profiler captures and optional pinned Moonlight evaluation. Consumers own scenario files, workload preparation, profiler/Moonlight revisions, and evidence interpretation. A revision/toolchain-keyed binary cache accelerates reruns where GitHub cache scope permits; it is not a release artifact or a cross-PR reuse guarantee.
+
 **Release Qualification Adapter**  
 `release-qualification.yml`, which qualifies one exact consumer commit, builds the candidate once, and transports the artifact plus exact-source provenance and Execution Receipt v1. It may accept one opaque `build_token`; that secret is exposed only to the repository-owned build command as `RELEASE_BUILD_TOKEN`. The adapter does not know what external builder or credential the consumer maps that token to.
 
@@ -86,6 +89,7 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 15. `deliver-qualified-expo-stores.yml` delivers only a promoted artifact containing a verified mobile release manifest and exact binary digests. It may install an exact EAS CLI for submission but cannot invoke `eas build`, accept a build command, or use `--latest`.
 16. Store identity, App Store Connect/Play Console metadata, EAS build/submit profiles, TestFlight groups, Play tracks/rollouts, and final public exposure remain caller/application policy.
 17. Concurrency policy belongs in caller workflows unless an API/persistent writer requires capability-local serialization.
+18. `runtime-evidence.yml` never decides performance thresholds or correctness policy. Baselines use the candidate's identical workload contract and measurements retain their original exact-source identities; its cache cannot be treated as cross-revision validation reuse.
 
 ## Capability classes
 
@@ -97,6 +101,7 @@ Machine-readable metadata derived from current workflow YAML; interface metadata
 - `public-contract-validation.yml`
 - `environment-v1-canary.yml`
 - `build-artifact.yml`
+- `runtime-evidence.yml`
 - `fast-validation.yml`
 
 ### Specialized / transitional validation
