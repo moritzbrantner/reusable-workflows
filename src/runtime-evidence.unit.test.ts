@@ -79,9 +79,9 @@ describe("callable runtime evidence transport", () => {
     expect(source).toContain("runtime-profiler compare-browser");
     expect(source).toContain("jq -e '.status == \"comparable\"'");
     expect(source).toContain("trap - EXIT");
-    expect(steps.find((step) => step.name === "Upload browser evidence for exact candidate")?.if).toBe(
-      "${{ always() && inputs.browser }}",
-    );
+    expect(
+      steps.find((step) => step.name === "Upload browser evidence for exact candidate")?.if,
+    ).toBe("${{ always() && inputs.browser }}");
   });
 
   test("keeps optional Moonlight and artifact identity owned by consumers", () => {
