@@ -41,8 +41,12 @@ describe("callable runtime evidence transport", () => {
     expect(source).toContain("github.event.pull_request.head.sha");
     expect(source).toContain("github.event.pull_request.base.sha");
     expect(source).toContain('git -C reference add -- "$relative_path"');
-    expect(source).toContain('runtime-profiler validate --bundle "$RUNNER_TEMP/reference-$workload"');
-    expect(source).toContain('runtime-profiler validate --bundle "$RUNNER_TEMP/candidate-$workload"');
+    expect(source).toContain(
+      'runtime-profiler validate --bundle "$RUNNER_TEMP/reference-$workload"',
+    );
+    expect(source).toContain(
+      'runtime-profiler validate --bundle "$RUNNER_TEMP/candidate-$workload"',
+    );
     expect(source).toContain("runtime-profiler score");
     expect(steps.find((step) => step.name === "Upload evidence for exact candidate")?.if).toBe(
       "always()",
