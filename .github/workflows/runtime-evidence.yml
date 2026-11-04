@@ -351,7 +351,7 @@ jobs:
             # The bind banner comes only from this server after it owns the port.
             # A successful curl alone could hit an unrelated listener.
             local started=false
-            for attempt in {1..50}; do
+            for (( attempt=0; attempt<50; attempt++ )); do
               if grep -Fq "Serving HTTP on 127.0.0.1 port $BROWSER_PORT " "$server_log"; then
                 started=true
                 break
