@@ -12,7 +12,7 @@ type WorkflowStep = {
 };
 
 type RuntimeEvidenceWorkflow = {
-  on: { workflow_call: { inputs: Record<string, { required?: boolean }> } };
+  on: { workflow_call: { inputs: Record<string, { required?: boolean; default?: unknown }> } };
   jobs: { "runtime-evidence": { steps: WorkflowStep[] } };
 };
 
@@ -31,6 +31,18 @@ describe("callable runtime evidence transport", () => {
     }
     expect(inputs.prime_command?.required).not.toBe(true);
     expect(inputs.moonlight_revision?.required).not.toBe(true);
+    expect(inputs.browser).toMatchObject({ required: false, default: false });
+    for (const name of [
+      "browser_bun_version",
+      "browser_site_directory",
+      "browser_server_log_id",
+      "browser_preflight_command",
+      "browser_build_command",
+      "browser_server_acceptance_command",
+      "browser_artifact_paths",
+    ]) {
+      expect(inputs[name]?.required).not.toBe(true);
+    }
     expect(source).toContain('[[ "$BASE_SHA" =~ ^[0-9a-f]{40}$');
     expect(source).toContain('[[ "$RUNTIME_PROFILER_REV" =~ ^[0-9a-f]{40}$');
   });
@@ -48,9 +60,31 @@ describe("callable runtime evidence transport", () => {
       'runtime-profiler validate --bundle "$RUNNER_TEMP/candidate-$workload"',
     );
     expect(source).toContain("runtime-profiler score");
-    expect(steps.find((step) => step.name === "Upload evidence for exact candidate")?.if).toBe(
-      "always()",
+    expect(steps.find((step) => step.name === "Capture and compare runtime evidence")?.if).toBe(
+      "${{ !inputs.browser }}",
     );
+    expect(steps.find((step) => step.name === "Upload evidence for exact candidate")?.if).toBe(
+      "${{ always() && !inputs.browser }}",
+    );
+  });
+
+  test("browser mode provisions Chromium, serves both exact sites, and fails non-comparable captures", () => {
+    expect(source).toContain("npx --no-install playwright install --with-deps chromium");
+    expect(source).toContain("inputs.browser_build_command");
+    expect(source).toContain("inputs.browser_preflight_command");
+    expect(source).toContain("inputs.browser_server_acceptance_command");
+    expect(source).toContain('capture_side reference "$workload" "$scenario"');
+    expect(source).toContain('capture_side candidate "$workload" "$scenario"');
+    expect(source).toContain('runtime-profiler validate --bundle "$RUNNER_TEMP/$side-$workload"');
+    expect(source).toContain("runtime-profiler compare-browser");
+    expect(source).toContain("jq -e '.status == \"comparable\"'");
+    expect(source).toContain('grep -Fq "Serving HTTP on 127.0.0.1 port $BROWSER_PORT "');
+    expect(source).toContain('kill -0 "$server_pid" 2>/dev/null');
+    expect(source).toContain('cp -- "$RUNNER_TEMP/moonlight.md" "$staging/moonlight.md"');
+    expect(source).toContain("trap - EXIT");
+    expect(
+      steps.find((step) => step.name === "Upload browser evidence for exact candidate")?.if,
+    ).toBe("${{ always() && inputs.browser }}");
   });
 
   test("keeps optional Moonlight and artifact identity owned by consumers", () => {
