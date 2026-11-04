@@ -341,15 +341,40 @@ jobs:
             local side="$1" workload="$2" scenario="$3"
             local site_directory="$side/$BROWSER_SITE_DIRECTORY"
             local log_id="${BROWSER_SERVER_LOG_ID:-$workload}"
-            local server_pid
+            local server_pid server_log="$RUNNER_TEMP/$side-$log_id-server.log"
             test -d "$site_directory"
-            python3 -m http.server "$BROWSER_PORT" \
+            python3 -u -m http.server "$BROWSER_PORT" \
               --bind 127.0.0.1 --directory "$site_directory" \
-              >"$RUNNER_TEMP/$side-$log_id-server.log" 2>&1 &
+              >"$server_log" 2>&1 &
             server_pid=$!
             trap 'kill "$server_pid" 2>/dev/null || true; wait "$server_pid" 2>/dev/null || true' EXIT
+            # The bind banner comes only from this server after it owns the port.
+            # A successful curl alone could hit an unrelated listener.
+            local started=false
+            for attempt in {1..50}; do
+              if grep -Fq "Serving HTTP on 127.0.0.1 port $BROWSER_PORT " "$server_log"; then
+                started=true
+                break
+              fi
+              if ! kill -0 "$server_pid" 2>/dev/null; then
+                cat "$server_log" >&2
+                echo "Browser server exited before binding port $BROWSER_PORT" >&2
+                exit 1
+              fi
+              sleep 0.1
+            done
+            if [[ "$started" != true ]]; then
+              cat "$server_log" >&2
+              echo "Browser server did not bind port $BROWSER_PORT" >&2
+              exit 1
+            fi
             curl --fail --retry 20 --retry-delay 1 --retry-all-errors \
               "http://127.0.0.1:$BROWSER_PORT$BROWSER_READY_PATH" >/dev/null
+            kill -0 "$server_pid" 2>/dev/null || {
+              cat "$server_log" >&2
+              echo "Browser server exited during readiness" >&2
+              exit 1
+            }
             if [[ "$side" == 'candidate' && -n "$BROWSER_SERVER_ACCEPTANCE_COMMAND" ]]; then
               (cd candidate && BROWSER_ORIGIN="http://127.0.0.1:$BROWSER_PORT" \
                 bash -e -o pipefail -c "$BROWSER_SERVER_ACCEPTANCE_COMMAND")
@@ -360,6 +385,11 @@ jobs:
                 --output "$RUNNER_TEMP/$side-$workload"
               runtime-profiler validate --bundle "$RUNNER_TEMP/$side-$workload"
             )
+            kill -0 "$server_pid" 2>/dev/null || {
+              cat "$server_log" >&2
+              echo "Browser server exited during capture" >&2
+              exit 1
+            }
             kill "$server_pid" 2>/dev/null || true
             wait "$server_pid" 2>/dev/null || true
             trap - EXIT
@@ -453,6 +483,9 @@ jobs:
           for path in "$RUNNER_TEMP"/reference-* "$RUNNER_TEMP"/candidate-* "$RUNNER_TEMP"/*-comparison.json; do
             cp -a -- "$path" "$staging/"
           done
+          if [[ -f "$RUNNER_TEMP/moonlight.md" ]]; then
+            cp -- "$RUNNER_TEMP/moonlight.md" "$staging/moonlight.md"
+          fi
           while IFS= read -r relative_path || [[ -n "$relative_path" ]]; do
             [[ -z "$relative_path" ]] && continue
             if [[ ! "$relative_path" =~ ^[a-zA-Z0-9_./-]+$ ||

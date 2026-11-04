@@ -78,6 +78,9 @@ describe("callable runtime evidence transport", () => {
     expect(source).toContain('runtime-profiler validate --bundle "$RUNNER_TEMP/$side-$workload"');
     expect(source).toContain("runtime-profiler compare-browser");
     expect(source).toContain("jq -e '.status == \"comparable\"'");
+    expect(source).toContain('grep -Fq "Serving HTTP on 127.0.0.1 port $BROWSER_PORT "');
+    expect(source).toContain('kill -0 "$server_pid" 2>/dev/null');
+    expect(source).toContain('cp -- "$RUNNER_TEMP/moonlight.md" "$staging/moonlight.md"');
     expect(source).toContain("trap - EXIT");
     expect(
       steps.find((step) => step.name === "Upload browser evidence for exact candidate")?.if,

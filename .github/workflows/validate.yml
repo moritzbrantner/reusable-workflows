@@ -545,8 +545,10 @@ jobs:
           [[ "$REUSE_LOOKUP_MS" =~ ^[0-9]+$ ]]
           if [[ "$PRODUCER_REUSED" == "true" ]]; then
             # A verified artifact from a prior run skips producer work and has no fresh timings.
-            test -z "$SETUP_MS" && test -z "$BUILD_MS"
-            test -z "$UPLOAD_MS" && test -z "$ARTIFACT_BYTES"
+            test -z "$SETUP_MS"
+            test -z "$BUILD_MS"
+            test -z "$UPLOAD_MS"
+            test -z "$ARTIFACT_BYTES"
           else
             test "$PRODUCER_REUSED" = "false"
             [[ "$SETUP_MS" =~ ^[0-9]+$ ]]
