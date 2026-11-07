@@ -114,6 +114,11 @@ on:
         required: false
         type: boolean
         default: false
+      cache_cargo_workspace_crates:
+        description: "Retain local workspace crate build artifacts across runs (larger cache; useful for expensive Rust workspaces)."
+        required: false
+        type: boolean
+        default: false
       concurrency_group:
         required: false
         type: string
@@ -195,6 +200,7 @@ jobs:
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: ${{ inputs.working_directory }}
+          cache-workspace-crates: ${{ inputs.cache_cargo_workspace_crates }}
 
       - name: Install system packages
         if: ${{ inputs.install_xvfb || inputs.apt_packages != '' }}
