@@ -12,9 +12,7 @@ describe("Rust workspace cache opt-in", () => {
     const cache = workflow.jobs.validate.steps.find(
       (step: { name?: string }) => step.name === "Cache Cargo",
     );
-    expect(cache.with["cache-workspace-crates"]).toBe(
-      "${{ inputs.cache_cargo_workspace_crates }}",
-    );
+    expect(cache.with["cache-workspace-crates"]).toBe("${{ inputs.cache_cargo_workspace_crates }}");
     expect(cache.with.key).toBe(
       "${{ inputs.cache_cargo_workspace_crates && 'workspace-crates-v1' || '' }}",
     );
