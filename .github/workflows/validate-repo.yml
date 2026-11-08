@@ -201,6 +201,7 @@ jobs:
         with:
           workspaces: ${{ inputs.working_directory }}
           cache-workspace-crates: ${{ inputs.cache_cargo_workspace_crates }}
+          key: ${{ inputs.cache_cargo_workspace_crates && 'workspace-crates-v1' || '' }}
 
       - name: Install system packages
         if: ${{ inputs.install_xvfb || inputs.apt_packages != '' }}
