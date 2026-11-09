@@ -114,6 +114,21 @@ on:
         required: false
         type: boolean
         default: false
+      cache_paths:
+        description: "Newline-separated actions/cache paths, relative to the repository root, restored before install_command and saved on success. Skipped unless cache_key is also set."
+        required: false
+        type: string
+        default: ""
+      cache_key:
+        description: "actions/cache key for cache_paths."
+        required: false
+        type: string
+        default: ""
+      cache_restore_keys:
+        description: "Newline-separated actions/cache restore-keys prefixes for cache_paths."
+        required: false
+        type: string
+        default: ""
       concurrency_group:
         required: false
         type: string
@@ -195,6 +210,14 @@ jobs:
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
           workspaces: ${{ inputs.working_directory }}
+
+      - name: Cache caller paths
+        if: ${{ inputs.cache_paths != '' && inputs.cache_key != '' }}
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ inputs.cache_paths }}
+          key: ${{ inputs.cache_key }}
+          restore-keys: ${{ inputs.cache_restore_keys }}
 
       - name: Install system packages
         if: ${{ inputs.install_xvfb || inputs.apt_packages != '' }}
