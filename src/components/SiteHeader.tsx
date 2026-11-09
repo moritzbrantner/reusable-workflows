@@ -4,7 +4,7 @@ export function SiteHeader() {
   return (
     <header className="site-header">
       <div className="site-header__inner">
-        <a className="brand" href={homeHref()} aria-label="Reusable Workflows home">
+        <a className="brand" href={homeHref()}>
           <span className="brand__mark" aria-hidden="true">
             RW
           </span>
