@@ -224,7 +224,7 @@ Reusable workflows own GitHub-specific mechanics: exact checkout, bounded comman
 
 Dependency automation is separate from workflow architecture. Dependabot or Renovate may propose updates while repository-owned validation decides whether they are acceptable.
 
-Toolchains track the latest stable release (owner decision 2026-10-23). Every `bun_version` input defaults to `latest` (omit it rather than passing an exact version), and `rust_toolchain` should be `stable`. A repository's `packageManager` or `rust-toolchain.toml` declaration is a minimum, not a CI pin, and coding-tooling conformance does not fail on a declared-versus-installed difference.
+Toolchains track the latest stable release (owner decision 2026-10-23). Every `bun_version` input defaults to `latest` (omit it rather than passing an exact version), and `rust_toolchain` should be `stable`. Repositories declare no Bun version at all (BUN-001, owner decision 2026-11-23): no `packageManager` in `package.json`, and every `setup-bun` step here names `bun-version` explicitly, so a caller's leftover `packageManager` is never read as a pin. An explicit `bun_version` from a caller still wins. A `rust-toolchain.toml` declaration is a minimum, not a CI pin, and coding-tooling conformance does not fail on a declared-versus-installed difference.
 
 ## Repository validation
 
